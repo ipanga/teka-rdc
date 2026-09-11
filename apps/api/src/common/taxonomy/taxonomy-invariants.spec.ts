@@ -2,6 +2,9 @@ import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
   P3_FOREIGN_SPECIFICATION_ALLOWLIST,
+  findDuplicateBrandIdentities,
+  findLeavesMissingCatchAll,
+  normalizeBrandName,
   findCategoryIdentityConflicts,
   findForeignActiveSpecifications,
   findIntermediateAttributeViolations,
@@ -10,10 +13,11 @@ import {
   buildLiveChildIndex,
   type CategoryNode,
 } from './taxonomy-invariants';
-import { STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
+import { STRICT_BRANDS, STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
 import {
   attributeIdFor,
   brandLinksFor,
+  renderBrandSql,
 } from '../../../prisma/scripts/taxonomy-attribute-sql';
 
 /**
@@ -312,3 +316,151 @@ describe('the legacy-characteristic retirement migration', () => {
 function sorted(a: string[]): string[] {
   return [...new Set(a)].sort();
 }
+
+/**
+ * Brand identity + catch-all (2026-09-11, P2 PR C).
+ *
+ * 80 of 150 live leaves offered only « Autre ». Filling that gap means adding
+ * brand rows, which is exactly when duplicate spellings creep in — « Nestle »
+ * beside « Nestlé » splits a dropdown without ever looking wrong in a list, and
+ * the database's unique constraints are exact-match only.
+ */
+const brand = (name: string, slug: string, over: Partial<{ isActive: boolean; deletedAt: Date | null }> = {}) => ({
+  id: `b-${slug}`, name, slug, isActive: true, deletedAt: null, ...over,
+});
+
+describe('INVARIANT 5 — one brand, one identity', () => {
+  it('passes on distinct brands', () => {
+    expect(findDuplicateBrandIdentities([brand('Tembo', 'tembo'), brand('Simba', 'simba')])).toEqual([]);
+  });
+
+  it('FAILS on an accent variant', () => {
+    const dup = findDuplicateBrandIdentities([brand('Nestlé', 'nestle-1'), brand('Nestle', 'nestle-2')]);
+    expect(dup).toHaveLength(1);
+    expect(dup[0]).toMatchObject({ kind: 'name' });
+  });
+
+  it('FAILS on a case or whitespace variant', () => {
+    expect(findDuplicateBrandIdentities([brand('World Cola', 'wc1'), brand('world  cola', 'wc2')])).toHaveLength(1);
+  });
+
+  it('FAILS on a slug collision even when the names differ', () => {
+    const dup = findDuplicateBrandIdentities([brand('Coca-Cola', 'coca-cola'), brand('Coca Cola', 'coca-cola')]);
+    expect(dup.some((d) => d.kind === 'slug')).toBe(true);
+  });
+
+  it('ignores retired rows — the __old__ placeholders are parked, not duplicates', () => {
+    expect(
+      findDuplicateBrandIdentities([
+        brand('Tembo', 'tembo'),
+        brand('Tembo', 'tembo-old', { isActive: false, deletedAt: new Date() }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('the canonical source declares no duplicate brand identity', () => {
+    const rows = STRICT_BRANDS.map((b) => brand(b.fr, String(b.n)));
+    expect(findDuplicateBrandIdentities(rows)).toEqual([]);
+  });
+
+  it('normalisation is accent-, case- and whitespace-insensitive', () => {
+    expect(normalizeBrandName('  MÜTZIG ')).toBe('mutzig');
+    expect(normalizeBrandName("D'jino")).toBe("d'jino");
+  });
+});
+
+describe('INVARIANT 6 — every live leaf keeps « Autre »', () => {
+  const AUTRE = brand('Autre', 'autre');
+
+  it('passes when the catch-all reaches every leaf', () => {
+    expect(
+      findLeavesMissingCatchAll(TREE, [AUTRE], [{ brandId: AUTRE.id, categoryId: 'c-leaf' }]),
+    ).toEqual([]);
+  });
+
+  it('FAILS when a leaf has no catch-all', () => {
+    const missing = findLeavesMissingCatchAll(TREE, [AUTRE], []);
+    expect(missing).toHaveLength(1);
+    expect(missing[0].categoryId).toBe('c-leaf');
+  });
+
+  it('intermediate nodes are not expected to carry it', () => {
+    const missing = findLeavesMissingCatchAll(TREE, [AUTRE], [{ brandId: AUTRE.id, categoryId: 'c-leaf' }]);
+    expect(missing.map((m) => m.categoryId)).not.toContain('c-sub');
+  });
+});
+
+describe('the DRC beverage brand migration', () => {
+  const FILE = '2026-09-11_drc_beverage_brands.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+  const NEW_IDS = Array.from({ length: 15 }, (_, i) => 56 + i);
+  /** Pinned to the brands this migration was about — see renderBrandSql. */
+  const LINK_IDS = [1, 52, 53, 55, ...NEW_IDS];
+
+  it('matches a fresh render of taxonomy-data.ts', () => {
+    const block = raw.match(/-- GENERATED BLOCK BEGIN[^\n]*\n([\s\S]*?)\n-- GENERATED BLOCK END/)![1].trim();
+    expect(block).toBe(renderBrandSql([10201, 10203, 10701], NEW_IDS, LINK_IDS).trim());
+  });
+
+  it('is purely additive — DO NOTHING, never DO UPDATE, and no destructive verb', () => {
+    // An existing brand must keep its live name, logo and sortOrder.
+    expect(executable).not.toMatch(/DO UPDATE/);
+    expect(executable.match(/DO NOTHING/g)).toHaveLength(2);
+    expect(executable).not.toMatch(/\b(DELETE|UPDATE|DROP|TRUNCATE|ALTER)\b/i);
+  });
+
+  it('touches only brands and brand_categories — never a product or an order', () => {
+    expect(sorted(executable.match(/INSERT INTO "(\w+)"/g) ?? [])).toEqual([
+      'INSERT INTO "brand_categories"',
+      'INSERT INTO "brands"',
+    ]);
+    for (const t of ['products', 'orders', 'order_items', 'product_specifications', 'categories', 'product_attributes']) {
+      expect(executable).not.toContain(`INSERT INTO "${t}"`);
+    }
+    // and it never assigns a brand to an existing product
+    expect(executable).not.toMatch(/"brandId"\s*=/);
+  });
+
+  it('creates exactly 15 brands, all on free ids, never reusing the retired slots', () => {
+    const rows = executable.match(/INSERT INTO "brands"[\s\S]*?;/)![0];
+    const ids = [...rows.matchAll(/'15000000-0000-0000-0000-(\d{12})'/g)].map((m) => Number(m[1]));
+    expect(ids).toHaveLength(15);
+    expect(ids).toEqual(NEW_IDS);
+    expect(ids).not.toContain(50); // the retired Castrol slot
+    expect(ids).not.toContain(51);
+  });
+
+  it('only the three evidenced leaves are linked', () => {
+    const links = executable.match(/INSERT INTO "brand_categories"[\s\S]*?;/)![0];
+    const leaves = new Set(
+      [...links.matchAll(/'16000000-0000-0000-0000-(\d{12})'/g)].map((m) => Number(m[1])),
+    );
+    expect([...leaves].sort()).toEqual([10201, 10203, 10701]);
+  });
+
+  it('« Autre » is re-linked on all three, so the catch-all can never be dropped', () => {
+    const links = executable.match(/INSERT INTO "brand_categories"[\s\S]*?;/)![0];
+    for (const leaf of ['010201', '010203', '010701']) {
+      expect(links).toContain(`('15000000-0000-0000-0000-000000000001', '16000000-0000-0000-0000-000000${leaf}')`);
+    }
+  });
+
+  it('the source maps each new brand to a beverage leaf it has evidence for', () => {
+    const byName = new Map(STRICT_BRANDS.map((b) => [b.fr, b.types]));
+    expect(byName.get('Tembo')).toEqual([10701]);
+    expect(byName.get('Cristal')).toEqual([10201]);
+    expect(byName.get("D'jino")).toEqual([10203]);
+    // and none of them leaks into an unrelated leaf
+    for (const n of NEW_IDS) {
+      const b = STRICT_BRANDS.find((x) => x.n === n)!;
+      expect(b.types.every((t) => [10201, 10203, 10701].includes(t))).toBe(true);
+    }
+  });
+
+  it('is NOT auto-applied — a catalogue change is reviewed, not replayed on deploy', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+});

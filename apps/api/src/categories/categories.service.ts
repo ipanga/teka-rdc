@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
-import { AttributeType } from '@prisma/client';
+import { AttributeType, ProductStatus } from '@prisma/client';
 
 @Injectable()
 export class CategoriesService {
@@ -225,9 +225,53 @@ export class CategoriesService {
       }
     }
 
-    await this.prisma.category.updateMany({
-      where: { id: { in: idsToDelete } },
-      data: { deletedAt: now },
+    // Deleting a category that still holds products silently stranded them: the
+    // rows keep their categoryId, `publicProductWhere` filters on the PRODUCT's
+    // status only, so an ACTIVE product stayed browsable while its category page
+    // 404'd — and the seller could not repair it, because a deleted category is
+    // absent from every category picker.
+    //
+    // The check covers the WHOLE subtree because the delete does: this method
+    // cascades to levels 2 and 3, so a child holding products must block the
+    // parent's deletion just as firmly as the parent's own products.
+    //
+    // ARCHIVED and soft-deleted products do NOT block. Those are deliberately
+    // retired and are not reachable by buyers or editable by sellers, so they
+    // cannot be stranded in a way anyone has to repair. Everything else —
+    // ACTIVE, DRAFT, PENDING_REVIEW, REJECTED, SUSPENDED — is a product someone
+    // is still working with.
+    //
+    // Counted INSIDE the transaction, immediately before the write, so a product
+    // created between an operator opening the page and confirming cannot slip
+    // through. A residual window remains against a concurrent insert; closing it
+    // fully would need row locks on products, which is disproportionate for an
+    // admin action that a retry makes obvious.
+    await this.prisma.$transaction(async (tx) => {
+      const blocking = await tx.product.groupBy({
+        by: ['categoryId'],
+        where: {
+          categoryId: { in: idsToDelete },
+          deletedAt: null,
+          status: { notIn: [ProductStatus.ARCHIVED] },
+        },
+        _count: { _all: true },
+      });
+
+      if (blocking.length > 0) {
+        const total = blocking.reduce((sum, row) => sum + row._count._all, 0);
+        const here = blocking.some((row) => row.categoryId === id);
+        throw new BadRequestException(
+          here && blocking.length === 1
+            ? `Cette catégorie contient ${total} produit(s) actif(s). Déplacez ou archivez ces produits avant de la supprimer.`
+            : `Cette catégorie ou ses sous-catégories contiennent ${total} produit(s) actif(s). ` +
+              'Déplacez ou archivez ces produits avant de la supprimer.',
+        );
+      }
+
+      await tx.category.updateMany({
+        where: { id: { in: idsToDelete } },
+        data: { deletedAt: now },
+      });
     });
 
     return { message: 'Catégorie supprimée avec succès' };
