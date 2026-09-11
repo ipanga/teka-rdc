@@ -354,6 +354,29 @@ export class CategoriesService {
       throw new NotFoundException('Attribut non trouvé');
     }
 
+    // A characteristic that products have filled in cannot be deleted: the
+    // `product_specifications.attributeId` foreign key refuses it, and until
+    // now that refusal arrived as a raw PrismaClientKnownRequestError. Not an
+    // HttpException, so the admin received a bare 500 « Erreur interne du
+    // serveur » with no idea what went wrong or what to do — the raw text is
+    // caught by HttpExceptionFilter and stays server-side, so nothing leaked,
+    // but nothing useful was said either.
+    //
+    // Detect the dependency first and answer in the admin's own language. The
+    // foreign key REMAINS the final integrity boundary: this check is a better
+    // message, not a replacement for it — a specification created between this
+    // count and the delete would still be refused by the database.
+    const referencing = await this.prisma.productSpecification.count({
+      where: { attributeId: attrId },
+    });
+
+    if (referencing > 0) {
+      throw new BadRequestException(
+        `Cette caractéristique est utilisée par ${referencing} produit(s) et ne peut pas être supprimée. ` +
+          'Retirez-la de ces produits avant de la supprimer.',
+      );
+    }
+
     await this.prisma.productAttribute.delete({
       where: { id: attrId },
     });
