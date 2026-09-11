@@ -16,6 +16,7 @@ import {
 import { STRICT_BRANDS, STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
 import {
   attributeIdFor,
+  attributeRowsFor,
   brandLinksFor,
   renderBrandSql,
 } from '../../../prisma/scripts/taxonomy-attribute-sql';
@@ -542,5 +543,175 @@ describe('the duplicate-specification removal migration', () => {
 
   it('the P3 allowlist now holds 6 — the three shirt duplicates are gone from production', () => {
     expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(6);
+  });
+});
+
+/**
+ * P3-4a — canonicalising the Galaxy A14 storage characteristic.
+ *
+ * « Mémoire interne » is a differently-named duplicate of the canonical
+ * « Stockage » that taxonomy-data.ts declares for every smartphone leaf, left
+ * stranded on the INTERMEDIATE « Smartphones » node by the 2026-06-24 id reuse.
+ * A production read on 2026-09-11 proved the consequence: the buyer PDP shows
+ * « Mémoire interne : 16Go » while the seller form offers an EMPTY « Stockage »
+ * and never the row the buyer can see.
+ *
+ * These tests guard the SHAPE of the migration. The taxonomy invariants above
+ * guard the outcome.
+ */
+describe('the Galaxy A14 storage canonicalisation migration', () => {
+  const FILE = '2026-09-11_canonicalise_galaxy_a14_storage.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+
+  const SPEC = '600d7c1c-c1cd-4c8d-ba15-e6502620fc4e';
+  const OLD_ATTR = '14000000-0000-0000-0000-000000020102'; // « Mémoire interne »
+  const HOLDING = '13000000-0000-0000-0000-000000000999';
+  const ANDROID_LEAF_KEY = 20101;
+
+  it('targets the canonical « Stockage » id the SOURCE declares, not a hand-picked one', () => {
+    // Derived from taxonomy-data.ts through the same generator the shipped
+    // migrations use, so a change to the declaration breaks this test rather
+    // than silently leaving the migration pointing at the wrong row.
+    const android = attributeRowsFor([ANDROID_LEAF_KEY]);
+    const stockage = android.find((a) => a.name === 'Stockage');
+    expect(stockage).toBeDefined();
+    expect(executable).toContain(stockage!.id);
+  });
+
+  it('the destination accepts the exact value being preserved', () => {
+    const stockage = attributeRowsFor([ANDROID_LEAF_KEY]).find((a) => a.name === 'Stockage');
+    expect(stockage!.options).toContain('16Go');
+  });
+
+  it('DELETES NOTHING — no seller value and no historical row may be destroyed', () => {
+    expect(executable).not.toMatch(/\bDELETE\s+FROM\b/i);
+    expect(executable).not.toMatch(/\bTRUNCATE\b/i);
+    expect(executable).not.toMatch(/\bDROP\b/i);
+  });
+
+  it('touches only product_specifications and product_attributes', () => {
+    const writes = new Set(
+      (executable.match(/(?:INSERT INTO|UPDATE)\s+"(\w+)"/g) ?? []).map((m) => m.replace(/.*"(\w+)"/, '$1')),
+    );
+    expect([...writes].sort()).toEqual(['product_attributes', 'product_specifications']);
+    for (const t of ['products', 'categories', 'brands', 'brand_categories', 'orders', 'order_items', 'users']) {
+      expect(executable).not.toMatch(new RegExp(`(?:INSERT INTO|UPDATE|DELETE FROM)\\s+"${t}"`));
+    }
+  });
+
+  it('repoints exactly ONE specification, keyed on id AND productId AND attributeId AND value', () => {
+    const updates = executable.match(/UPDATE "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    const u = updates[0]!;
+    const where = u.slice(u.indexOf('WHERE'));
+    expect(where).toMatch(/"id" = v_spec/);
+    expect(where).toMatch(/"productId" = v_product/);
+    expect(where).toMatch(/"attributeId" = v_old_attr/);
+    expect(where).toMatch(/"value" = v_value/);
+
+    // The row keeps its identity: the SET clause may change the owner and the
+    // timestamp, and nothing else — the seller's value is never rewritten.
+    const set = u.slice(u.indexOf('SET'), u.indexOf('WHERE'));
+    expect(set.match(/"(\w+)"\s*=/g)?.sort()).toEqual(['"attributeId" =', '"updatedAt" =']);
+  });
+
+  it('retires exactly ONE attribute, keyed on id AND its current category', () => {
+    const updates = executable.match(/UPDATE "product_attributes"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatch(/"id" = v_old_attr/);
+    expect(updates[0]).toMatch(/"categoryId" = v_old_home/);
+    expect(updates[0]).toMatch(/SET\s+"categoryId" = v_holding/);
+  });
+
+  it('re-homes onto the EXISTING holding category and does not invent another', () => {
+    expect(executable).toContain(HOLDING);
+    expect(executable).not.toMatch(/INSERT INTO "categories"/);
+  });
+
+  it('never matches on an attribute NAME — the target cannot silently broaden', () => {
+    // No predicate anywhere compares a name column.
+    expect(executable).not.toMatch(/"name"\s*(?:=|LIKE|ILIKE|~)/i);
+
+    // The label does appear — but only inside operator-facing RAISE messages.
+    // TRAILING `--` comments are stripped as well: a label sitting in a comment
+    // beside a declaration is documentation, not a predicate, and counting it
+    // would be the same comment-trap this suite has been bitten by before.
+    const codeOnly = executable
+      .split('\n')
+      .map((l) => l.replace(/\s--\s.*$/, ''))
+      .join('\n');
+    for (const line of codeOnly.split('\n')) {
+      if (!line.includes('Mémoire interne')) continue;
+      expect(line).toMatch(/RAISE (?:EXCEPTION|NOTICE)/);
+    }
+  });
+
+  it('the pre-state check is itself keyed on all four columns', () => {
+    // A precondition that only checked the id would happily approve a row whose
+    // value or owner had changed, and the refusal would never fire.
+    const check = executable.slice(
+      executable.indexOf('INTO v_points_old'),
+      executable.indexOf('INTO v_points_new'),
+    );
+    expect(check).toMatch(/"id" = v_spec/);
+    expect(check).toMatch(/"productId" = v_product/);
+    expect(check).toMatch(/"attributeId" = v_old_attr/);
+    expect(check).toMatch(/"value" = v_value/);
+  });
+
+  it('is refusal-first: every drift condition raises instead of writing', () => {
+    // drifted value / wrong home / collision / missing destination
+    const raises = executable.match(/RAISE EXCEPTION 'P3-4a REFUSED/g) ?? [];
+    expect(raises.length).toBeGreaterThanOrEqual(4);
+    expect(executable).toMatch(/v_collision <> 0/);
+    expect(executable).toMatch(/v_points_old <> 1/);
+    expect(executable).toMatch(/v_attr_home <> v_old_home/);
+  });
+
+  it('is idempotent: an already-applied state is a NOTICE, never an error', () => {
+    expect(executable).toMatch(/v_points_new = 1 AND v_attr_home = v_holding/);
+    expect(executable).toMatch(/RAISE NOTICE 'P3-4a already applied/);
+    expect(executable).toMatch(/RETURN;/);
+  });
+
+  it('verifies its own end state and aborts the whole block if it is wrong', () => {
+    const aborts = executable.match(/RAISE EXCEPTION 'P3-4a ABORTED/g) ?? [];
+    expect(aborts.length).toBeGreaterThanOrEqual(4);
+    // the four historical rows must survive
+    expect(executable).toMatch(/WHERE "attributeId" = v_old_attr\) <> 4/);
+  });
+
+  it('runs as ONE atomic block, so a refusal part-way writes nothing', () => {
+    expect(executable.match(/DO \$\$/g)).toHaveLength(1);
+    expect(executable).toMatch(/END \$\$;/);
+  });
+
+  it('leaves the other two Group B characteristics for their own sub-phases', () => {
+    for (const attr of [
+      '14000000-0000-0000-0000-000000010202', // oil « Type »   → P3-4d
+      '14000000-0000-0000-0000-000000030501', // iron « Type »  → P3-4c
+      '14000000-0000-0000-0000-000000040101', // Cuisine Taille → P3-4b
+      '14000000-0000-0000-0000-000000040102', // Cuisine Couleur
+      '14000000-0000-0000-0000-000000040103', // Cuisine Matière
+    ]) {
+      expect(executable).not.toContain(attr);
+    }
+  });
+
+  it('carries a rollback restoring BOTH rows exactly', () => {
+    const rollback = raw.slice(raw.indexOf('-- ── ROLLBACK'));
+    expect(rollback).toContain(SPEC);
+    expect(rollback).toContain(OLD_ATTR);
+    expect(rollback).toMatch(/-- UPDATE "product_specifications"/);
+    expect(rollback).toMatch(/-- UPDATE "product_attributes"/);
+    // restores the ORIGINAL owners
+    expect(rollback).toContain('13000000-0000-0000-0000-000000000201');
+  });
+
+  it('is NOT auto-applied — a data change is reviewed, not replayed on deploy', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
   });
 });
