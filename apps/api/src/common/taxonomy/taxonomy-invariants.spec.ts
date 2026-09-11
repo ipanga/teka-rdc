@@ -718,3 +718,151 @@ describe('the Galaxy A14 storage canonicalisation migration', () => {
     expect(list).not.toContain(FILE);
   });
 });
+
+/**
+ * P3-4b — retiring the three legacy « Cuisine » characteristics.
+ *
+ * « Taille », « Couleur » and « Matière » are clothing characteristics stranded
+ * on « Électroménager > Cuisine » by the 2026-06-24 id reuse. P3-2 removed their
+ * last live references, so they now satisfy exactly the condition P2 PR B used
+ * to retire 46 others: every remaining specification sits on a SOFT-DELETED
+ * product.
+ *
+ * The migration MOVES the attribute rows and writes no specification at all.
+ */
+describe('the Cuisine legacy-characteristic retirement migration', () => {
+  const FILE = '2026-09-11_retire_cuisine_legacy_attributes.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+
+  const CUISINE = '13000000-0000-0000-0000-000000000401';
+  const HOLDING = '13000000-0000-0000-0000-000000000999';
+  const TARGETS = [
+    '14000000-0000-0000-0000-000000040101', // Taille
+    '14000000-0000-0000-0000-000000040102', // Couleur
+    '14000000-0000-0000-0000-000000040103', // Matière
+  ];
+
+  it('names exactly the three target characteristics', () => {
+    for (const id of TARGETS) expect(executable).toContain(id);
+    const attrIds = new Set(executable.match(/14000000-[0-9a-f-]{24,}/g) ?? []);
+    expect([...attrIds].sort()).toEqual([...TARGETS].sort());
+  });
+
+  it('DELETES NOTHING — historical rows are preserved, never destroyed', () => {
+    expect(executable).not.toMatch(/\bDELETE\s+FROM\b/i);
+    expect(executable).not.toMatch(/\bTRUNCATE\b/i);
+    expect(executable).not.toMatch(/\bDROP\b/i);
+  });
+
+  it('writes ONLY product_attributes — not one specification row is touched', () => {
+    const writes = new Set(
+      (executable.match(/(?:INSERT INTO|UPDATE)\s+"(\w+)"/g) ?? []).map((m) => m.replace(/.*"(\w+)"/, '$1')),
+    );
+    expect([...writes]).toEqual(['product_attributes']);
+    for (const t of ['products', 'categories', 'brands', 'brand_categories', 'orders', 'order_items']) {
+      expect(executable).not.toMatch(new RegExp(`(?:INSERT INTO|UPDATE|DELETE FROM)\\s+"${t}"`));
+    }
+    expect(executable).not.toMatch(/(?:INSERT INTO|UPDATE|DELETE FROM)\s+"product_specifications"/);
+  });
+
+  it('creates no replacement characteristic and no new category', () => {
+    expect(executable).not.toMatch(/INSERT INTO "product_attributes"/);
+    expect(executable).not.toMatch(/INSERT INTO "categories"/);
+  });
+
+  it('the single UPDATE is keyed on the exact ids AND the expected current owner', () => {
+    const updates = executable.match(/UPDATE "product_attributes"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    const u = updates[0]!;
+    expect(u).toMatch(/"id" = ANY\(v_ids\)/);
+    expect(u).toMatch(/"categoryId" = v_cuisine/);
+    expect(u).toMatch(/SET\s+"categoryId" = v_holding/);
+    // only the owner and the timestamp may change
+    const set = u.slice(u.indexOf('SET'), u.indexOf('WHERE'));
+    expect(set.match(/"(\w+)"\s*=/g)?.sort()).toEqual(['"categoryId" =', '"updatedAt" =']);
+  });
+
+  it('NEVER matches on a characteristic NAME — the holding category already has several « Taille » and « Matière »', () => {
+    // A name-keyed migration here would hit the wrong rows outright. Every
+    // comparison form is refused, not just `=`: a mutation using `IN (...)`
+    // slipped past an earlier, narrower version of this assertion.
+    expect(executable).not.toMatch(/"name"\s*(?:=|<>|!=|~|IN\b|LIKE|ILIKE|ANY|SIMILAR)/i);
+    // …and the name must never appear as a literal in executable SQL at all.
+    for (const label of ['Taille', 'Couleur', 'Matière']) {
+      expect(executable).not.toContain(`'${label}'`);
+    }
+  });
+
+  it('the pre-state check is itself keyed on the ids AND the expected owner', () => {
+    // A precondition that counted by id alone would approve rows that had
+    // already been moved, and the drift refusal would never fire.
+    const check = executable.slice(
+      executable.indexOf('INTO v_on_cuisine'),
+      executable.indexOf('INTO v_on_holding'),
+    );
+    expect(check).toMatch(/"id" = ANY\(v_ids\)/);
+    expect(check).toMatch(/"categoryId" = v_cuisine/);
+  });
+
+  it('refuses unless a LIVE product reference count of ZERO is proven inside the block', () => {
+    // The hard safety condition: hiding a characteristic a live product uses
+    // would strand seller data.
+    expect(executable).toMatch(/v_live_refs/);
+    expect(executable).toMatch(/pr\."deletedAt" IS NULL/);
+    expect(executable).toMatch(/IF v_live_refs <> 0 THEN/);
+    expect(executable).toMatch(/RAISE EXCEPTION 'P3-4b REFUSED: % specification\(s\) on LIVE products/);
+  });
+
+  it('refuses a drifted owner and a missing holding category', () => {
+    expect(executable).toMatch(/IF v_on_cuisine <> 3 THEN/);
+    expect(executable).toMatch(/RAISE EXCEPTION 'P3-4b REFUSED[\s\S]*?holding category/);
+    const raises = executable.match(/RAISE EXCEPTION 'P3-4b REFUSED/g) ?? [];
+    expect(raises.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('is idempotent: an already-applied state is a NOTICE, never an error', () => {
+    expect(executable).toMatch(/IF v_on_holding = 3 AND v_on_cuisine = 0 THEN/);
+    expect(executable).toMatch(/RAISE NOTICE 'P3-4b already applied/);
+    expect(executable).toMatch(/RETURN;/);
+  });
+
+  it('verifies its own end state, including that the history did not change', () => {
+    const aborts = executable.match(/RAISE EXCEPTION 'P3-4b ABORTED/g) ?? [];
+    expect(aborts.length).toBeGreaterThanOrEqual(4);
+    expect(executable).toMatch(/v_moved <> 3/);
+    expect(executable).toMatch(/<> v_hist_before/);
+  });
+
+  it('runs as ONE atomic block, so a refusal part-way writes nothing', () => {
+    expect(executable.match(/DO \$\$/g)).toHaveLength(1);
+    expect(executable).toMatch(/END \$\$;/);
+  });
+
+  it('re-homes onto the EXISTING holding category from P2 PR B', () => {
+    expect(executable).toContain(HOLDING);
+    expect(executable).toContain(CUISINE);
+  });
+
+  it('leaves the remaining Group B characteristics for P3-4c and P3-4d', () => {
+    for (const attr of [
+      '14000000-0000-0000-0000-000000010202', // oil « Type »  → P3-4d
+      '14000000-0000-0000-0000-000000030501', // iron « Type » → P3-4c
+    ]) {
+      expect(executable).not.toContain(attr);
+    }
+  });
+
+  it('carries a rollback restoring all three original owners', () => {
+    const rollback = raw.slice(raw.indexOf('-- ── ROLLBACK'));
+    for (const id of TARGETS) expect(rollback).toContain(id);
+    expect(rollback.match(/^-- UPDATE "product_attributes"/gm)).toHaveLength(3);
+    expect(rollback).toContain(CUISINE);
+  });
+
+  it('is NOT auto-applied — a data change is reviewed, not replayed on deploy', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+});
