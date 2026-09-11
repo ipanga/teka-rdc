@@ -9,12 +9,62 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
 import { AttributeType, ProductStatus } from '@prisma/client';
+import {
+  buildCategoryStructure,
+  childCountOf,
+  refuseCyclicReparent,
+  refuseDepthOverflow,
+  refuseGainingFirstChild,
+  refuseLosingLastChild,
+  type CategoryStructure,
+  type TransitionRefusal,
+} from '../common/taxonomy/category-structure';
 
 @Injectable()
 export class CategoriesService {
   private readonly logger = new Logger(CategoriesService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Snapshot of the tree as the RUNTIME sees it.
+   *
+   * `deletedAt: null` only — deliberately NOT filtered by `isActive`, because
+   * `BrowseService.getCategoryAttributes` counts children the same way. A guard
+   * that used a different definition of "child" would protect a tree nobody
+   * reads. One query; production holds 195 live rows.
+   */
+  private async loadStructure(): Promise<CategoryStructure> {
+    const nodes = await this.prisma.category.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, parentCategoryId: true },
+    });
+    return buildCategoryStructure(nodes);
+  }
+
+  /** Characteristics stored on a node — hidden or served, they all count. */
+  private countAttributes(categoryId: string): Promise<number> {
+    return this.prisma.productAttribute.count({ where: { categoryId } });
+  }
+
+  /**
+   * Products that would be stranded on a node. Same population as the delete
+   * guard: ARCHIVED and soft-deleted products are already retired, so they
+   * never block.
+   */
+  private countBlockingProducts(categoryId: string): Promise<number> {
+    return this.prisma.product.count({
+      where: {
+        categoryId,
+        deletedAt: null,
+        status: { notIn: [ProductStatus.ARCHIVED] },
+      },
+    });
+  }
+
+  private static refuse(refusal: TransitionRefusal | null): void {
+    if (refusal) throw new BadRequestException(refusal.message);
+  }
 
   /**
    * Returns the full category tree (3 levels: category → subcategory → product
@@ -104,6 +154,19 @@ export class CategoriesService {
           );
         }
       }
+
+      // The parent is about to become an intermediate node if it is a leaf
+      // today. Its own characteristics would stop being served and any product
+      // sitting on it would be stranded — see category-structure.ts, GUARD A.
+      const structure = await this.loadStructure();
+      CategoriesService.refuse(
+        refuseGainingFirstChild(
+          { id: parent.id, name: parent.name, parentCategoryId: parent.parentCategoryId },
+          childCountOf(structure, parent.id),
+          await this.countAttributes(parent.id),
+          await this.countBlockingProducts(parent.id),
+        ),
+      );
     }
 
     const category = await this.prisma.category.create({
@@ -138,31 +201,64 @@ export class CategoriesService {
       throw new NotFoundException('Catégorie non trouvée');
     }
 
-    // If changing parent, validate depth
+    // Re-parenting is the only field on this DTO that changes structure. Name,
+    // description, emoji, sortOrder and isActive are left completely unguarded:
+    // none of them moves a node, so none can change which characteristics the
+    // API serves. The whole check is skipped when the parent is unchanged.
     if (
       dto.parentCategoryId !== undefined &&
       dto.parentCategoryId !== category.parentCategoryId
     ) {
-      if (dto.parentCategoryId) {
-        const parent = await this.prisma.category.findUnique({
-          where: { id: dto.parentCategoryId, deletedAt: null },
-        });
+      const newParent = dto.parentCategoryId
+        ? await this.prisma.category.findUnique({
+            where: { id: dto.parentCategoryId, deletedAt: null },
+          })
+        : null;
 
-        if (!parent) {
-          throw new NotFoundException('Catégorie parente non trouvée');
+      if (dto.parentCategoryId && !newParent) {
+        throw new NotFoundException('Catégorie parente non trouvée');
+      }
+
+      const structure = await this.loadStructure();
+
+      // Order matters: a cyclic move makes depth meaningless, so rule it out
+      // first. Every check below runs BEFORE any write — a refused re-parent
+      // mutates nothing.
+      if (newParent) {
+        CategoriesService.refuse(
+          refuseCyclicReparent(structure, id, newParent.id),
+        );
+      }
+
+      CategoriesService.refuse(
+        refuseDepthOverflow(structure, id, newParent?.id ?? null),
+      );
+
+      // The node LEAVES its current parent: that parent may lose its last child
+      // and start serving hidden historical characteristics — GUARD B.
+      if (category.parentCategoryId) {
+        const oldParent = structure.byId.get(category.parentCategoryId);
+        if (oldParent) {
+          CategoriesService.refuse(
+            refuseLosingLastChild(
+              oldParent,
+              childCountOf(structure, oldParent.id) - 1,
+              await this.countAttributes(oldParent.id),
+            ),
+          );
         }
+      }
 
-        if (parent.parentCategoryId) {
-          const grandParent = await this.prisma.category.findUnique({
-            where: { id: parent.parentCategoryId, deletedAt: null },
-          });
-
-          if (grandParent?.parentCategoryId) {
-            throw new BadRequestException(
-              'La profondeur maximale de catégories est de 3 niveaux',
-            );
-          }
-        }
+      // The node ARRIVES under a new parent, which may be a leaf today — GUARD A.
+      if (newParent) {
+        CategoriesService.refuse(
+          refuseGainingFirstChild(
+            { id: newParent.id, name: newParent.name, parentCategoryId: newParent.parentCategoryId },
+            childCountOf(structure, newParent.id),
+            await this.countAttributes(newParent.id),
+            await this.countBlockingProducts(newParent.id),
+          ),
+        );
       }
     }
 
@@ -211,6 +307,25 @@ export class CategoriesService {
 
     if (!category) {
       throw new NotFoundException('Catégorie non trouvée');
+    }
+
+    // Deleting this node removes it from its parent's children. If it is the
+    // LAST one, the parent silently becomes a product type and any historical
+    // characteristic still stored on it goes live in seller forms — the exact
+    // defect class P2/P3-1 spent two releases removing. Checked BEFORE the
+    // transaction, so a refusal writes nothing at all. See GUARD B.
+    if (category.parentCategoryId) {
+      const structure = await this.loadStructure();
+      const parent = structure.byId.get(category.parentCategoryId);
+      if (parent) {
+        CategoriesService.refuse(
+          refuseLosingLastChild(
+            parent,
+            childCountOf(structure, parent.id) - 1,
+            await this.countAttributes(parent.id),
+          ),
+        );
+      }
     }
 
     const now = new Date();
