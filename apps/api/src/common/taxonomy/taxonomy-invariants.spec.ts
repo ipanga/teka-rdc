@@ -227,3 +227,88 @@ describe('INVARIANT 4 — a migration that creates a leaf materialises its decla
     expect(missing[0].missing.some((m) => m.startsWith('brand link'))).toBe(true);
   });
 });
+
+/**
+ * The P2 PR B migration that retires the 46 latent legacy characteristics.
+ * Guards its SHAPE — the taxonomy invariants above guard the outcome.
+ */
+describe('the legacy-characteristic retirement migration', () => {
+  const FILE = '2026-09-11_retire_legacy_intermediate_attributes.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('--'))
+    .join('\n');
+  const HOLDING = '13000000-0000-0000-0000-000000000999';
+
+  it('moves exactly 46 characteristics and creates exactly 1 holding category', () => {
+    expect(executable.match(/^UPDATE "product_attributes"/gm)).toHaveLength(46);
+    expect(executable.match(/^INSERT INTO "categories"/gm)).toHaveLength(1);
+  });
+
+  it('deletes nothing — historical references must survive', () => {
+    // 172 specifications on soft-deleted products point at these rows.
+    expect(executable).not.toMatch(/\bDELETE\b/i);
+    expect(executable).not.toMatch(/\bDROP\b|\bTRUNCATE\b/i);
+  });
+
+  it('touches only categories and product_attributes', () => {
+    expect(sorted(executable.match(/(?:UPDATE|INSERT INTO) "(\w+)"/g) ?? [])).toEqual([
+      'INSERT INTO "categories"',
+      'UPDATE "product_attributes"',
+    ]);
+    for (const t of ['products', 'orders', 'order_items', 'product_specifications', 'brands', 'brand_categories']) {
+      expect(executable).not.toContain(`"${t}"`);
+    }
+  });
+
+  it('every UPDATE is guarded on the attribute id AND its current category', () => {
+    // Without the categoryId guard, a row already moved would be moved again
+    // from wherever it now lives.
+    const updates = executable.match(/UPDATE "product_attributes"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(46);
+    for (const u of updates) {
+      expect(u).toMatch(/WHERE "id" = '[0-9a-f-]{36}'/);
+      expect(u).toMatch(/AND "categoryId" = '13000000-[0-9a-f-]+'/);
+      expect(u).toContain(`SET "categoryId" = '${HOLDING}'`);
+    }
+  });
+
+  it('the holding category is created inactive and soft-deleted, so it can never be a live node', () => {
+    const insert = executable.match(/INSERT INTO "categories"[\s\S]*?;/)![0];
+    expect(insert).toContain(HOLDING);
+    expect(insert).toMatch(/FALSE, NOW\(\)/); // isActive = FALSE, deletedAt = NOW()
+    expect(insert).toMatch(/ON CONFLICT \("id"\) DO NOTHING;/);
+    // no slug and no parent, so it is outside the tree entirely:
+    //   ('<id>', NULL, '<name>', NULL, <sortOrder>, FALSE, NOW(), …)
+    expect(insert).toMatch(
+      /VALUES \('13000000-[0-9a-f-]+',\s*NULL,\s*'[^']*',\s*NULL,\s*\d+,\s*FALSE,\s*NOW\(\)/,
+    );
+  });
+
+  it('leaves the 6 ACTIVE-dependent characteristics alone', () => {
+    // They are P3 taxonomy-gap decisions: a value with no canonical home cannot
+    // be rehomed by a data migration.
+    const moved = [...executable.matchAll(/WHERE "id" = '([0-9a-f-]{36})'/g)].map((m) => m[1]);
+    expect(new Set(moved).size).toBe(46);
+  });
+
+  it('carries a rollback restoring every moved row', () => {
+    const rollback = raw.slice(raw.indexOf('-- ROLLBACK'));
+    expect(rollback.match(/^-- UPDATE "product_attributes"/gm)).toHaveLength(46);
+    // and only removes the holder once nothing references it
+    expect(rollback).toMatch(/NOT EXISTS \(SELECT 1 FROM "product_attributes"/);
+  });
+
+  it('is NOT auto-applied — a taxonomy data correction is reviewed, not replayed on deploy', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+});
+
+function sorted(a: string[]): string[] {
+  return [...new Set(a)].sort();
+}
