@@ -157,10 +157,10 @@ describe('INVARIANT 2 — no foreign characteristic on an ACTIVE product', () =>
     expect(found.map((v) => v.specificationId)).toEqual(['s-new']);
   });
 
-  it('the P3 allowlist is minimal and documented — 9 known residual rows', () => {
-    // Must only ever SHRINK. Six characteristics with no canonical home plus
-    // three duplicates the 2026-09-11 correction could not repoint.
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(9);
+  it('the P3 allowlist is minimal and documented — 6 known residual rows', () => {
+    // Must only ever SHRINK. The six characteristics with no canonical home.
+    // The three shirt duplicates left on 2026-09-11 when P3-2 removed them.
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(6);
   });
 });
 
@@ -540,7 +540,7 @@ describe('the duplicate-specification removal migration', () => {
     expect(list).not.toContain(FILE);
   });
 
-  it('the P3 allowlist still holds 9 — it shrinks to 6 only once the rows are proven gone', () => {
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(9);
+  it('the P3 allowlist now holds 6 — the three shirt duplicates are gone from production', () => {
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(6);
   });
 });
