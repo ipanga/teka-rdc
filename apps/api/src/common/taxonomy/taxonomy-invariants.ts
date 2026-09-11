@@ -309,7 +309,8 @@ export function findLeavesMissingCatchAll(
  * 2026-09-11 correction could not repoint because identical canonical rows
  * already existed (the unique-constraint guard refused them).
  *
- * REMOVE ENTRIES AS P3 RESOLVES THEM. This list must only ever shrink.
+ * REMOVE ENTRIES AS P3 RESOLVES THEM. This list must only ever shrink — it went
+ * from 9 to 6 on 2026-09-11 when P3-2 removed the three shirt duplicates.
  */
 export const P3_FOREIGN_SPECIFICATION_ALLOWLIST: ReadonlySet<string> = new Set([
   '5bf39dfd-925b-461e-8a4c-07028a2a183d', // pocc99 « Type » = "Huile végétale" — no canonical home
@@ -318,7 +319,4 @@ export const P3_FOREIGN_SPECIFICATION_ALLOWLIST: ReadonlySet<string> = new Set([
   '600d7c1c-c1cd-4c8d-ba15-e6502620fc4e', // foyug0 « Mémoire interne » = "16Go" — no canonical home
   'f71a9667-5233-4eef-a1a3-b468b32ac70e', // d3k7ei « Type » = "Blender" — no canonical home
   '7476a834-8ca6-423d-94b6-f1e9e6bc3f4b', // vibk3l « Type » = "Fer à sec" — no canonical home
-  'b11a4e88-9eb7-4e99-9a82-b8492a85f361', // h0d799 « Taille » = "M" — duplicate of an identical canonical row
-  '407dffe3-2dc7-42d2-adf3-ab9275b1156d', // h0d799 « Matière » = "Coton" — duplicate of an identical canonical row
-  'ae6d1d9e-a100-4954-bed6-e5806a5e0e4a', // h0d799 « Couleur » = "Bleu" — duplicate of an identical canonical row
 ]);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ApiError } from '@/lib/api-client';
 import type { Category } from './category-tree';
 
 interface CategoryFormModalProps {
@@ -34,6 +35,11 @@ export function CategoryFormModal({
   const [sortOrder, setSortOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // The API refuses structurally unsafe changes (P3-3) with an actionable
+  // French 400 — e.g. re-parenting a node under a leaf that still serves
+  // characteristics. `onSave` rethrew and nothing caught it, so the admin saw
+  // the modal simply not close. Render the server's explanation instead.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (category) {
@@ -43,6 +49,7 @@ export function CategoryFormModal({
       setEmoji(category.emoji || '');
       setSortOrder(category.sortOrder || 0);
       setIsActive(category.isActive ?? true);
+      setSaveError(null);
     } else {
       setName('');
       setDescription('');
@@ -50,6 +57,7 @@ export function CategoryFormModal({
       setEmoji('');
       setSortOrder(0);
       setIsActive(true);
+      setSaveError(null);
     }
   }, [category, isOpen]);
 
@@ -58,6 +66,7 @@ export function CategoryFormModal({
     if (!name.trim()) return;
 
     setIsSaving(true);
+    setSaveError(null);
     try {
       const data: CategoryFormData = {
         name: name.trim(),
@@ -69,6 +78,13 @@ export function CategoryFormModal({
       };
       await onSave(data);
       onClose();
+    } catch (err) {
+      // Stay open with the admin's input intact so the change can be corrected.
+      setSaveError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : "Erreur lors de l'enregistrement de la catégorie",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -182,6 +198,15 @@ export function CategoryFormModal({
               Active
             </label>
           </div>
+
+          {saveError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              {saveError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <button

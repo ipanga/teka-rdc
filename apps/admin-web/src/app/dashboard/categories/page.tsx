@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 import { CategoryTree, type Category } from '@/components/categories/category-tree';
 import { CategoryFormModal, type CategoryFormData } from '@/components/categories/category-form-modal';
 import { AttributeManager, type CategoryAttribute } from '@/components/categories/attribute-manager';
@@ -60,6 +60,16 @@ export default function CategoriesPage() {
   }, [selectedCategory, fetchCategoryDetail]);
 
   // Show feedback and auto-dismiss after 3 seconds
+  /**
+   * The API refuses unsafe category operations with an actionable French 400
+   * that names the blocking characteristics or products and says what to change
+   * first (P3-3, and the earlier delete guards). Those messages used to be
+   * thrown away here in favour of « Erreur lors de la suppression », so the
+   * admin was told something failed but never why — show the server's own text.
+   */
+  const serverMessage = (err: unknown, fallback: string) =>
+    err instanceof ApiError && err.message ? err.message : fallback;
+
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 3000);
@@ -85,11 +95,13 @@ export default function CategoriesPage() {
         setAttributes([]);
       }
       fetchCategories();
-    } catch {
-      showFeedback('error', 'Erreur lors de la suppression');
+    } catch (err) {
+      showFeedback('error', serverMessage(err, 'Erreur lors de la suppression'));
     }
   };
 
+  // Rethrows so the modal can render the refusal beside the form and stay open
+  // with the admin's input intact; a refused save must not look like a no-op.
   const handleSave = async (data: CategoryFormData) => {
     if (editingCategory) {
       await apiFetch(`/v1/admin/categories/${editingCategory.id}`, {
@@ -118,8 +130,8 @@ export default function CategoriesPage() {
         body: JSON.stringify({ orderedIds }),
       });
       fetchCategories();
-    } catch {
-      showFeedback('error', 'Erreur lors du réordonnancement');
+    } catch (err) {
+      showFeedback('error', serverMessage(err, 'Erreur lors du réordonnancement'));
     }
   };
 
