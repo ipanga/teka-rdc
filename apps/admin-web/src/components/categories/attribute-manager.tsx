@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 export interface CategoryAttribute {
   id: string;
@@ -27,6 +27,10 @@ const ATTRIBUTE_TYPES = [
   'BOOLEAN',
 ] as const;
 
+/** Prefer the API's own French explanation over a generic fallback. */
+const message = (err: unknown, fallback: string) =>
+  err instanceof ApiError && err.message ? err.message : fallback;
+
 export function AttributeManager({
   categoryId,
   categoryName,
@@ -37,6 +41,11 @@ export function AttributeManager({
   const [editingAttr, setEditingAttr] = useState<CategoryAttribute | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
+  // Characteristic operations are refused with an actionable French 400 — a
+  // characteristic already filled in by products cannot be deleted, and one
+  // cannot be added to an intermediate category. Those messages were being
+  // swallowed by empty catch blocks, so the admin saw nothing happen at all.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -89,6 +98,7 @@ export function AttributeManager({
     if (!name.trim()) return;
 
     setIsSaving(true);
+    setActionError(null);
     try {
       const body: Record<string, unknown> = {
         name: name.trim(),
@@ -115,8 +125,8 @@ export function AttributeManager({
 
       resetForm();
       onRefresh();
-    } catch {
-      // Error handled by apiFetch
+    } catch (err) {
+      setActionError(message(err, "Erreur lors de l'enregistrement de la caractéristique"));
     } finally {
       setIsSaving(false);
     }
@@ -125,13 +135,14 @@ export function AttributeManager({
   const handleDelete = async (attrId: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cet attribut ?")) return;
 
+    setActionError(null);
     try {
       await apiFetch(`/v1/admin/categories/${categoryId}/attributes/${attrId}`, {
         method: 'DELETE',
       });
       onRefresh();
-    } catch {
-      // Error handled by apiFetch
+    } catch (err) {
+      setActionError(message(err, 'Erreur lors de la suppression de la caractéristique'));
     }
   };
 
@@ -142,14 +153,15 @@ export function AttributeManager({
     const ids = attributes.map((a) => a.id);
     [ids[index], ids[target]] = [ids[target], ids[index]];
     setIsReordering(true);
+    setActionError(null);
     try {
       await apiFetch(`/v1/admin/categories/${categoryId}/attributes/reorder`, {
         method: 'PATCH',
         body: JSON.stringify({ orderedIds: ids }),
       });
       onRefresh();
-    } catch {
-      // Error handled by apiFetch
+    } catch (err) {
+      setActionError(message(err, 'Erreur lors du réordonnancement des caractéristiques'));
     } finally {
       setIsReordering(false);
     }
@@ -157,6 +169,14 @@ export function AttributeManager({
 
   return (
     <div>
+      {actionError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          {actionError}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-base font-semibold text-foreground">Attributs</h3>
