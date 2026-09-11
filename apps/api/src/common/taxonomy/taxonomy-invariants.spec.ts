@@ -159,11 +159,12 @@ describe('INVARIANT 2 — no foreign characteristic on an ACTIVE product', () =>
     expect(found.map((v) => v.specificationId)).toEqual(['s-new']);
   });
 
-  it('the P3 allowlist is minimal and documented — 5 known residual rows', () => {
-    // Must only ever SHRINK. 9 → 6 on 2026-09-11 when P3-2 removed the three
-    // shirt duplicates; 6 → 5 when P3-4a repointed the Galaxy A14 storage row
-    // onto the canonical « Stockage » of its own leaf — no longer foreign.
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(5);
+  it('the P3 allowlist is minimal and documented — 4 known residual rows', () => {
+    // Must only ever SHRINK. 9 → 6 (P3-2 shirt duplicates), 6 → 5 (P3-4a Galaxy
+    // A14 storage), 5 → 4 (P3-4c iron « Type »). Each row stopped being foreign
+    // rather than being excused.
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('7476a834-8ca6-423d-94b6-f1e9e6bc3f4b')).toBe(false);
   });
 });
 
@@ -544,7 +545,7 @@ describe('the duplicate-specification removal migration', () => {
   });
 
   it('the P3 allowlist now holds 5 — shirt duplicates gone (P3-2), Galaxy A14 canonicalised (P3-4a)', () => {
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(5);
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
     // foyug0's storage row is no longer foreign: it points at its own leaf.
     expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('600d7c1c-c1cd-4c8d-ba15-e6502620fc4e')).toBe(false);
   });
