@@ -173,10 +173,12 @@ export const allLeafKeys = (): number[] =>
  * it to every leaf in the tree — so it must be linked to these leaves too.
  * Getting that wrong is what leaves a seller with no brand option at all.
  */
-export function brandLinksFor(leafKeys: number[]): BrandLinkRow[] {
+export function brandLinksFor(leafKeys: number[], restrictToBrands?: number[]): BrandLinkRow[] {
   const wanted = new Set(leafKeys);
+  const only = restrictToBrands ? new Set(restrictToBrands) : null;
   const links: BrandLinkRow[] = [];
   for (const brand of STRICT_BRANDS) {
+    if (only && !only.has(brand.n)) continue;
     const targets = brand.types.length > 0 ? brand.types : allLeafKeys();
     for (const leaf of targets) {
       if (!wanted.has(leaf)) continue;
@@ -192,8 +194,8 @@ export function brandLinksFor(leafKeys: number[]): BrandLinkRow[] {
 }
 
 /** The brand rows those links need, deduplicated, in seed order. */
-export function brandsFor(leafKeys: number[]): BrandRow[] {
-  const needed = new Set(brandLinksFor(leafKeys).map((l) => l.brandId));
+export function brandsFor(leafKeys: number[], restrictToBrands?: number[]): BrandRow[] {
+  const needed = new Set(brandLinksFor(leafKeys, restrictToBrands).map((l) => l.brandId));
   return STRICT_BRANDS.filter((b) => needed.has(strictBrandId(b.n))).map((b) => ({
     id: strictBrandId(b.n),
     n: b.n,
@@ -209,11 +211,22 @@ export function brandsFor(leafKeys: number[]): BrandRow[] {
  * `onlyBrands` narrows the BRAND upsert to the brands that do not yet exist in
  * production — an existing brand like « Nestlé » must keep its live name, logo
  * and sortOrder, so the migration adds its missing LINKS without rewriting the
- * row itself. Links are always emitted for every brand the leaves declare.
+ * row itself.
+ *
+ * `linkBrands` scopes which brands' LINKS are emitted. It exists because a
+ * shipped migration is immutable while `taxonomy-data.ts` keeps growing: adding
+ * a beer in 2026-09-11 would otherwise make the 2026-09-10 migration stop
+ * matching a fresh render, and the honest fix is to pin each migration to the
+ * brands it was actually about rather than to relax the drift check into a
+ * subset comparison. Defaults to every brand the leaves declare.
  */
-export function renderBrandSql(leafKeys: number[], onlyBrands: number[]): string {
-  const brands = brandsFor(leafKeys).filter((b) => onlyBrands.includes(b.n));
-  const links = brandLinksFor(leafKeys);
+export function renderBrandSql(
+  leafKeys: number[],
+  onlyBrands: number[],
+  linkBrands?: number[],
+): string {
+  const brands = brandsFor(leafKeys, linkBrands).filter((b) => onlyBrands.includes(b.n));
+  const links = brandLinksFor(leafKeys, linkBrands);
   if (links.length === 0) return '';
 
   const parts: string[] = [];

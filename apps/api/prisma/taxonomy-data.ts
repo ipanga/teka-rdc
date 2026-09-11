@@ -330,4 +330,46 @@ export const STRICT_BRANDS: BrandDef[] = [
   { n: 53, fr: 'Heineken', types: [10701] },
   { n: 54, fr: 'Johnnie Walker', types: [10703] },
   { n: 55, fr: 'Primus', types: [10701] },
+
+  // ── DRC beverage brands (2026-09-11, P2 PR C) ──────────────────────────────
+  // Evidence-backed only. Every entry below comes from a MANUFACTURER portfolio
+  // with production or headquarters in the DRC — most in Lubumbashi itself, the
+  // launch market. Nothing here is a globally famous name added to avoid an
+  // « Autre »-only category; categories without credible DRC evidence (Riz,
+  // Farine, Sucre, Huiles, Jus, Vins …) deliberately keep « Autre » alone.
+  //
+  //   BRASIMBA — Castel group, HEADQUARTERED IN LUBUMBASHI since 1925, three
+  //     production sites (Lubumbashi, Beni, Mbuji-Mayi), 13 distribution
+  //     centres. Portfolio: Simba, Tembo, Castel, Beaufort Lager, 33 Export,
+  //     Doppel, Skol, Guinness, Chui, Booster, D'jino, XXL, World Cola, Cristal,
+  //     Sankayi, Peak.  https://www.brasimba.com/decouvrir/
+  //   BRALIMA — Brasseries, Limonaderies et Malteries S.A., founded 1923, three
+  //     breweries INCLUDING LUBUMBASHI. Sold by Heineken to Elna Holdings in
+  //     April 2026; Heineken retains the brands under long-term licence:
+  //     Heineken, Primus, Turbo King, Legend, Mützig. Bralima also bottles the
+  //     Coca-Cola range under licence.  https://bralima.net/nos-marques/nos-bieres/
+  //
+  // Category mapping is taken from the manufacturer's OWN product paths where
+  // one exists, rather than inferred:
+  //   brasimba.com/gamme/eau-minerale/cristalgazeuse/   → Cristal is water
+  //   brasimba.com/gamme/boissons-gazeuses/djino-…      → D'jino is a soda
+  //
+  // Deliberately NOT added: Booster, XXL, Sankayi, Peak (portfolio members whose
+  // product category I could not establish from a primary source), and Fanta /
+  // Sprite (the source says "the Coca-Cola range" without naming them).
+  { n: 56, fr: 'Tembo', types: [10701] },
+  { n: 57, fr: 'Mützig', types: [10701] },
+  { n: 58, fr: 'Turbo King', types: [10701] },
+  { n: 59, fr: 'Castel', types: [10701] },
+  { n: 60, fr: 'Skol', types: [10701] },
+  { n: 61, fr: '33 Export', types: [10701] },
+  { n: 62, fr: 'Doppel', types: [10701] },
+  { n: 63, fr: 'Beaufort Lager', types: [10701] },
+  { n: 64, fr: 'Legend', types: [10701] },
+  { n: 65, fr: 'Guinness', types: [10701] },
+  { n: 66, fr: 'Chui', types: [10701] },
+  { n: 67, fr: 'Cristal', types: [10201] },
+  { n: 68, fr: 'Coca-Cola', types: [10203] },
+  { n: 69, fr: "D'jino", types: [10203] },
+  { n: 70, fr: 'World Cola', types: [10203] },
 ];
