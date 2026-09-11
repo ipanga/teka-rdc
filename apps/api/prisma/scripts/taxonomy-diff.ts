@@ -244,7 +244,7 @@ export function taxonomyDiff(db: DbSnapshot): Finding[] {
     out.push({
       severity: 'HISTORICAL', kind: 'attribute.referencedHistorical',
       label: `${referencedHistorical.length} characteristic(s) on retired categories`,
-      detail: 'referenced by specifications on soft-deleted products — keep them; deleting orphans real history',
+      detail: 'still referenced by specifications (a product in any state) — keep them; deleting orphans real history',
     });
   }
 
