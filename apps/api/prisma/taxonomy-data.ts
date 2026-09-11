@@ -103,6 +103,20 @@ const WASHER: AttrTpl[] = [{ fr: 'Capacité (kg)', type: TEXT }, { fr: 'Type', t
 const AC: AttrTpl[] = [{ fr: 'Puissance (BTU)', type: SELECT, options: ['9000', '12000', '18000', '24000'] }, WARRANTY];
 const FAN: AttrTpl[] = [{ fr: 'Type', type: SELECT, options: ['Sur pied', 'Table', 'Plafond', 'Mural'] }, WARRANTY];
 const APP_GENERIC: AttrTpl[] = [POWER, WARRANTY];
+// Garment care. NOT APP_GENERIC + « Type »: that template is SHARED with
+// « Aspirateurs », so appending there would offer a vacuum cleaner
+// « Fer à vapeur ». A dedicated template is the same shape PRINTER, FRIDGE,
+// WASHER and FAN already use when one leaf needs its own discriminator.
+//
+// « Type » is appended LAST on purpose. Attribute ids are positional
+// (`attributeIdFor(leafKey, slot)`), so putting it first would renumber the
+// live « Puissance » …4050101 and « Garantie » …4050102 rows. Appended, it
+// takes the free …4050103 and nothing existing moves.
+const IRON: AttrTpl[] = [
+  POWER,
+  WARRANTY,
+  { fr: 'Type', type: SELECT, options: ['Fer à sec', 'Fer à vapeur', 'Centrale vapeur', 'Défroisseur'] },
+];
 const CLOTHING: AttrTpl[] = [SIZE_CLO, COLOR, MATERIAL];
 const KIDSWEAR: AttrTpl[] = [AGE_KID, COLOR, MATERIAL];
 const SHOES: AttrTpl[] = [SIZE_SHOE, COLOR, MATERIAL];
@@ -221,7 +235,7 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
       { n: 402, fr: 'Réfrigération', types: [t(40201, 'Réfrigérateurs', FRIDGE), t(40202, 'Congélateurs', FRIDGE)] },
       { n: 403, fr: 'Lavage', types: [t(40301, 'Machines à laver', WASHER), t(40302, 'Sèche-linge', WASHER)] },
       { n: 404, fr: 'Climatisation', types: [t(40401, 'Climatiseurs', AC), t(40402, 'Ventilateurs', FAN)] },
-      { n: 405, fr: 'Entretien Maison', types: [t(40501, 'Fers à repasser', APP_GENERIC), t(40502, 'Aspirateurs', APP_GENERIC)] },
+      { n: 405, fr: 'Entretien Maison', types: [t(40501, 'Fers à repasser', IRON), t(40502, 'Aspirateurs', APP_GENERIC)] },
     ],
   },
   {

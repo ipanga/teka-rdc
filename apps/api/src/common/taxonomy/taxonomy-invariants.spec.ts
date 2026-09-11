@@ -15,6 +15,7 @@ import {
 } from './taxonomy-invariants';
 import { STRICT_BRANDS, STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
 import {
+  allLeafKeys,
   attributeIdFor,
   attributeRowsFor,
   brandLinksFor,
@@ -861,6 +862,196 @@ describe('the Cuisine legacy-characteristic retirement migration', () => {
   });
 
   it('is NOT auto-applied — a data change is reviewed, not replayed on deploy', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+});
+
+/**
+ * P3-4c — the canonical « Type » for « Fers à repasser ».
+ *
+ * vibk3l's « Type » = "Fer à sec" hung off « Électronique > Réseau & Internet »
+ * (another 2026-06-24 id reuse): buyers saw it, the seller form never offered
+ * it. No canonical equivalent existed anywhere in the taxonomy, so the source
+ * gains a dedicated IRON template and this migration materialises it.
+ *
+ * THE ARCHITECTURAL RISK THESE TESTS EXIST FOR: « Type » must NOT be appended
+ * to APP_GENERIC, which « Aspirateurs » also uses — that would offer a vacuum
+ * cleaner « Fer à vapeur ».
+ */
+describe('the canonical iron « Type » (P3-4c)', () => {
+  const FILE = '2026-09-11_canonical_iron_type.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+
+  const IRON_LEAF = 20 * 0 + 40501;   // Entretien Maison > Fers à repasser
+  const VACUUM_LEAF = 40502;          // Aspirateurs — must stay untouched
+  const SPEC = '7476a834-8ca6-423d-94b6-f1e9e6bc3f4b';
+  const LEGACY = '14000000-0000-0000-0000-000000030501';
+  const HOLDING = '13000000-0000-0000-0000-000000000999';
+  const OPTIONS = ['Fer à sec', 'Fer à vapeur', 'Centrale vapeur', 'Défroisseur'];
+
+  it('the source declares « Type » on the iron leaf with exactly the four options', () => {
+    const rows = attributeRowsFor([IRON_LEAF]);
+    const type = rows.find((a) => a.name === 'Type');
+    expect(type).toBeDefined();
+    expect(type!.options).toEqual(OPTIONS);
+    expect(type!.type).toBe('SELECT');
+  });
+
+  it('« Type » is appended LAST so no existing id is renumbered', () => {
+    const rows = attributeRowsFor([IRON_LEAF]);
+    expect(rows.map((a) => a.name)).toEqual(['Puissance', 'Garantie', 'Type']);
+    // Positional ids: the two pre-existing rows keep …101 and …102.
+    expect(rows[0]!.id).toBe(attributeIdFor(IRON_LEAF, 0));
+    expect(rows[0]!.id).toBe('14000000-0000-0000-0000-000004050101');
+    expect(rows[1]!.id).toBe('14000000-0000-0000-0000-000004050102');
+    expect(rows[2]!.id).toBe('14000000-0000-0000-0000-000004050103');
+  });
+
+  it('ASPIRATEURS DOES NOT RECEIVE « Type » — the APP_GENERIC sharing trap', () => {
+    const vacuum = attributeRowsFor([VACUUM_LEAF]);
+    expect(vacuum.map((a) => a.name)).toEqual(['Puissance', 'Garantie']);
+    expect(vacuum.some((a) => a.name === 'Type')).toBe(false);
+    // and its ids are untouched
+    expect(vacuum[0]!.id).toBe('14000000-0000-0000-0000-000004050201');
+    expect(vacuum[1]!.id).toBe('14000000-0000-0000-0000-000004050202');
+  });
+
+  it('no OTHER leaf gained a characteristic from this change', () => {
+    // Every canonical id is still unique and every leaf still resolves.
+    const seen = new Set<string>();
+    for (const key of allLeafKeys()) {
+      for (const a of attributeRowsFor([key])) {
+        expect(seen.has(a.id)).toBe(false);
+        seen.add(a.id);
+      }
+    }
+  });
+
+  it('the migration targets the id the SOURCE declares, not a hand-picked one', () => {
+    const type = attributeRowsFor([IRON_LEAF]).find((a) => a.name === 'Type')!;
+    expect(executable).toContain(type.id);
+  });
+
+  it('DELETES NOTHING', () => {
+    expect(executable).not.toMatch(/\bDELETE\s+FROM\b/i);
+    expect(executable).not.toMatch(/\bTRUNCATE\b/i);
+    expect(executable).not.toMatch(/\bDROP\b/i);
+  });
+
+  it('touches only product_attributes and product_specifications', () => {
+    const writes = new Set(
+      (executable.match(/(?:INSERT INTO|UPDATE)\s+"(\w+)"/g) ?? []).map((m) => m.replace(/.*"(\w+)"/, '$1')),
+    );
+    expect([...writes].sort()).toEqual(['product_attributes', 'product_specifications']);
+    for (const t of ['products', 'categories', 'brands', 'brand_categories', 'orders', 'order_items']) {
+      expect(executable).not.toMatch(new RegExp(`(?:INSERT INTO|UPDATE|DELETE FROM)\\s+"${t}"`));
+    }
+  });
+
+  it('creates no category — « Repassage » / « Défroisseurs » stay out of scope', () => {
+    expect(executable).not.toMatch(/INSERT INTO "categories"/);
+    expect(executable).not.toContain('Repassage');
+  });
+
+  it('repoints exactly ONE specification, keyed on id AND productId AND attributeId AND value', () => {
+    const updates = executable.match(/UPDATE "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    const u = updates[0]!;
+    const where = u.slice(u.indexOf('WHERE'));
+    expect(where).toMatch(/"id" = v_spec/);
+    expect(where).toMatch(/"productId" = v_product/);
+    expect(where).toMatch(/"attributeId" = v_old_attr/);
+    expect(where).toMatch(/"value" = v_value/);
+    const set = u.slice(u.indexOf('SET'), u.indexOf('WHERE'));
+    expect(set.match(/"(\w+)"\s*=/g)?.sort()).toEqual(['"attributeId" =', '"updatedAt" =']);
+  });
+
+  it('the pre-state check is itself keyed on all four columns', () => {
+    const check = executable.slice(executable.indexOf('INTO v_points_old'), executable.indexOf('INTO v_points_new'));
+    expect(check).toMatch(/"id" = v_spec/);
+    expect(check).toMatch(/"productId" = v_product/);
+    expect(check).toMatch(/"attributeId" = v_old_attr/);
+    expect(check).toMatch(/"value" = v_value/);
+  });
+
+  it('retires the legacy attribute onto the EXISTING holding category', () => {
+    const updates = executable.match(/UPDATE "product_attributes"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatch(/"id" = v_old_attr/);
+    expect(updates[0]).toMatch(/"categoryId" = v_old_home/);
+    expect(executable).toContain(HOLDING);
+  });
+
+  it('refuses a destination that is missing, inactive or no longer a leaf', () => {
+    expect(executable).toMatch(/NOT EXISTS \(SELECT 1 FROM "categories" k WHERE k\."parentCategoryId" = c\."id"/);
+    expect(executable).toMatch(/RAISE EXCEPTION 'P3-4c REFUSED[\s\S]*?no longer a leaf/);
+    // The CONDITION must be live, not just present: a mutation that turned this
+    // into `IF false THEN` left every other assertion here satisfied.
+    expect(executable).toMatch(/IF v_leaf_ok <> 1 THEN/);
+  });
+
+  it('is refusal-first on drifted value, drifted owner and collision', () => {
+    expect(executable).toMatch(/v_points_old <> 1/);
+    expect(executable).toMatch(/v_attr_home <> v_old_home/);
+    expect(executable).toMatch(/v_collision <> 0/);
+    expect((executable.match(/RAISE EXCEPTION 'P3-4c REFUSED/g) ?? []).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('is idempotent: already applied is a NOTICE and the INSERT is guarded', () => {
+    expect(executable).toMatch(/v_points_new = 1 AND v_attr_home = v_holding/);
+    expect(executable).toMatch(/RAISE NOTICE 'P3-4c already applied/);
+    expect(executable).toMatch(/ON CONFLICT \("id"\) DO NOTHING/);
+  });
+
+  it('asserts its own end state, INCLUDING that Aspirateurs is untouched', () => {
+    expect((executable.match(/RAISE EXCEPTION 'P3-4c ABORTED/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect(executable).toMatch(/must never reach it/);
+    // Pin the EXACT expected count. Aspirateurs carries Puissance + Garantie and
+    // nothing else; a mutation that relaxed this to `<> 3` would have let the
+    // new « Type » land there unnoticed.
+    expect(executable).toMatch(
+      /WHERE "categoryId" = '16000000-0000-0000-0000-000000040502'\) <> 2/,
+    );
+  });
+
+  it('no WRITE statement targets rows by characteristic NAME — « Type » exists on a dozen leaves', () => {
+    // The risk is a write whose WHERE selects by name; a post-condition that
+    // READS `"name" = 'Type'` to confirm the row it just created (keyed on id
+    // first) is verification, not targeting, and is deliberately allowed.
+    const writes = executable.match(/(?:UPDATE|INSERT INTO|DELETE FROM) "\w+"[\s\S]*?;/g) ?? [];
+    expect(writes.length).toBeGreaterThan(0);
+    for (const w of writes) {
+      const where = w.includes('WHERE') ? w.slice(w.indexOf('WHERE')) : '';
+      expect(where).not.toMatch(/"name"\s*(?:=|<>|!=|~|IN\b|LIKE|ILIKE|ANY|SIMILAR)/);
+    }
+    // and every write is keyed on an explicit id
+    for (const w of writes) expect(w).toMatch(/v_(spec|old_attr|new_attr)\b/);
+  });
+
+  it('runs as ONE atomic block', () => {
+    expect(executable.match(/DO \$\$/g)).toHaveLength(1);
+    expect(executable).toMatch(/END \$\$;/);
+  });
+
+  it('leaves the oil « Type » for P3-4d', () => {
+    expect(executable).not.toContain('14000000-0000-0000-0000-000000010202');
+  });
+
+  it('documents the THREE rollback levels and refuses a naive DELETE of the created row', () => {
+    const rollback = raw.slice(raw.indexOf('-- ── ROLLBACK'));
+    expect(rollback).toContain(SPEC);
+    expect(rollback).toContain(LEGACY);
+    expect(rollback).toMatch(/DO NOT DELETE the created attribute while the declaration stands/);
+    expect(rollback).toMatch(/taxonomy:apply would regenerate it|regenerate it/);
+    expect(rollback).toMatch(/A\. DATABASE MIGRATION ROLLBACK/);
+    expect(rollback).toMatch(/B\. CODE \/ DECLARATION ROLLBACK/);
+    expect(rollback).toMatch(/C\. FULL RELEASE ROLLBACK/);
+  });
+
+  it('is NOT auto-applied', () => {
     const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
       .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
     expect(list).not.toContain(FILE);
