@@ -464,3 +464,83 @@ describe('the DRC beverage brand migration', () => {
     expect(list).not.toContain(FILE);
   });
 });
+
+/**
+ * P3-2 — removing three duplicate characteristics from one product.
+ * Guards the SHAPE of the migration; the taxonomy invariants guard the outcome.
+ */
+describe('the duplicate-specification removal migration', () => {
+  const FILE = '2026-09-11_remove_duplicate_shirt_specifications.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+
+  it('removes exactly three rows and nothing else', () => {
+    const deletes = executable.match(/DELETE FROM "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(deletes).toHaveLength(3);
+    expect(executable.match(/;/g)).toHaveLength(3);
+  });
+
+  it('touches only product_specifications', () => {
+    expect(sorted(executable.match(/(?:DELETE FROM|INSERT INTO|UPDATE) "(\w+)"/g) ?? [])).toEqual([
+      'DELETE FROM "product_specifications"',
+    ]);
+    for (const t of ['products', 'categories', 'brands', 'brand_categories', 'orders', 'order_items', 'product_attributes']) {
+      expect(executable).not.toContain(`"${t}"`);
+    }
+  });
+
+  it('every DELETE is keyed on id AND productId AND attributeId AND value', () => {
+    // Four keys, so a row edited, repointed or already removed cannot match.
+    for (const d of executable.match(/DELETE FROM "product_specifications"[\s\S]*?;/g) ?? []) {
+      expect(d).toMatch(/d\."id"\s+= '[0-9a-f-]{36}'/);
+      expect(d).toMatch(/d\."productId"\s+= '[0-9a-f-]{36}'/);
+      expect(d).toMatch(/d\."attributeId" = '14000000-[0-9a-f-]+'/);
+      expect(d).toMatch(/d\."value"\s+= '[^']+'/);
+    }
+  });
+
+  it('refuses unless the canonical replacement is still present with the identical value', () => {
+    // The heart of it: a duplicate may only go if nothing is lost by its going.
+    const deletes = executable.match(/DELETE FROM "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(deletes).toHaveLength(3);
+    for (const d of deletes) {
+      expect(d).toMatch(/AND EXISTS \(/);
+      expect(d).toMatch(/k\."id"\s+= '[0-9a-f-]{36}'/);
+      expect(d).toMatch(/k\."attributeId" = '14000000-[0-9a-f-]+'/);
+      expect(d).toMatch(/k\."value"\s+= d\."value"/);
+      expect(d).toMatch(/k\."productId"\s+= d\."productId"/);
+    }
+  });
+
+  it('does NOT delete the legacy attribute rows — other history still references them', () => {
+    expect(executable).not.toMatch(/DELETE FROM "product_attributes"/);
+  });
+
+  it('leaves the three unresolved Group B characteristics alone', () => {
+    // oil « Type », « Mémoire interne », iron « Type » — real seller data with
+    // no canonical home, reserved for P3-4.
+    for (const attr of [
+      '14000000-0000-0000-0000-000000010202',
+      '14000000-0000-0000-0000-000000020102',
+      '14000000-0000-0000-0000-000000030501',
+    ]) {
+      expect(executable).not.toContain(attr);
+    }
+  });
+
+  it('carries a rollback restoring all three rows with their original ids', () => {
+    const rollback = raw.slice(raw.indexOf('-- ROLLBACK'));
+    expect(rollback.match(/^-- INSERT INTO "product_specifications"/gm)).toHaveLength(3);
+    expect(rollback).toMatch(/ON CONFLICT DO NOTHING/);
+  });
+
+  it('is NOT auto-applied', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+
+  it('the P3 allowlist still holds 9 — it shrinks to 6 only once the rows are proven gone', () => {
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(9);
+  });
+});
