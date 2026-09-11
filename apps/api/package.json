@@ -26,7 +26,10 @@
     "prisma:seed:prod": "SEED_MODE=prod tsx --env-file=../../.env.production prisma/seed.ts",
     "prisma:reset-catalog": "tsx --env-file=../../.env.development prisma/reset-catalog.ts",
     "prisma:reset-catalog:prod": "tsx --env-file=../../.env.production prisma/reset-catalog.ts",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "taxonomy:diff": "tsx --env-file=../../.env.development prisma/scripts/taxonomy-cli.ts",
+    "taxonomy:diff:prod": "tsx --env-file=../../.env.production prisma/scripts/taxonomy-cli.ts",
+    "taxonomy:apply": "tsx --env-file=../../.env.development prisma/scripts/taxonomy-cli.ts --apply"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
