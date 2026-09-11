@@ -309,14 +309,15 @@ export function findLeavesMissingCatchAll(
  * 2026-09-11 correction could not repoint because identical canonical rows
  * already existed (the unique-constraint guard refused them).
  *
- * REMOVE ENTRIES AS P3 RESOLVES THEM. This list must only ever shrink — it went
- * from 9 to 6 on 2026-09-11 when P3-2 removed the three shirt duplicates.
+ * REMOVE ENTRIES AS P3 RESOLVES THEM. This list must only ever shrink — 9 to 6
+ * on 2026-09-11 when P3-2 removed the three shirt duplicates, then 6 to 5 when
+ * P3-4a repointed the Galaxy A14 « Mémoire interne » onto the canonical
+ * « Stockage » of its own leaf, so that row is no longer foreign at all.
  */
 export const P3_FOREIGN_SPECIFICATION_ALLOWLIST: ReadonlySet<string> = new Set([
   '5bf39dfd-925b-461e-8a4c-07028a2a183d', // pocc99 « Type » = "Huile végétale" — no canonical home
   'ab2bf530-4a3c-46a0-ab51-7eb0abea834f', // rt7ibz « Type » = "Lait en poudre" — value is not an option of the target
   '1f771953-aeb0-4e66-9b10-ce61df4c491b', // vnkqce « Type » = "Savon de lessive" — no canonical home
-  '600d7c1c-c1cd-4c8d-ba15-e6502620fc4e', // foyug0 « Mémoire interne » = "16Go" — no canonical home
   'f71a9667-5233-4eef-a1a3-b468b32ac70e', // d3k7ei « Type » = "Blender" — no canonical home
   '7476a834-8ca6-423d-94b6-f1e9e6bc3f4b', // vibk3l « Type » = "Fer à sec" — no canonical home
 ]);
