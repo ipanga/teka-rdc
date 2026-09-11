@@ -8,7 +8,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { validateImageUpload } from '../common/uploads/image-upload';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
+import {
+  dedupeSpecificationsByName,
+  normalizeCharacteristicName,
+} from '../common/utils/product-specifications';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
@@ -140,6 +143,105 @@ export class ProductsService {
    * the payload names outright. Legacy specifications pointing at attributes
    * outside this set are preserved — never silently deleted.
    */
+  /**
+   * Plan what to do with specifications whose attribute does not belong to the
+   * product's effective category. READ-ONLY — the caller applies the result
+   * inside its transaction.
+   *
+   * Such a row renders on the PDP (`dedupeSpecificationsByName` keeps foreign
+   * rows on purpose — 7 of the 11 affected production products would otherwise
+   * show no characteristics at all) but appears in NO seller form, because
+   * `resolveReplaceableAttributeIds` only ever serves the effective category's
+   * own attributes. The seller is therefore unable to correct or remove it.
+   *
+   * Two outcomes, chosen per row:
+   *
+   *   REPOINT — the effective category has an attribute with the same name
+   *     (accent/case-insensitive, the same normalisation the PDP dedupe uses).
+   *     The row keeps its id and its seller-entered value and only changes
+   *     owner. Non-destructive, so it applies on EVERY update.
+   *
+   *   REMOVE — no same-named home exists. Only when the category ACTUALLY
+   *     CHANGED, where the old category's characteristics are definitively
+   *     obsolete. On a same-category edit the row is left alone: deleting a
+   *     value the seller was never shown is precisely the data loss the scoped
+   *     replace exists to prevent.
+   *
+   * Attributes already inside `replaceableAttributeIds` are skipped — the
+   * caller's delete/create pass owns those.
+   */
+  private async planForeignSpecifications(
+    productId: string,
+    effectiveCategoryId: string,
+    replaceableAttributeIds: string[],
+    categoryChanged: boolean,
+  ): Promise<{
+    repoint: { id: string; attributeId: string }[];
+    remove: string[];
+  }> {
+    const empty = { repoint: [], remove: [] };
+
+    const existing = await this.prisma.productSpecification.findMany({
+      where: { productId },
+      select: {
+        id: true,
+        attributeId: true,
+        attribute: { select: { name: true, categoryId: true } },
+      },
+    });
+
+    const foreign = existing.filter(
+      (s) =>
+        s.attribute &&
+        s.attribute.categoryId !== effectiveCategoryId &&
+        !replaceableAttributeIds.includes(s.attributeId),
+    );
+    if (foreign.length === 0) return empty;
+
+    // Leaf-only, mirroring getCategoryAttributes: an intermediate node has no
+    // legitimate attribute set, so nothing may be repointed onto it.
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: effectiveCategoryId, deletedAt: null },
+    });
+    const own =
+      childCount > 0
+        ? []
+        : await this.prisma.productAttribute.findMany({
+            where: { categoryId: effectiveCategoryId },
+            select: { id: true, name: true },
+          });
+
+    const ownByName = new Map(
+      own.map((a) => [normalizeCharacteristicName(a.name), a.id]),
+    );
+    // Ids the product already holds: repointing onto one would break the
+    // (productId, attributeId) unique constraint.
+    const taken = new Set(existing.map((s) => s.attributeId));
+
+    const repoint: { id: string; attributeId: string }[] = [];
+    const remove: string[] = [];
+
+    for (const spec of foreign) {
+      const target = ownByName.get(
+        normalizeCharacteristicName(spec.attribute!.name),
+      );
+
+      if (target && !taken.has(target)) {
+        repoint.push({ id: spec.id, attributeId: target });
+        taken.delete(spec.attributeId);
+        taken.add(target);
+        continue;
+      }
+
+      if (categoryChanged) {
+        remove.push(spec.id);
+        taken.delete(spec.attributeId);
+      }
+    }
+
+    return { repoint, remove };
+  }
+
   private async resolveReplaceableAttributeIds(
     categoryId: string,
     incomingAttributeIds: string[],
@@ -530,7 +632,33 @@ export class ProductsService {
           )
         : [];
 
+    // A specification whose attribute belongs to another category is served by
+    // no form, so the seller can never edit or delete it — that is how a whisky
+    // kept « Type : Bière ». Resolved here, inside the same transaction.
+    const categoryChanged =
+      dto.categoryId !== undefined && dto.categoryId !== product.categoryId;
+
+    // Planned BEFORE the transaction: these are reads, and Prisma's interactive
+    // transactions carry a 5 s budget against the cloud database. A runtime
+    // probe blew it doing this work inside — the writes below are all that
+    // belongs in there.
+    const specPlan = await this.planForeignSpecifications(
+      productId,
+      effectiveCategoryId,
+      replaceableAttributeIds,
+      categoryChanged,
+    );
+
     const updatedProduct = await this.prisma.$transaction(async (tx) => {
+      for (const { id, attributeId } of specPlan.repoint) {
+        await tx.productSpecification.update({ where: { id }, data: { attributeId } });
+      }
+      if (specPlan.remove.length) {
+        await tx.productSpecification.deleteMany({
+          where: { id: { in: specPlan.remove } },
+        });
+      }
+
       if (dto.specifications !== undefined && replaceableAttributeIds.length) {
         await tx.productSpecification.deleteMany({
           where: { productId, attributeId: { in: replaceableAttributeIds } },
