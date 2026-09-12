@@ -6,6 +6,8 @@ import { SalesAnalyticsService } from './sales-analytics.service';
 import { SalesAnalyticsController } from './sales-analytics.controller';
 import { SearchAnalyticsService } from './search-analytics.service';
 import { SearchAnalyticsController } from './search-analytics.controller';
+import { SearchSynonymsService } from './search-synonyms.service';
+import { SearchSynonymsController } from './search-synonyms.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -17,8 +19,19 @@ import { SearchAnalyticsController } from './search-analytics.controller';
     ReportsController,
     SalesAnalyticsController,
     SearchAnalyticsController,
+    SearchSynonymsController,
   ],
-  providers: [ReportsService, SalesAnalyticsService, SearchAnalyticsService],
-  exports: [ReportsService, SalesAnalyticsService, SearchAnalyticsService],
+  providers: [
+    ReportsService,
+    SalesAnalyticsService,
+    SearchAnalyticsService,
+    SearchSynonymsService,
+  ],
+  exports: [
+    ReportsService,
+    SalesAnalyticsService,
+    SearchAnalyticsService,
+    SearchSynonymsService,
+  ],
 })
 export class ReportsModule {}
