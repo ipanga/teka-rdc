@@ -130,6 +130,73 @@ describe('AdminOrdersService — Teka transitions', () => {
 
 // ─── DELIVERED ⇒ deliveredAt invariant ───────────────────────────────────
 //
+// The same invariant, for the other timestamped terminal status. `returnedAt`
+// is documented in the schema as "set when admin approves a return", and
+// ReturnsService.approveReturn() only ever writes { status: RETURNED,
+// returnedAt } together — so a forced RETURNED left the status without its
+// date, exactly the inconsistency deliveredAt was fixed for.
+
+describe('AdminOrdersService.forceStatusChange — returnedAt invariant', () => {
+  it('stamps returnedAt when forcing an order to RETURNED', async () => {
+    const { service, tx } = makeService({
+      ...orderAt(OrderStatus.DELIVERED),
+      returnedAt: null,
+    });
+
+    await service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1');
+
+    const data = (tx.order.update as jest.Mock).mock.calls[0][0].data;
+    expect(data.status).toBe(OrderStatus.RETURNED);
+    expect(data.returnedAt).toBeInstanceOf(Date);
+  });
+
+  // Same reasoning as deliveredAt: the first return date is the accurate one.
+  it('preserves an existing returnedAt instead of overwriting it', async () => {
+    const original = new Date('2026-06-20T11:30:00Z');
+    const { service, tx } = makeService({
+      ...orderAt(OrderStatus.DELIVERED),
+      returnedAt: original,
+    });
+
+    await service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1');
+
+    const data = (tx.order.update as jest.Mock).mock.calls[0][0].data;
+    expect(data.returnedAt).toBeUndefined();
+  });
+
+  it('does not touch returnedAt for any other target status', async () => {
+    for (const status of [
+      OrderStatus.CONFIRMED,
+      OrderStatus.PROCESSING,
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.CANCELLED,
+      OrderStatus.DELIVERED,
+    ]) {
+      const { service, tx } = makeService({
+        ...orderAt(OrderStatus.PENDING),
+        returnedAt: null,
+        deliveredAt: new Date('2026-06-01T00:00:00Z'),
+      });
+      await service.forceStatusChange('o1', status, 'admin1');
+      const data = (tx.order.update as jest.Mock).mock.calls[0][0].data;
+      expect(data.returnedAt).toBeUndefined();
+    }
+  });
+
+  // Forcing a status is a repair tool, not a replay of the return flow: no
+  // restock, no earning reversal beyond the documented leaving-DELIVERED one.
+  it('stamping the date does not turn it into approveReturn()', async () => {
+    const { service, tx } = makeService({
+      ...orderAt(OrderStatus.PROCESSING),
+      returnedAt: null,
+    });
+
+    await service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1');
+
+    expect(tx.product.update).not.toHaveBeenCalled();
+  });
+});
+
 // forceStatusChange() used to write only { status }. Because it is reachable
 // from the admin UI (the force-status modal offers "Livrées"), an order could
 // become DELIVERED with deliveredAt = NULL — which made it invisible to every
@@ -166,13 +233,14 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
     expect(data.deliveredAt).toBeUndefined();
   });
 
+  // RETURNED is handled by its own describe below — it carries returnedAt, so
+  // it is deliberately not in this list.
   it('does not touch deliveredAt for any other target status', async () => {
     for (const status of [
       OrderStatus.CONFIRMED,
       OrderStatus.PROCESSING,
       OrderStatus.OUT_FOR_DELIVERY,
       OrderStatus.CANCELLED,
-      OrderStatus.RETURNED,
     ]) {
       const { service, tx } = makeService({
         ...orderAt(OrderStatus.PENDING),
