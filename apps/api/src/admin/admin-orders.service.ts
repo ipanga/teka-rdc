@@ -289,10 +289,22 @@ export class AdminOrdersService {
     }
 
     // Keep the row self-consistent: a DELIVERED order must carry a delivery
-    // date. Only ever FILLS a gap — never overwrites an existing timestamp.
-    const data: { status: OrderStatus; deliveredAt?: Date } = { status };
+    // date, and a RETURNED one a return date — `returnedAt` is documented in
+    // the schema as "set when admin approves a return", and
+    // `ReturnsService.approveReturn()` only ever writes the two together. A
+    // forced RETURNED left the status without its timestamp, which is the same
+    // internal inconsistency `deliveredAt` was fixed for.
+    // Only ever FILLS a gap — never overwrites an existing timestamp.
+    const data: {
+      status: OrderStatus;
+      deliveredAt?: Date;
+      returnedAt?: Date;
+    } = { status };
     if (status === OrderStatus.DELIVERED && !order.deliveredAt) {
       data.deliveredAt = new Date();
+    }
+    if (status === OrderStatus.RETURNED && !order.returnedAt) {
+      data.returnedAt = new Date();
     }
 
     return this.prisma.$transaction(async (tx) => {

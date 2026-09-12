@@ -213,6 +213,31 @@ describe('historical data is preserved, not reconciled away', () => {
     expect(f[0].detail).toMatch(/deleting orphans real history/);
   });
 
+  // The finding counts an attribute whose OWNER CATEGORY is retired and which
+  // still has references. `specificationCounts` is a groupBy over every
+  // specification — the product's own state is never consulted — so the wording
+  // must not promise the referencing products are soft-deleted. In production 3
+  // of the 80 counted characteristics are referenced by ACTIVE products.
+  it('counts a retired-category characteristic referenced by a LIVE product too', () => {
+    const db = cleanSnapshot();
+    db.categories.push({ id: strictCatId(995), name: 'Retirée', parentCategoryId: null, isActive: false, deletedAt: new Date() });
+    db.attributes.push({ id: strictAttrId(999501), categoryId: strictCatId(995), name: 'Type' });
+    db.specificationCounts.set(strictAttrId(999501), 1);
+    const f = taxonomyDiff(db).filter((x) => x.kind === 'attribute.referencedHistorical');
+    expect(f).toHaveLength(1);
+    expect(f[0].label).toMatch(/^1 characteristic\(s\) on retired categories$/);
+    // The snapshot carries no product state at all, so the detail may not claim one.
+    expect(f[0].detail).not.toMatch(/soft-deleted products/);
+    expect(f[0].detail).toMatch(/any state/);
+  });
+
+  it('an unreferenced characteristic on a retired category is NOT reported', () => {
+    const db = cleanSnapshot();
+    db.categories.push({ id: strictCatId(994), name: 'Retirée', parentCategoryId: null, isActive: false, deletedAt: new Date() });
+    db.attributes.push({ id: strictAttrId(999401), categoryId: strictCatId(994), name: 'Type' });
+    expect(taxonomyDiff(db).some((x) => x.kind === 'attribute.referencedHistorical')).toBe(false);
+  });
+
   it('soft-deleted categories are never reported as unexpected drift', () => {
     const db = cleanSnapshot();
     db.categories.push({ id: strictCatId(996), name: 'Ancienne', parentCategoryId: null, isActive: false, deletedAt: new Date() });

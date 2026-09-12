@@ -159,12 +159,103 @@ describe('INVARIANT 2 — no foreign characteristic on an ACTIVE product', () =>
     expect(found.map((v) => v.specificationId)).toEqual(['s-new']);
   });
 
-  it('the P3 allowlist is minimal and documented — 4 known residual rows', () => {
+  it('the P3 allowlist is minimal and documented — 3 known residual rows', () => {
     // Must only ever SHRINK. 9 → 6 (P3-2 shirt duplicates), 6 → 5 (P3-4a Galaxy
-    // A14 storage), 5 → 4 (P3-4c iron « Type »). Each row stopped being foreign
-    // rather than being excused.
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
+    // A14 storage), 5 → 4 (P3-4c iron « Type »), 4 → 3 (P3-4d oil « Type »).
+    // Each row stopped being foreign rather than being excused.
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(3);
     expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('7476a834-8ca6-423d-94b6-f1e9e6bc3f4b')).toBe(false);
+  });
+});
+
+/**
+ * Post-P3 maintenance — the allowlist after P3-4d.
+ *
+ * These tests exist to stop two opposite mistakes: leaving a dead permit behind
+ * (which would silently excuse the row if it ever turned foreign again), and
+ * over-trimming the list (which would hide a genuine violation). Every id below
+ * is the real production id, so the fixtures describe the rows they name.
+ */
+describe('the P3 allowlist after P3-4d — dead permits out, live ones kept', () => {
+  const OIL_SPEC = '5bf39dfd-925b-461e-8a4c-07028a2a183d';
+  const LOAD_BEARING = [
+    { spec: 'ab2bf530-4a3c-46a0-ab51-7eb0abea834f', product: 'rt7ibz', value: 'Lait en poudre' },
+    { spec: '1f771953-aeb0-4e66-9b10-ce61df4c491b', product: 'vnkqce', value: 'Savon de lessive' },
+    { spec: 'f71a9667-5233-4eef-a1a3-b468b32ac70e', product: 'd3k7ei', value: 'Blender' },
+  ];
+
+  it('no longer excuses the P3-4d oil specification', () => {
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has(OIL_SPEC)).toBe(false);
+  });
+
+  it('holds exactly the three load-bearing residuals and nothing else', () => {
+    expect([...P3_FOREIGN_SPECIFICATION_ALLOWLIST].sort()).toEqual(
+      LOAD_BEARING.map((r) => r.spec).sort(),
+    );
+  });
+
+  // The reason the oil entry could go: the row is no longer foreign at all, so
+  // the invariant returns before it ever reaches the allowlist. Proven with an
+  // EMPTY allowlist — nothing is excusing it.
+  it('the post-P3-4d oil row raises no violation even with an EMPTY allowlist', () => {
+    const HUILES = '16000000-0000-0000-0000-000000010107';
+    const oilProducts = [
+      { id: 'p-oil', shortCode: 'pocc99', categoryId: HUILES, status: 'ACTIVE', deletedAt: null },
+    ];
+    const oilAttributes = [
+      { id: '14000000-0000-0000-0000-000001010703', categoryId: HUILES, name: 'Type' },
+    ];
+    const oilSpecs = [
+      { id: OIL_SPEC, productId: 'p-oil', attributeId: '14000000-0000-0000-0000-000001010703' },
+    ];
+    expect(findForeignActiveSpecifications(oilProducts, oilAttributes, oilSpecs, new Set())).toEqual([]);
+  });
+
+  // The mirror image: had P3-4d NOT run, the same row would be reported. This is
+  // what proves the removal restores detection rather than hiding it.
+  it('the SAME row, still on its pre-P3-4d foreign owner, IS reported', () => {
+    const HUILES = '16000000-0000-0000-0000-000000010107';
+    const BOISSONS = '13000000-0000-0000-0000-000000000102';
+    const found = findForeignActiveSpecifications(
+      [{ id: 'p-oil', shortCode: 'pocc99', categoryId: HUILES, status: 'ACTIVE', deletedAt: null }],
+      [{ id: '14000000-0000-0000-0000-000000010202', categoryId: BOISSONS, name: 'Type' }],
+      [{ id: OIL_SPEC, productId: 'p-oil', attributeId: '14000000-0000-0000-0000-000000010202' }],
+      P3_FOREIGN_SPECIFICATION_ALLOWLIST,
+    );
+    expect(found.map((v) => v.specificationId)).toEqual([OIL_SPEC]);
+  });
+
+  describe('each remaining entry is individually load-bearing', () => {
+    // All three rows ARE genuinely foreign: their attribute sits on a retired
+    // category, their product does not. Modelled exactly that way.
+    const products = LOAD_BEARING.map((r) => ({
+      id: `p-${r.product}`, shortCode: r.product, categoryId: `leaf-${r.product}`,
+      status: 'ACTIVE', deletedAt: null,
+    }));
+    const attributes = LOAD_BEARING.map((r) => ({
+      id: `attr-${r.product}`, categoryId: 'retired-owner', name: 'Type',
+    }));
+    const specifications = LOAD_BEARING.map((r) => ({
+      id: r.spec, productId: `p-${r.product}`, attributeId: `attr-${r.product}`,
+    }));
+
+    it('the full allowlist excuses all three — 0 violations', () => {
+      expect(
+        findForeignActiveSpecifications(products, attributes, specifications, P3_FOREIGN_SPECIFICATION_ALLOWLIST),
+      ).toEqual([]);
+    });
+
+    it.each(LOAD_BEARING)('removing $product ($value) surfaces exactly that row', ({ spec }) => {
+      const trimmed = new Set([...P3_FOREIGN_SPECIFICATION_ALLOWLIST].filter((id) => id !== spec));
+      expect(trimmed.size).toBe(2);
+      const found = findForeignActiveSpecifications(products, attributes, specifications, trimmed);
+      expect(found.map((v) => v.specificationId)).toEqual([spec]);
+    });
+
+    it('an empty allowlist surfaces all three — none is excused by accident', () => {
+      const found = findForeignActiveSpecifications(products, attributes, specifications, new Set());
+      expect(found.map((v) => v.specificationId).sort()).toEqual(LOAD_BEARING.map((r) => r.spec).sort());
+    });
   });
 });
 
@@ -544,8 +635,8 @@ describe('the duplicate-specification removal migration', () => {
     expect(list).not.toContain(FILE);
   });
 
-  it('the P3 allowlist now holds 5 — shirt duplicates gone (P3-2), Galaxy A14 canonicalised (P3-4a)', () => {
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
+  it('the P3 allowlist now holds 3 — shirt duplicates gone (P3-2), Galaxy A14 canonicalised (P3-4a)', () => {
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(3);
     // foyug0's storage row is no longer foreign: it points at its own leaf.
     expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('600d7c1c-c1cd-4c8d-ba15-e6502620fc4e')).toBe(false);
   });
