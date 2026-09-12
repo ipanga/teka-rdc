@@ -174,7 +174,15 @@ export function SearchAutocomplete({
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (!open || items.length === 0) {
-      if (e.key === 'Enter') goToSearch();
+      // The input sits inside a <form onSubmit={goToSearch}>, so Enter would
+      // ALSO fire the native submit. goToSearch only calls preventDefault on an
+      // event it is given, and it gets none here — so without this the term was
+      // pushed twice for one Enter. Suppress the submit; one push, one history
+      // entry.
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        goToSearch();
+      }
       return;
     }
     if (e.key === 'ArrowDown') {
