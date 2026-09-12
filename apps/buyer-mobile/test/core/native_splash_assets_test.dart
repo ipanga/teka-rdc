@@ -61,4 +61,28 @@ void main() {
       expect(xml, contains('@drawable/android12splash'));
     }
   });
+
+  // The v33 sidecars are hand-written — flutter_native_splash knows nothing
+  // about the v33 bucket, so it never corrects them. They were copied off v31
+  // BEFORE c7207e5 stripped the explicit status-bar keys from the four
+  // generator-managed themes, and kept windowDrawsSystemBarBackgrounds as
+  // residue from the abandoned `fullscreen: true` config. Every launch theme
+  // must now leave those keys absent, v33 included, or the next generator run
+  // silently reintroduces the asymmetry.
+  test('no launch theme re-declares the explicit status-bar keys', () {
+    for (final path in const [
+      'android/app/src/main/res/values/styles.xml',
+      'android/app/src/main/res/values-night/styles.xml',
+      'android/app/src/main/res/values-v31/styles.xml',
+      'android/app/src/main/res/values-night-v31/styles.xml',
+      'android/app/src/main/res/values-v33/styles.xml',
+      'android/app/src/main/res/values-night-v33/styles.xml',
+    ]) {
+      final xml = File(path).readAsStringSync();
+      expect(xml, isNot(contains('windowDrawsSystemBarBackgrounds')),
+          reason: '$path re-declares windowDrawsSystemBarBackgrounds');
+      expect(xml, isNot(contains('windowFullscreen')),
+          reason: '$path re-declares windowFullscreen');
+    }
+  });
 }
