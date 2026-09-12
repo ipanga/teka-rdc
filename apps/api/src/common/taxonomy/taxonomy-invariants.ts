@@ -303,21 +303,24 @@ export function findLeavesMissingCatchAll(
 /**
  * The ONLY specifications currently excused from invariant 2.
  *
- * Every entry is a P3 residual recorded in `docs/pre-scale-readiness.md`:
- * six characteristics whose value is real seller data with no canonical home
- * in the taxonomy yet, and three duplicates on the shirt product that the
- * 2026-09-11 correction could not repoint because identical canonical rows
- * already existed (the unique-constraint guard refused them).
+ * Every entry is a P3 residual: real seller data the canonical taxonomy cannot
+ * yet express — either the product's leaf has no equivalent characteristic at
+ * all (« Savon de lessive », « Blender »), or it has one whose options do not
+ * include the value (« Lait en poudre »). Each needs a catalogue decision, not
+ * a repoint. They are described in `docs/seller-catalog-taxonomy.md`
+ * (« Taxonomy debt recorded here ») and in the P3 entries of `PROGRESS.md`.
  *
  * REMOVE ENTRIES AS P3 RESOLVES THEM. This list must only ever shrink — 9 to 6
  * on 2026-09-11 when P3-2 removed the three shirt duplicates, then 6 to 5 when
  * P3-4a repointed the Galaxy A14 « Mémoire interne » onto the canonical
  * « Stockage » of its own leaf, then 5 to 4 when P3-4c repointed the iron
- * « Type » onto the canonical « Type » of « Fers à repasser ». In each case the
- * row stopped being foreign at all, rather than being excused.
+ * « Type » onto the canonical « Type » of « Fers à repasser », then 4 to 3 when
+ * P3-4d repointed the oil « Type » (pocc99, "Huile végétale") onto the canonical
+ * « Type » created on the « Huiles » leaf. In each case the row stopped being
+ * foreign at all, rather than being excused, so its entry excused nothing and
+ * would only have become a latent exemption if the row turned foreign again.
  */
 export const P3_FOREIGN_SPECIFICATION_ALLOWLIST: ReadonlySet<string> = new Set([
-  '5bf39dfd-925b-461e-8a4c-07028a2a183d', // pocc99 « Type » = "Huile végétale" — no canonical home
   'ab2bf530-4a3c-46a0-ab51-7eb0abea834f', // rt7ibz « Type » = "Lait en poudre" — value is not an option of the target
   '1f771953-aeb0-4e66-9b10-ce61df4c491b', // vnkqce « Type » = "Savon de lessive" — no canonical home
   'f71a9667-5233-4eef-a1a3-b468b32ac70e', // d3k7ei « Type » = "Blender" — no canonical home
