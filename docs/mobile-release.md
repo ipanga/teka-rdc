@@ -313,6 +313,17 @@ Completed 2026-09-10. Recorded here so it can be rebuilt or audited.
 > Play permission changes can take **up to 24 hours** to propagate. A `403` on a
 > first run is usually this, not a broken key.
 
+### What every Android Play release must carry
+
+Three separate artifacts. They are unrelated, produced by different tools, and
+each has its own failure mode — do not treat one as a substitute for another.
+
+| Artifact | Covers | Produced by | Checked by |
+|---|---|---|---|
+| **Release signing** | app identity | upload keystore via `key.properties` | "Verify the bundle is NOT debug-signed" (fails the release) |
+| **R8 `mapping.txt`** | Java/Kotlin stack frames | R8 (`isMinifyEnabled = true`) | "Check for the R8 mapping file" (warns only) |
+| **Native debug symbols** | `.so` frames — Dart/Flutter/plugins | AGP `ndk.debugSymbolLevel` | "Verify native debug symbols are present" (fails the release) |
+
 ### Crash deobfuscation (R8)
 
 R8 minification is on for both apps (`isMinifyEnabled = true`). The build job
@@ -320,6 +331,70 @@ uploads `mapping.txt` as its own artifact and the lane passes it to Play via
 `mapping_paths`, so Play crash reports and ANRs are readable. A missing mapping
 is a **warning, not a failure** — the release still ships, but its crash reports
 stay obfuscated.
+
+**`mapping.txt` says nothing about native code.** A native crash inside
+`libapp.so` or `libflutter.so` is symbolicated from the debug symbols below, not
+from the mapping. Both are needed.
+
+### Native debug symbols
+
+Both apps set `ndk { debugSymbolLevel = "SYMBOL_TABLE" }` in the release
+buildType. AGP packs the result into the AAB under
+`BUNDLE-METADATA/com.android.tools.build.debugsymbols/<abi>/<lib>.so.sym`, and
+**Play extracts them from the bundle on upload — there is no separate
+native-debug-symbols ZIP to build or upload.**
+
+Measured on a clean build (2026-09-13, AGP 8.11.1 / Gradle 8.14 / Flutter
+3.44.2):
+
+| Level | Output | AAB size |
+|---|---|---|
+| `SYMBOL_TABLE` | `<lib>.so.sym` | ~66 MB |
+| `FULL` | `<lib>.so.dbg` (adds DWARF line tables) | **~147 MB** |
+
+Both levels cover the *same* libraries, so `FULL` costs 2.2× the upload for line
+numbers we do not use. Keep `SYMBOL_TABLE`.
+
+Setting it explicitly changes no artifact today — it is already AGP 8.11's
+effective behaviour. It is written down so a future AGP upgrade cannot silently
+drop symbols, and the CI guard fails the release if they vanish.
+
+#### Play still warns, and this is why — do not "fix" it again
+
+Play shows *"This App Bundle contains native code, and you've not uploaded debug
+symbols"* even though symbols **are** present. Measured on the exact AAB that
+triggered it (Teka Vendeur versionCode 12, run 34517609508): the bundle carried
+**9 of 18** possible `.sym` files.
+
+The split is not arbitrary:
+
+- `libapp.so`, `libflutter.so`, `libdartjni.so` — Flutter hands these to Gradle
+  **unstripped** (`.symtab` present in `merged_native_libs`), so AGP can extract
+  symbols. ✅ covered, every ABI.
+- `libsentry.so`, `libsentry-android.so`, `libdatastore_shared_counter.so` —
+  their AARs ship **pre-stripped** binaries (`.symtab` absent before our build
+  touches them). There is nothing to extract, at any `debugSymbolLevel`. ❌ not
+  covered, and **no Gradle setting will change that.**
+
+Verified directly: `SYMBOL_TABLE` and the previous implicit default produce
+byte-identical coverage, and `FULL` covers the same three libraries.
+
+So the warning is **cosmetic for the libraries we own** and cannot be cleared
+from our side. The only ways to remove it are to drop the NDK-backed plugins
+(losing native crash capture) or wait for those vendors to publish unstripped
+libraries — both product decisions, not build fixes. Native crashes in *our*
+Dart and Flutter code symbolicate correctly today.
+
+#### The CI guard
+
+`Verify native debug symbols are present` (in `release-mobile-aab.yml`) fails
+the release when `libapp`/`libflutter`/`libdartjni` lose their symbols on any ABI
+in the bundle. It accepts `.so.sym` or `.so.dbg`, so switching levels does not
+break it.
+
+It deliberately does **not** demand coverage of every `.so`: that would fail
+every release over the pre-stripped plugin libraries described above. It fails
+only for symbols we actually control.
 
 ### Credential handling
 
