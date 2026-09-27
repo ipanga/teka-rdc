@@ -565,3 +565,60 @@ describe('ProductsService.findById — canonical characteristics', () => {
     expect(out.specifications).toHaveLength(2);
   });
 });
+
+describe('ProductsService.deleteImage — shared Cloudinary assets', () => {
+  function makeImageService(stillReferenced: string[]) {
+    const order: string[] = [];
+    const prisma = {
+      productImage: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'img1',
+          cloudinaryId: 'teka/products/abc',
+          product: { id: 'p1', sellerId: 'seller1', deletedAt: null },
+        }),
+        delete: jest.fn().mockImplementation(async () => {
+          order.push('db');
+          return {};
+        }),
+        findMany: jest
+          .fn()
+          .mockResolvedValue(stillReferenced.map((cloudinaryId) => ({ cloudinaryId }))),
+      },
+    };
+    const cloudinary = {
+      deleteImage: jest.fn().mockImplementation(async () => {
+        order.push('cloudinary');
+      }),
+    };
+    const service = new ProductsService(
+      prisma as never,
+      cloudinary as never,
+      { capture: jest.fn() } as never,
+      { create: jest.fn() } as never,
+    );
+    return { service, prisma, cloudinary, order };
+  }
+
+  it('destroys the file after the row when nothing else references it', async () => {
+    const { service, cloudinary, order } = makeImageService([]);
+    await service.deleteImage('seller1', 'p1', 'img1');
+    expect(cloudinary.deleteImage).toHaveBeenCalledWith('teka/products/abc');
+    expect(order).toEqual(['db', 'cloudinary']);
+  });
+
+  it('keeps the file while a duplicated product still references it', async () => {
+    const { service, prisma, cloudinary } = makeImageService(['teka/products/abc']);
+    await service.deleteImage('seller1', 'p1', 'img1');
+    expect(prisma.productImage.delete).toHaveBeenCalledWith({ where: { id: 'img1' } });
+    expect(cloudinary.deleteImage).not.toHaveBeenCalled();
+  });
+
+  it('refuses another seller\'s image without touching the row or the file', async () => {
+    const { service, prisma, cloudinary } = makeImageService([]);
+    await expect(service.deleteImage('seller2', 'p1', 'img1')).rejects.toThrow(
+      'Image non trouvée',
+    );
+    expect(prisma.productImage.delete).not.toHaveBeenCalled();
+    expect(cloudinary.deleteImage).not.toHaveBeenCalled();
+  });
+});

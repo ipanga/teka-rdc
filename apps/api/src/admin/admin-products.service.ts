@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { unreferencedProductAssetIds } from '../common/uploads/shared-product-assets';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
@@ -479,15 +480,18 @@ export class AdminProductsService {
 
     await this.prisma.product.delete({ where: { id: productId } });
 
-    if (cloudinaryIds.length > 0) {
-      await this.cloudinary.deleteImages(cloudinaryIds);
+    // Duplicated products share files with their source — keep any file a
+    // surviving image still references.
+    const purgeable = await unreferencedProductAssetIds(this.prisma, cloudinaryIds);
+    if (purgeable.length > 0) {
+      await this.cloudinary.deleteImages(purgeable);
     }
 
     this.logger.warn(
       `Product ${productId} hard-deleted by admin ` +
-        `(${cloudinaryIds.length} Cloudinary assets purged)`,
+        `(${purgeable.length} Cloudinary assets purged)`,
     );
 
-    return { deleted: true, purgedAssets: cloudinaryIds.length };
+    return { deleted: true, purgedAssets: purgeable.length };
   }
 }

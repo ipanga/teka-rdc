@@ -45,6 +45,8 @@ dependencies:
   sentry_flutter: ^9.20.0
   posthog_flutter: ^5.25.3
   file_picker: ^12.2.0
+  image_cropper: ^12.2.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
