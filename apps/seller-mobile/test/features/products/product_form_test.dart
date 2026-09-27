@@ -12,6 +12,7 @@ import 'package:seller_mobile/features/products/data/models/product_model.dart';
 import 'package:seller_mobile/features/products/data/products_repository.dart';
 import 'package:seller_mobile/features/products/presentation/providers/products_provider.dart';
 import 'package:seller_mobile/features/products/presentation/screens/product_form_screen.dart';
+import 'package:seller_mobile/features/products/presentation/similar_product.dart';
 import 'package:seller_mobile/features/products/presentation/widgets/brand_selector.dart';
 import 'package:seller_mobile/features/products/presentation/widgets/category_selector.dart';
 import '../../support/seller_dashboard_fixtures.dart';
@@ -126,6 +127,7 @@ SellerProductModel _existing({String categoryId = 'chemises'}) =>
 
 Future<(_Repo, GoRouter)> _pump(WidgetTester tester,
     {SellerProductModel? product,
+    ProductFormPrefill? prefill,
     double width = 390,
     double height = 844,
     double scale = 1}) async {
@@ -134,7 +136,8 @@ Future<(_Repo, GoRouter)> _pump(WidgetTester tester,
   addTearDown(tester.view.reset);
   final repo = _Repo();
   final router = GoRouter(initialLocation: '/form', routes: [
-    GoRoute(path: '/form', builder: (_, __) => ProductFormScreen(product: product)),
+    GoRoute(path: '/form', builder: (_, __) =>
+            ProductFormScreen(product: product, prefill: prefill)),
     GoRoute(
         path: '/products/:id',
         builder: (_, s) =>
@@ -416,4 +419,112 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  group('« Ajouter un autre produit similaire »', () {
+    SellerProductModel source() => SellerProductModel(
+          id: 'src',
+          title: 'Chemise lin blanche',
+          description: 'Lin léger.',
+          categoryId: 'chemises',
+          brandId: 'b2',
+          priceCDF: '4500000',
+          quantity: 7,
+          condition: ProductCondition.newItem,
+          status: ProductStatus.active,
+          specifications: const [
+            ProductSpecificationModel(attributeId: 'taille', value: 'M'),
+            ProductSpecificationModel(attributeId: 'matiere', value: 'Lin'),
+          ],
+          createdAt: DateTime(2026, 9, 8),
+        );
+
+    testWidgets('keeps category, brand and choice characteristics only; '
+        'creates a NEW product and never touches the source', (tester) async {
+      final (repo, router) = await _pump(tester,
+          prefill: ProductFormPrefill.fromProduct(source()));
+
+      expect(find.textContaining('Repris de « Chemise lin blanche »'),
+          findsOneWidget);
+      expect(find.textContaining('catégorie, marque, 1 caractéristique'),
+          findsOneWidget);
+      expect(repo.attributeCalls, ['chemises']);
+      expect(repo.brandCalls, ['chemises']);
+
+      // Product-specific fields start empty.
+      final title = tester
+          .widget<TextFormField>(find.widgetWithText(TextFormField, 'Titre'));
+      expect(title.controller!.text, isEmpty);
+      await _scrollTo(tester, find.text('Prix FC'));
+      final price = tester
+          .widget<TextFormField>(find.widgetWithText(TextFormField, 'Prix FC'));
+      expect(price.controller!.text, isEmpty);
+      // …with the previous price as a one-tap hint.
+      expect(find.textContaining('Prix du produit précédent'), findsOneWidget);
+      await tester.tap(find.text('Reprendre'));
+      await tester.pump();
+      expect(price.controller!.text, '45000');
+      expect(find.textContaining('Prix du produit précédent'), findsNothing);
+
+      await _scrollTo(tester, find.text('Titre'));
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Titre'), 'Chemise lin bleue');
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Description'), 'Lin léger, bleu.');
+      await _scrollTo(tester, find.text('Quantité disponible'));
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Quantité disponible'), '3');
+      await _save(tester, 'Enregistrer et ajouter des photos');
+
+      final created = repo.created.single;
+      expect(created['categoryId'], 'chemises');
+      expect(created['brandId'], 'b2');
+      expect(created['specifications'], [
+        {'attributeId': 'taille', 'value': 'M'}
+      ], reason: 'free-text « Matière » is variant-specific, not copied');
+      expect(created.containsKey('id'), isFalse);
+      expect(created.containsKey('images'), isFalse);
+      expect(created['quantity'], 3);
+      expect(repo.updated, isEmpty, reason: 'the source product is never written');
+      expect(router.routerDelegate.currentConfiguration.uri.toString(),
+          '/products/new-1');
+    });
+
+    testWidgets('« Tout effacer » returns to an empty create form',
+        (tester) async {
+      await _pump(tester, prefill: ProductFormPrefill.fromProduct(source()));
+      await tester.tap(find.text('Tout effacer'));
+      await tester.pump();
+      expect(find.textContaining('Repris de'), findsNothing);
+      await _scrollTo(tester, find.text('Choisissez d’abord une catégorie.'));
+      expect(find.text('Choisissez d’abord une catégorie.'), findsOneWidget);
+    });
+  });
+
+  test('similarProductSpecs drops values no longer offered', () {
+    const attrs = [
+      AttributeModel(
+          id: 'type',
+          categoryId: 'c',
+          name: 'Type',
+          type: 'SELECT',
+          options: ['Poudre', 'Liquide']),
+      AttributeModel(
+          id: 'usages',
+          categoryId: 'c',
+          name: 'Usages',
+          type: 'MULTISELECT',
+          options: ['Main', 'Machine']),
+      AttributeModel(id: 'poids', categoryId: 'c', name: 'Poids', type: 'TEXT'),
+    ];
+    expect(
+      similarProductSpecs(attrs, {
+        'type': 'Capsules', // retired option
+        'usages': 'Main,Machine',
+        'poids': '1 kg', // TEXT: never copied
+        'ghost': 'x', // attribute from another category
+      }),
+      {'usages': 'Main,Machine'},
+    );
+    expect(similarProductSpecs(attrs, {'type': 'Poudre'}), {'type': 'Poudre'});
+  });
 }

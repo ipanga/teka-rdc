@@ -15,6 +15,7 @@ import '../../data/models/brand_option_model.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
+import '../similar_product.dart';
 import '../widgets/brand_selector.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/dynamic_attribute_field.dart';
@@ -33,7 +34,11 @@ import '../widgets/product_image_manager.dart';
 class ProductFormScreen extends ConsumerStatefulWidget {
   final SellerProductModel? product;
 
-  const ProductFormScreen({super.key, this.product});
+  /// « Ajouter un autre produit similaire »: safe starting values for a NEW
+  /// product. Ignored when editing.
+  final ProductFormPrefill? prefill;
+
+  const ProductFormScreen({super.key, this.product, this.prefill});
 
   @override
   ConsumerState<ProductFormScreen> createState() => _ProductFormScreenState();
@@ -112,6 +117,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   bool get _isEditing => widget.product != null;
 
+  /// Set while the form still shows values taken from a similar product.
+  ProductFormPrefill? _prefill;
+  int _prefilledSpecCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -132,6 +141,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         TextEditingController(text: p?.quantity.toString() ?? '');
     _selectedCategoryId = p?.categoryId;
     _brandId = p?.brandId;
+
+    final prefill = p == null ? widget.prefill : null;
+    if (prefill != null) {
+      _prefill = prefill;
+      _selectedCategoryId = prefill.categoryId;
+      _brandId = prefill.brandId;
+    }
 
     if (p != null && p.specifications.isNotEmpty) {
       for (final spec in p.specifications) {
@@ -199,6 +215,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         setState(() {
           _attributes = attrs;
           _isLoadingAttributes = false;
+          // Similar product: keep only the categorical values still offered.
+          final prefill = _prefill;
+          if (prefill != null && prefill.categoryId == categoryId) {
+            final kept = similarProductSpecs(attrs, prefill.specCandidates);
+            _specValues
+              ..clear()
+              ..addAll(kept);
+            _prefilledSpecCount = kept.length;
+          }
         });
       }
     } catch (_) {
@@ -286,6 +311,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                   const SizedBox(height: TekaSpacing.md),
                 ],
+                if (!_isEditing && _prefill != null) ...[
+                  _SimilarBanner(
+                    text: _similarSummary(_prefill!),
+                    onClear: _clearPrefill,
+                  ),
+                  const SizedBox(height: TekaSpacing.md),
+                ],
                 if (!_isEditing) ...[
                   _Notice(
                     icon: Icons.photo_camera_outlined,
@@ -349,6 +381,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     onCategorySelected: (cat) {
                       setState(() {
                         _categoryGeneration++;
+                        _prefill = null;
                         _selectedCategoryId = cat.id;
                         _categoryError = null;
                         _specValues.clear();
@@ -506,6 +539,25 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     );
                   },
                 ),
+                if (_previousPriceHint() case final previous?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: TekaSpacing.xs),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: TekaSpacing.xs,
+                      children: [
+                        Text(
+                            'Prix du produit précédent : ${formatFcNumber(previous)} FC',
+                            style: theme.bodySmall?.copyWith(
+                                color: TekaColors.neutralForeground)),
+                        ActionChip(
+                          label: const Text('Reprendre'),
+                          onPressed: () => setState(() =>
+                              _priceCDFController.text = previous.toString()),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: TekaSpacing.md),
                 TextFormField(
                   controller: _discountPriceCDFController,
@@ -591,6 +643,43 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         ),
       ),
     );
+  }
+
+  /// The previous product's FC price, while the seller has not typed one.
+  int? _previousPriceHint() {
+    final previous = widget.prefill?.previousPriceCDF;
+    if (_isEditing || previous == null) return null;
+    if (_priceCDFController.text.trim().isNotEmpty) return null;
+    return previous;
+  }
+
+  String _similarSummary(ProductFormPrefill prefill) {
+    final kept = <String>['catégorie'];
+    if (_brandId != null) kept.add('marque');
+    if (_prefilledSpecCount > 0) {
+      kept.add(_prefilledSpecCount == 1
+          ? '1 caractéristique'
+          : '$_prefilledSpecCount caractéristiques');
+    }
+    return 'Repris de « ${prefill.sourceTitle} » : ${kept.join(', ')}. '
+        'Le titre, la description, le prix, le stock et les photos sont à saisir. '
+        'Vérifiez avant d’enregistrer.';
+  }
+
+  /// « Tout effacer »: back to an empty create form.
+  void _clearPrefill() {
+    setState(() {
+      _categoryGeneration++;
+      _prefill = null;
+      _prefilledSpecCount = 0;
+      _selectedCategoryId = null;
+      _brandId = null;
+      _brands = [];
+      _brandsError = null;
+      _attributes = [];
+      _attributesError = null;
+      _specValues.clear();
+    });
   }
 
   /// « 45.000 FC » under the price as the seller types.
@@ -858,4 +947,43 @@ class ProductFormSkeleton extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _SimilarBanner extends StatelessWidget {
+  const _SimilarBanner({required this.text, required this.onClear});
+  final String text;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.sm, TekaSpacing.sm, TekaSpacing.xs, TekaSpacing.xs),
+      decoration: const BoxDecoration(
+        color: TekaColors.infoSubtle,
+        borderRadius: TekaRadius.mdAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.content_copy_outlined,
+                size: 20, color: TekaColors.infoForeground),
+            const SizedBox(width: TekaSpacing.xs),
+            Expanded(
+              child: Text(text,
+                  style: theme.bodySmall
+                      ?.copyWith(color: TekaColors.infoForeground)),
+            ),
+          ]),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+                onPressed: onClear, child: const Text('Tout effacer')),
+          ),
+        ],
+      ),
+    );
+  }
 }

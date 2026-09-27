@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/flavor.dart';
 import 'core/config/sentry_scrub.dart';
+import 'core/media/source_photo.dart';
 import 'core/providers/core_providers.dart';
 import 'core/push/push_service.dart';
 
@@ -87,6 +90,10 @@ Future<void> _bootstrap() async {
   // layer (lib/core/cache/typed_cache.dart) — preload it here so the
   // Riverpod provider doesn't have to be async-aware.
   final prefs = await SharedPreferences.getInstance();
+
+  // Shelf-photo sources left behind by a killed run (Seller Catalogue
+  // Speed-up). Fire-and-forget: housekeeping must never delay the first frame.
+  unawaited(purgeStaleSourcePhotos());
 
   runApp(ProviderScope(
     overrides: [

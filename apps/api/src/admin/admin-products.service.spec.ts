@@ -1,11 +1,16 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AdminProductsService } from './admin-products.service';
 
-function makeService(productRow: unknown) {
+function makeService(productRow: unknown, stillReferenced: string[] = []) {
   const prisma = {
     product: {
       findUnique: jest.fn().mockResolvedValue(productRow),
       delete: jest.fn().mockResolvedValue({}),
+    },
+    productImage: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue(stillReferenced.map((cloudinaryId) => ({ cloudinaryId }))),
     },
   };
   const cloudinary = { deleteImages: jest.fn().mockResolvedValue(undefined) };
@@ -33,6 +38,22 @@ describe('AdminProductsService.hardDeleteProduct', () => {
     expect(prisma.product.delete).toHaveBeenCalledWith({ where: { id: 'p1' } });
     expect(cloudinary.deleteImages).toHaveBeenCalledWith(['c1', 'c2']);
     expect(res).toEqual({ deleted: true, purgedAssets: 2 });
+  });
+
+  it('keeps a file a duplicated product still references', async () => {
+    const { service, cloudinary } = makeService(
+      {
+        id: 'p1',
+        images: [{ cloudinaryId: 'c1' }, { cloudinaryId: 'c2' }],
+        _count: { orderItems: 0 },
+      },
+      ['c1'], // the clone still points at c1
+    );
+
+    const res = await service.hardDeleteProduct('p1');
+
+    expect(cloudinary.deleteImages).toHaveBeenCalledWith(['c2']);
+    expect(res).toEqual({ deleted: true, purgedAssets: 1 });
   });
 
   it('refuses to delete a product with order history (preserve records)', async () => {

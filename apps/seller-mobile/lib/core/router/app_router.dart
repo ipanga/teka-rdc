@@ -17,6 +17,7 @@ import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_list_screen.dart';
 import '../../features/products/presentation/screens/product_detail_screen.dart';
 import '../../features/products/presentation/screens/product_form_screen.dart';
+import '../../features/products/presentation/similar_product.dart';
 import '../../features/products/presentation/screens/product_images_screen.dart';
 import '../../features/products/presentation/screens/products_list_screen.dart';
 import '../../features/products/data/models/product_model.dart';
@@ -219,7 +220,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Product sub-routes (the /products tab itself lives in the shell above)
       GoRoute(
         path: '/products/new',
-        builder: (context, state) => const ProductFormScreen(),
+        // `extra` carries « Ajouter un autre produit similaire » values; a
+        // plain /products/new (deep link, cold start) is an empty form.
+        builder: (context, state) => ProductFormScreen(
+          prefill: state.extra is ProductFormPrefill
+              ? state.extra as ProductFormPrefill
+              : null,
+        ),
       ),
       GoRoute(
         path: '/products/:id',

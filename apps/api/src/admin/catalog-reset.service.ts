@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { unreferencedProductAssetIds } from '../common/uploads/shared-product-assets';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 export interface CatalogResetReport {
@@ -117,9 +118,12 @@ export class CatalogResetService {
     report.productsDeleted = deleted.count;
 
     // Cloudinary AFTER the DB commit — irreversible, never throws (cost-only).
-    if (cloudinaryIds.length) {
-      await this.cloudinary.deleteImages(cloudinaryIds);
-      report.cloudinaryAssetsPurged = cloudinaryIds.length;
+    // Products kept for their order history may share files with deleted
+    // duplicates — destroy only what no surviving image references.
+    const purgeable = await unreferencedProductAssetIds(this.prisma, cloudinaryIds);
+    if (purgeable.length) {
+      await this.cloudinary.deleteImages(purgeable);
+      report.cloudinaryAssetsPurged = purgeable.length;
     }
 
     this.logger.warn(
