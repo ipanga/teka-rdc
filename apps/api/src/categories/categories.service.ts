@@ -19,6 +19,7 @@ import {
   type CategoryStructure,
   type TransitionRefusal,
 } from '../common/taxonomy/category-structure';
+import { cleanCategoryKeywords } from '../common/taxonomy/category-search';
 
 @Injectable()
 export class CategoriesService {
@@ -74,16 +75,20 @@ export class CategoriesService {
   async findTree() {
     const categories = await this.prisma.category.findMany({
       where: { parentCategoryId: null, deletedAt: null },
+      // The admin editor shows the search aliases the rest of the API omits.
+      omit: { searchKeywords: false },
       include: {
         _count: { select: { products: true } },
         subcategories: {
           where: { deletedAt: null },
           orderBy: { sortOrder: 'asc' },
+          omit: { searchKeywords: false },
           include: {
             _count: { select: { products: true } },
             subcategories: {
               where: { deletedAt: null },
               orderBy: { sortOrder: 'asc' },
+              omit: { searchKeywords: false },
               include: { _count: { select: { products: true } } },
             },
           },
@@ -108,6 +113,7 @@ export class CategoriesService {
   async findById(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id, deletedAt: null },
+      omit: { searchKeywords: false },
       include: {
         attributes: {
           orderBy: { sortOrder: 'asc' },
@@ -177,7 +183,9 @@ export class CategoriesService {
         emoji: dto.emoji,
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
+        searchKeywords: cleanCategoryKeywords(dto.searchKeywords ?? []),
       },
+      omit: { searchKeywords: false },
       include: {
         attributes: true,
         subcategories: {
@@ -275,7 +283,11 @@ export class CategoriesService {
         ...(dto.emoji !== undefined && { emoji: dto.emoji }),
         ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.searchKeywords !== undefined && {
+          searchKeywords: cleanCategoryKeywords(dto.searchKeywords),
+        }),
       },
+      omit: { searchKeywords: false },
       include: {
         attributes: true,
         subcategories: {

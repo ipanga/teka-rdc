@@ -263,8 +263,9 @@ describe('brand links are derived from taxonomy-data.ts too', () => {
   it('14. Nestlé links to exactly the milk leaves the source declares — and no others', () => {
     const nestle = STRICT_BRANDS.find((b) => b.n === 47)!;
     expect(nestle.fr).toBe('Nestlé');
-    // Declared: infant formula, coffee, cereal + the two new milk leaves.
-    expect(nestle.types).toEqual([10503, 10204, 10105, 10601, 10602]);
+    // Declared: infant formula, coffee, cereal, the two milk leaves, and (since
+    // 2026-09-27) « Alimentation bébé » — Nestlé makes Cerelac.
+    expect(nestle.types).toEqual([10503, 10204, 10105, 10601, 10602, 10505]);
     // Not powdered-vs-liquid only: « Lait concentré » is deliberately absent.
     expect(nestle.types).not.toContain(10603);
     expect(linksFor(10601)).toContain('Nestlé');

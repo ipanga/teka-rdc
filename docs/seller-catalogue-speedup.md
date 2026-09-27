@@ -103,12 +103,76 @@ A and B are shipped together because the kept shelf photo is what the similar pr
 - **Tests:** 2 form tests, 1 pure test, 1 detail-navigation test, and updated per-status action expectations. Seller-mobile total: 501.
 - **Android compile check:** `flutter build apk --debug --flavor production` built OK with uCrop.
 
-## Remaining phases
+### PR #814 — MERGED into `develop` 2026-09-27 (`6d66323`)
 
-- PR C — category search: `Category.searchKeywords`, `GET /v1/browse/categories/search`, the admin keyword field, the admin synonyms page, and the mobile and web selectors
-- PR D — Lessive `LAUNDRY` template (« Type de lessive », « Poids » appended), Bébé › Alimentation bébé, curated keywords, Boom/Cerelac brands
-- Phase 6/7 — cross-platform validation and close-out
+CI was fully green, including CodeQL. The first CI run found a timing flake in the new crop tests: fixed waits did not cover real file IO on the slower runner. The tests now wait on conditions (`7a1c0e7`).
 
+### PR C+D — category search, aliases, admin pages, targeted taxonomy (`feat/category-search-keywords`)
+
+**C — search.** All of the following are additive.
+
+- **Schema:** `Category.searchKeywords TEXT[] NOT NULL DEFAULT '{}'`, migration `2026-09-27_category_search_keywords.sql` (auto-apply).
+- **Privacy:** `PrismaService` omits the column globally, so it never reaches a buyer payload. That covers the tree, the category detail, and every `include: { category: true }` on products. It was verified on dev: the `/browse/categories` and `/browse/categories/lessive` payloads carry no `searchKeywords`.
+- **Endpoint:** `GET /v1/browse/categories/search?q=&limit=` is public, throttled at 40 requests per 10 s, and returns leaves only. The ranker (`common/taxonomy/category-search.ts`) is pure and runs over a 60 s in-memory index of live leaves: name, path, aliases, and linked brands except « Autre ».
+- **Admin:**
+  - A « Mots-clés de recherche / Synonymes » field on the category editor. The API cleans the input: trim, collapse spaces, de-duplicate ignoring case and accents, at most 40 terms of 2–60 characters each.
+  - A new page « Synonymes de recherche » for the #797 API, with create, edit, deactivate/reactivate and a two-step delete.
+- **Pickers:** both seller pickers (mobile `category_selector.dart`, web `category-combobox.tsx`) call the endpoint with a debounce. They fall back to a local name/path match on leaves while waiting and when offline. The mobile search no longer offers intermediate nodes.
+- **Decision:** `SearchSynonym` is NOT reused for categories. It is term equivalence for product text and has no category relation, so the two sources stay separate (`docs/seller-catalog-taxonomy.md` has a table).
+
+**D — targeted taxonomy.** Additive only. No product moved, no id or slug changed, no specification touched.
+
+- Lessive gets a dedicated `LAUNDRY` template. « Type de lessive » (Poudre/Liquide/Capsules/Savon) and « Poids » are appended after the live Volume/expiry slots.
+- New leaf Supermarché › Bébé › **Alimentation bébé** (…010505, FOOD template).
+- New brands Boom (71) → Lessive and Cerelac (72) → Alimentation bébé. Nestlé and « Autre » are also linked to the new leaf.
+- Curated aliases (`kw`) on ten leaves.
+- **Migration `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`:**
+  - Refusal-first guards run first, and the whole file is one transaction.
+  - The attribute and alias blocks are GENERATED from `taxonomy-data.ts` and pinned by `taxonomy-laundry-babyfood-sql.spec.ts`.
+  - The file is on the auto-apply list, after the column migration.
+- **Dev DB:** the migration was applied twice (idempotent). `taxonomy:diff` shows no new drift entry; dev's 303 additive entries are pre-existing drift. Production is expected to stay at additive 0 / judgement 0 after apply.
+
+**Acceptance on real dev data** (API and browser):
+
+| Query | Result |
+|---|---|
+| « omo », « boom », « ariel » | Lessive (brand) |
+| « savon poudre », « savon en poudre » | Lessive only |
+| « detergent » | Détergents first, then Lessive |
+| « cerelac », « nestle cerelac », « bouillie » | Alimentation bébé |
+| « bebe » and «  BÉBÉ  » | Alimentation bébé first |
+| « cereales » | Céréales |
+| « eau de javel » | Javel |
+
+## Taxonomy audit — reported, NOT changed (catalogue decisions needed)
+
+| # | CURRENT STATE | PROBLEM | RECOMMENDATION | AFFECTED | MIGRATION IMPACT / RISK |
+|---|---|---|---|---|---|
+| T1 | Two soap leaves: Supermarché › Hygiène Personnelle › **Savons** (10301) and Beauté & Santé › Soins Personnels › **Gels douche & Savons** (60201) | A seller cannot tell which one to use for a bar of toilet soap, so listings get split | Keep Savons for bar soap and rename 60201 « Gels douche & savons liquides », or merge. Aliases now separate them for search | 2 leaves plus their products (prod count to be taken read-only first) | A rename is cheap. A merge moves products and needs a refusal-first migration. Low–medium risk |
+| T2 | Entretien Maison: Lessive · Détergents · Javel · Nettoyants · Désinfectants | « Détergents » and « Nettoyants » overlap: multi-purpose cleaner fits both. « Détergents » is also a common word for laundry powder | Keep all five. Aliases now route: dishwashing and degreaser go to Détergents, floor/windows/WC to Nettoyants, antiseptic to Désinfectants. Optionally rename Détergents to « Vaisselle & dégraissants » | 5 leaves | A rename only changes the name; the slug stays (seed recomputes slugs, so run taxonomy:diff first). Low risk |
+| T3 | The `vnkqce` « Savon de lessive » product carries a legacy foreign « Type = Savon de lessive » spec (invariant-2 allowlist) | It can now be expressed canonically as « Type de lessive = Savon » | A reviewed P3-4-style repoint migration: keep the spec row id, repoint it to …1040103 with the value « Savon », retire nothing | 1 product, 1 spec, allowlist 3 → 2 | A refusal-first single-row migration. Low risk, but it is a catalogue decision |
+| T4 | Lessive, as named today | The suggested rename is « Lessive & Soin du linge » | **Not recommended now.** Aliases cover « linge ». A rename changes buyer-visible text and invites a later slug change | 1 leaf | None if skipped |
+| T5 | Leaf 30303 is named **« Nintendo »** (a brand used as a category) | This violates the brands-are-not-categories rule | Rename it to « Consoles portables » or similar, with Nintendo as a brand link | 1 leaf plus products | Rename plus a brand link. The slug is buyer-visible, so this is an SEO/redirect decision. Medium risk |
+| T6 | Dev DB still has « Déodorants » 10304 active and 303 additive drift entries | Dev drift only; prod was reconciled | Leave it. Never run `db:push` against dev | — | — |
+
+## Close-out (2026-09-27)
+
+- **#817 merged into `develop`.** CI was fully green. CodeQL's first run flagged a type confusion (`?q=a&q=b` arrives as an array); `q` and `limit` are now used only when they are strings, covered by an e2e test.
+- **Production release is a separate, approved step:**
+  1. A release PR `develop → main` auto-applies the two migrations in manifest order, before the rolling swap.
+  2. Then run `pnpm --filter api taxonomy:diff:prod`, read-only; expect additive 0 / judgement 0.
+  3. Smoke-test `GET https://api.teka.cd/api/v1/browse/categories/search?q=omo`; expect Lessive.
+- **Seller-mobile needs a store build.** `image_cropper` adds native code, so an OTA-style change is impossible and the version must be bumped. Buyer-mobile is untouched.
+
+## Genuine remaining work
+
+| Priority | Item | Reason | Next action |
+|---|---|---|---|
+| P1 | Release to production | Nothing ships until `main` | Owner approves a `develop → main` release PR; watch EXPAND apply both migrations; run `taxonomy:diff:prod` |
+| P1 | Seller-mobile store build | Crop + search are client code | Bump seller-mobile, then dispatch the AAB/IPA workflows (they need the approval gates) |
+| P2 | Real-device validation | Emulator only; iOS crop never built | Test on an Android device and an iPhone: camera → crop → 2 products from one photo; retry on a flaky network |
+| P2 | Catalogue decisions T1–T5 | Broad changes need the owner | Decide per row, then a narrow refusal-first migration each |
+| P3 | Admin alias edits take up to 60 s to show in search | In-memory index cache | Acceptable. If needed, invalidate the index on category update (same process) |
 ## Validation ledger
 
 | Item | Automated | Browser | Emulator | Real device |
@@ -119,6 +183,12 @@ A and B are shipped together because the kept shelf photo is what the similar pr
 | Android build with uCrop | ✅ debug APK built (production + development flavors) | — | — | — |
 | Camera source (vs gallery) | shares the same pipeline, covered by widget test | n/a | not exercised (emulator virtual camera not driven) | **not tested** |
 | iOS (TOCropViewController) | — | — | not built (no iOS build in this pass) | **not tested** |
+| PR C search endpoint + ranking | ✅ unit (15) + e2e (2) + DTO + service | ✅ seller-web combobox: « omo », « savon poudre », « cerelac », « hygiene » → the right leaves; selecting Lessive loads « Type de lessive » + « Poids » and the Boom/Omo brands | ✅ emulator (rebuilt APK → :5051): « savon poudre » → only Lessive; « cerelac » → Alimentation bébé; selecting it loads « Poids » + « Date d'expiration » | **not tested** |
+| PR C admin keywords | ✅ vitest + API spec | ✅ admin-web: migrated aliases shown; a keystroke edit saved, collapsed spaces, merged a case/accent duplicate; restored afterwards | — | — |
+| PR C admin synonyms page | ✅ type-check | ✅ create, deactivate, reactivate, two-step delete; « gsm » conflict shows the API's French refusal next to the form | — | — |
+| PR D taxonomy | ✅ shape + generated-SQL specs (276 taxonomy tests) | ✅ admin tree shows « Alimentation bébé » | — | — |
+| Mobile-created product on seller-web | — | ✅ product 7f9cdf4a opens on the web edit page with both cropped images in order (cover first) | — | — |
+| Buyer web / buyer mobile | no buyer code changed | **not browser-tested**: QA products are drafts, and images are ordinary WebP through the unchanged pipeline | — | — |
 | PR A shared-asset delete | ✅ unit | — | ✅ runtime against :5051 + read-only Cloudinary Admin API: duplicate → delete the clone's image → hard-delete the clone (`purgedAssets: 0`) → all 3 source assets still EXIST | — |
 
 ### Runtime notes (2026-09-27)
@@ -126,9 +196,10 @@ A and B are shipped together because the kept shelf photo is what the similar pr
 - Crop output measured on Cloudinary: square 1920×1920 → 24.5 KB, 4:3 1920×1440 → 21.9 KB, original 1920×1280 → 20.3 KB (WebP). This is well inside the 2G/3G budget.
 - The first emulator run used SwiftShader software rendering and ANR'd everywhere, including the system permission controller. That was an environment problem, not an app one. Restarting with `-gpu host` fixed it: no ANR, and uCrop was fluid.
 - The device check found image_picker's own cache copy of each pick left beside our source copy. `SourcePhotoSession.adopt` now deletes it after copying, but only inside the temp directory. This is covered by the widget test.
-- **QA fixtures still on the dev DB and the shared Cloudinary cloud:**
-  - seller `qa-crop@teka.test` (user `0f49422d-…`)
-  - products `7f9cdf4a-…` and `38687a61-…` (both DRAFT)
-  - 3 assets: `dxo3sqclekh12ed3izac`, `byo2ng4dlnt0o8j0ix7w`, `n2z9fbre9ojdmy2xrvdf`
-
-  They are kept for the PR C seller-web and admin checks. **Delete them at close-out**: delete the images through the API, which destroys the assets, then hard-delete the products and delete the seller.
+- **QA fixtures cleaned up (2026-09-27):**
+  - The 3 QA images were deleted through the seller API. The read-only Cloudinary Admin API then answers 404 for all three, so the last-reference path still destroys.
+  - Both QA products were hard-deleted.
+  - The QA seller and QA admin users were removed from the dev DB, with their refresh tokens (21), device token (1) and seller profile (1).
+  - The isolated API (:5051) and the seller-web (:5100) and admin-web (:5200) dev servers were stopped.
+  - The scratch files holding the QA passwords were deleted.
+  - Nothing QA-related remains.

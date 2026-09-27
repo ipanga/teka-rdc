@@ -168,3 +168,74 @@ describe('taxonomy — nothing else moved', () => {
     }
   });
 });
+
+describe('taxonomy — laundry and baby food (Seller Catalogue Speed-up, 2026-09-27)', () => {
+  const entretien = SUPERMARCHE.subs.find((s) => s.n === 104)!;
+  const bebe = SUPERMARCHE.subs.find((s) => s.n === 105)!;
+  const lessive = entretien.types.find((t) => t.n === 10401)!;
+  const names = (t: { attrs?: { fr: string }[] }) => (t.attrs ?? []).map((a) => a.fr);
+
+  it('« Lessive » stays ONE leaf — powder/liquid/capsules are a characteristic', () => {
+    expect(entretien.types.map((t) => t.fr)).toEqual([
+      'Lessive',
+      'Détergents',
+      'Javel',
+      'Nettoyants',
+      'Désinfectants',
+    ]);
+    const type = lessive.attrs!.find((a) => a.fr === 'Type de lessive')!;
+    expect(type.options).toEqual(['Poudre', 'Liquide', 'Capsules', 'Savon']);
+  });
+
+  it('the live Lessive attribute slots keep their ids — new ones are appended', () => {
+    // Attribute ids are positional: slot 1 = Volume, slot 2 = expiry (live).
+    expect(names(lessive)).toEqual(['Volume', "Date d'expiration", 'Type de lessive', 'Poids']);
+  });
+
+  it('no other leaf inherits the laundry type', () => {
+    const withType = leaves.filter((l) => names(l).includes('Type de lessive'));
+    expect(withType.map((l) => l.n)).toEqual([10401]);
+  });
+
+  it('« Alimentation bébé » exists once, under Bébé, as a leaf with food characteristics', () => {
+    const matches = leaves.filter((l) => l.fr === 'Alimentation bébé');
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ n: 10505, sub: 'Bébé' });
+    expect(names(matches[0])).toEqual(['Poids', "Date d'expiration"]);
+    // Infant formula keeps its own leaf; the new one does not replace it.
+    expect(bebe.types.map((t) => t.fr)).toContain('Lait infantile');
+  });
+
+  it('brands: Boom → Lessive, Cerelac + Nestlé → Alimentation bébé; brands are never categories', () => {
+    const brand = (fr: string) => STRICT_BRANDS.find((b) => b.fr === fr)!;
+    expect(brand('Boom').types).toEqual([10401]);
+    expect(brand('Cerelac').types).toEqual([10505]);
+    expect(brand('Nestlé').types).toContain(10505);
+    const brandNames = new Set(STRICT_BRANDS.map((b) => b.fr.toLowerCase()));
+    // KNOWN pre-existing exception, reported (docs/seller-catalogue-speedup.md
+    // « Taxonomy audit »), not silently renamed: leaf 30303 is « Nintendo ».
+    const brandNamedLeaves = leaves.filter((l) => brandNames.has(l.fr.toLowerCase()));
+    expect(brandNamedLeaves.map((l) => l.n)).toEqual([30303]);
+  });
+
+  it('brand slots stay unique and never reuse the reserved historical ids', () => {
+    const ns = STRICT_BRANDS.map((b) => b.n);
+    expect(new Set(ns).size).toBe(ns.length);
+    expect(ns).not.toContain(50);
+    expect(ns).not.toContain(51);
+  });
+
+  it('search aliases are curated: few, lower-noise, and never a linked brand name', () => {
+    const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    for (const l of leaves) {
+      const kw = l.kw ?? [];
+      expect(kw.length).toBeLessThanOrEqual(12);
+      const folded = kw.map(fold);
+      expect(new Set(folded).size).toBe(folded.length); // no duplicates
+      const linked = STRICT_BRANDS.filter((b) => b.types.includes(l.n)).map((b) => fold(b.fr));
+      for (const k of folded) expect(linked).not.toContain(k);
+      for (const k of kw) expect(k.length).toBeGreaterThanOrEqual(2);
+    }
+    expect(lessive.kw).toEqual(expect.arrayContaining(['savon poudre', 'savon en poudre', 'détergent']));
+  });
+});

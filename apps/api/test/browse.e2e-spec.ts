@@ -18,6 +18,79 @@ describe('Browse (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // GET /api/v1/browse/categories/search (Seller Catalogue Speed-up)
+  // ---------------------------------------------------------------------------
+  describe('GET /api/v1/browse/categories/search', () => {
+    it('ranks LEAVES by name, alias and linked brand; never offers an intermediate node', async () => {
+      const root = '11000000-0000-0000-0000-000000000001';
+      const sub = '13000000-0000-0000-0000-000000000104';
+      mockPrismaService.category.findMany.mockResolvedValue([
+        { id: root, name: 'Supermarché', parentCategoryId: null, sortOrder: 1, searchKeywords: [] },
+        { id: sub, name: 'Entretien Maison', parentCategoryId: root, sortOrder: 4, searchKeywords: ['lessive'] },
+        { id: 'lessive', name: 'Lessive', parentCategoryId: sub, sortOrder: 1, searchKeywords: ['savon poudre'] },
+        { id: 'detergents', name: 'Détergents', parentCategoryId: sub, sortOrder: 2, searchKeywords: [] },
+      ]);
+      mockPrismaService.brandCategory.findMany.mockResolvedValue([
+        { categoryId: 'lessive', brand: { name: 'Omo' } },
+        { categoryId: 'lessive', brand: { name: 'Autre' } },
+        { categoryId: 'detergents', brand: { name: 'Autre' } },
+      ]);
+
+      // Route order: « search » must not be read as a category slug.
+      const omo = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=OMO')
+        .expect(200);
+      expect(omo.body.success).toBe(true);
+      expect(omo.body.data).toEqual([
+        {
+          id: 'lessive',
+          name: 'Lessive',
+          path: ['Supermarché', 'Entretien Maison', 'Lessive'],
+          matchedBy: 'brand',
+        },
+      ]);
+      // Aliases themselves are never echoed back.
+      expect(JSON.stringify(omo.body)).not.toContain('savon poudre');
+
+      const savon = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=savon%20poudre')
+        .expect(200);
+      expect(savon.body.data.map((h: { id: string }) => h.id)).toEqual(['lessive']);
+
+      // « Autre » is not a search hint, and the intermediate « Entretien
+      // Maison » (which carries an alias) is never returned.
+      const autre = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=autre')
+        .expect(200);
+      expect(autre.body.data).toEqual([]);
+      const entretien = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=entretien')
+        .expect(200);
+      expect(entretien.body.data.map((h: { id: string }) => h.id)).toEqual([
+        'lessive',
+        'detergents',
+      ]);
+    });
+
+    it('treats a repeated (array) q or limit as no query — never a type confusion', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=omo&q=boom&limit=5&limit=6')
+        .expect(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it('answers an empty list for a missing or one-letter query', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=a')
+        .expect(200);
+      expect(res.body.data).toEqual([]);
+      await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search')
+        .expect(200);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/browse/categories
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/browse/categories', () => {

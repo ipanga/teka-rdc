@@ -577,6 +577,11 @@ model Category {
   emoji            String?
   sortOrder        Int       @default(0)
   isActive         Boolean   @default(true)
+  // Invisible search aliases (Seller Catalogue Speed-up, 2026-09-27): terms a
+  // seller may type to find this category (« omo », « savon poudre »). Never
+  // sent to buyers — PrismaService omits the column by default; only the
+  // category-search index and the admin category editor read it.
+  searchKeywords   String[]  @default([])
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?

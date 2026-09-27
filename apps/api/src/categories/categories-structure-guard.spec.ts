@@ -282,3 +282,37 @@ describe('Admin CRUD that must keep working, untouched', () => {
     expect(h.updateMany).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Seller Catalogue Speed-up — search aliases on the admin category editor.
+describe('search keywords (« Mots-clés de recherche »)', () => {
+  it('create stores cleaned aliases and returns them to the admin', async () => {
+    const h = makeService();
+    await h.service.create({
+      name: 'Alimentation bébé',
+      parentCategoryId: 'root',
+      searchKeywords: ['  Cerelac ', 'cerelac', 'Céréales  bébé', 'cereales bebe'],
+    } as never);
+    const args = h.create.mock.calls[0][0];
+    expect(args.data.searchKeywords).toEqual(['Cerelac', 'Céréales bébé']);
+    expect(args.omit).toEqual({ searchKeywords: false });
+  });
+
+  it('create without aliases stores an empty list', async () => {
+    const h = makeService();
+    await h.service.create({ name: 'Javel', parentCategoryId: 'root' } as never);
+    expect(h.create.mock.calls[0][0].data.searchKeywords).toEqual([]);
+  });
+
+  it('update replaces aliases only when sent; [] clears them', async () => {
+    const h = makeService();
+    await h.service.update('leafA', { name: 'Chemises' } as never);
+    expect(h.update.mock.calls[0][0].data).not.toHaveProperty('searchKeywords');
+
+    await h.service.update('leafA', { searchKeywords: ['chemise', 'Chemise'] } as never);
+    expect(h.update.mock.calls[1][0].data.searchKeywords).toEqual(['chemise']);
+
+    await h.service.update('leafA', { searchKeywords: [] } as never);
+    expect(h.update.mock.calls[2][0].data.searchKeywords).toEqual([]);
+  });
+});

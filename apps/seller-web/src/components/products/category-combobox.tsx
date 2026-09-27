@@ -1,6 +1,13 @@
 'use client';
 
 import { useMemo, useRef, useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api-client';
+import {
+  type CategorySearchHit,
+  isSearchableQuery,
+  localCategoryMatches,
+  resolveServerHits,
+} from '@/lib/category-search';
 
 export interface ComboCategory {
   id: string;
@@ -16,16 +23,6 @@ interface FlatNode {
   depth: number;
   /** Product type. Only leaves are selectable; branches exist for labelling. */
   isLeaf: boolean;
-}
-
-// Accent + case insensitive so "tele" matches "Téléphones", "chauss" matches
-// "Chaussures", etc. — essential for the French taxonomy.
-function normalize(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
 }
 
 function flatten(
@@ -59,9 +56,10 @@ interface Props {
 }
 
 /**
- * Searchable category/subcategory picker. The full taxonomy (7 categories →
- * 80+ subcategories) is already loaded client-side, so filtering is purely
- * local — no API traffic. Replaces a long native <select>.
+ * Searchable category/subcategory picker. The full taxonomy is loaded
+ * client-side for browsing; a typed query is ranked by the API (name, path,
+ * invisible aliases, linked brands) with a local name/path fallback while it
+ * loads or if it fails. Replaces a long native <select>.
  *
  * - Empty query → the full tree, indented by depth (parents + children).
  * - Non-empty   → flat matches across category AND subcategory names, each
@@ -94,15 +92,36 @@ export default function CategoryCombobox({
   // leaves; this closes the divergence. The API rejects a non-leaf either way.
   const options = useMemo(() => flat.filter((n) => n.isLeaf), [flat]);
 
+  // Server-ranked hits (aliases + brands: « omo » → Lessive) for the query
+  // they answer. Until they arrive, or if the request fails, the local
+  // name/path match below is shown.
+  const [server, setServer] = useState<{ q: string; hits: CategorySearchHit[] } | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (!isSearchableQuery(q)) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch<CategorySearchHit[]>(
+          `/v1/browse/categories/search?q=${encodeURIComponent(q)}&limit=20`,
+        );
+        if (!cancelled) setServer({ q, hits: res.data ?? [] });
+      } catch {
+        if (!cancelled) setServer(null);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
   const results = useMemo(() => {
-    const q = normalize(query);
+    const q = query.trim();
     if (!q) return options;
-    return options.filter(
-      (n) =>
-        normalize(n.label).includes(q) ||
-        (n.parentLabel ? normalize(n.parentLabel).includes(q) : false),
-    );
-  }, [options, query]);
+    if (server && server.q === q) return resolveServerHits(options, server.hits);
+    return localCategoryMatches(options, q);
+  }, [options, query, server]);
 
   // Close on outside click.
   useEffect(() => {
@@ -205,7 +224,7 @@ export default function CategoryCombobox({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Rechercher une catégorie..."
+              placeholder="Rechercher : lessive, omo, céréales…"
               className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

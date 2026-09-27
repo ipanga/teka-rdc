@@ -532,6 +532,10 @@ CSV formats untouched.
 
 ### SearchSynonym — investigated, deliberately not built
 
+> **Superseded (2026-09-27).** The admin CRUD API shipped in PR #797 (`v1/admin/reports/search/synonyms`)
+> and the admin-web page « Synonymes de recherche » (`/dashboard/search-synonyms`) in the Seller Catalogue
+> Speed-up (`docs/seller-catalogue-speedup.md`). The paragraphs below are the historical state.
+
 `SearchSynonym` has exactly **one** consumer (`browse.service.ts:107`, a 60 s cached read) and **no
 admin CRUD anywhere** — no API route, no page. It is editable only by direct SQL, despite the schema
 comment calling it "admin-editable".
@@ -576,7 +580,7 @@ Auth-401 and Health shapes already recorded.
   nothing, reverted, worth its own PR.
 - **The Next.js dev server writes a search row twice**; the production build writes one. A dev
   artifact — do not "fix" it from a dev observation.
-- **`SearchSynonym` has no admin CRUD** (see PR 5). The recommended next PR.
+- ~~**`SearchSynonym` has no admin CRUD**~~ — done: API #797, admin page 2026-09-27.
 - **The e2e suite's pre-existing 401 flake** — three observed shapes (`Auth`, `Health Check`,
   `Payments`) at roughly 5 % of runs on clean `develop`. Not introduced here; re-run before blaming a
   branch.
