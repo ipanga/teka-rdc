@@ -3,15 +3,20 @@
 ## Active initiative
 
 **Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next).
-- **Merged to `develop`:** PR #814 (`6d66323`): in-app photo crop with shelf-photo reuse, « Ajouter un autre produit similaire », and the shared-Cloudinary-asset delete fix.
-- **Open:** PR C+D on `feat/category-search-keywords`: category search with invisible aliases and linked brands, the admin keyword field, the admin « Synonymes de recherche » page, « Type de lessive », Bébé › Alimentation bébé, and Boom/Cerelac.
-- **Two new auto-apply migrations** (`2026-09-27_category_search_keywords.sql`, `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`):
-  - applied on the **dev DB only**;
-  - **NOT applied to production**;
-  - they run automatically only when a release PR merges `develop → main`, which is the approval gate.
-- **No `main` merge, no store workflow.**
-- **Real-device validation pending.**
-- **Taxonomy decisions T1–T5** are reported in the tracker and wait for the owner.
+- **Implementation COMPLETE on `develop`:**
+  - #814: in-app photo crop with shelf-photo reuse, « Ajouter un autre produit similaire », and the shared-Cloudinary-asset delete fix.
+  - #817: category search with invisible aliases and linked brands, the admin keyword field, the admin « Synonymes de recherche » page, « Type de lessive », Bébé › Alimentation bébé, and Boom/Cerelac.
+  - CI was green on both, including CodeQL. #817's first CodeQL run flagged a type confusion on a repeated `?q=`; it is fixed and covered by an e2e test.
+- **NOT in production. Pending approval gates:**
+  1. **Release PR `develop → main`.** Merging it auto-applies two additive migrations before the rolling swap: `2026-09-27_category_search_keywords.sql`, then `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`. Both have been applied on the dev DB only. After the deploy, run `pnpm --filter api taxonomy:diff:prod` read-only and expect additive 0 / judgement 0.
+  2. **Seller-mobile store build.** It is needed for the crop (a new native plugin: uCrop / TOCropViewController) and for the new search. It requires a version bump and the store workflows, which are not triggered.
+  3. **Catalogue decisions T1–T5** (tracker « Taxonomy audit »).
+- **Validation gaps:**
+  - real device (both OSes);
+  - the iOS crop screen (not built in this pass);
+  - camera source and retry-after-network-failure on a device;
+  - buyer surfaces, which were not browser-tested (no buyer code changed).
+- **QA fixtures:** all cleaned up.
 
 ## Previous snapshot (2026-09-12)
 

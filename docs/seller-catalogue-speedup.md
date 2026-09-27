@@ -155,9 +155,24 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | T5 | Leaf 30303 is named **« Nintendo »** (a brand used as a category) | This violates the brands-are-not-categories rule | Rename it to « Consoles portables » or similar, with Nintendo as a brand link | 1 leaf plus products | Rename plus a brand link. The slug is buyer-visible, so this is an SEO/redirect decision. Medium risk |
 | T6 | Dev DB still has « Déodorants » 10304 active and 303 additive drift entries | Dev drift only; prod was reconciled | Leave it. Never run `db:push` against dev | — | — |
 
-## Remaining phases
+## Close-out (2026-09-27)
 
-- Phase 6/7: open the PR C+D, then close-out and QA-fixture cleanup (see Runtime notes)
+- **#817 merged into `develop`.** CI was fully green. CodeQL's first run flagged a type confusion (`?q=a&q=b` arrives as an array); `q` and `limit` are now used only when they are strings, covered by an e2e test.
+- **Production release is a separate, approved step:**
+  1. A release PR `develop → main` auto-applies the two migrations in manifest order, before the rolling swap.
+  2. Then run `pnpm --filter api taxonomy:diff:prod`, read-only; expect additive 0 / judgement 0.
+  3. Smoke-test `GET https://api.teka.cd/api/v1/browse/categories/search?q=omo`; expect Lessive.
+- **Seller-mobile needs a store build.** `image_cropper` adds native code, so an OTA-style change is impossible and the version must be bumped. Buyer-mobile is untouched.
+
+## Genuine remaining work
+
+| Priority | Item | Reason | Next action |
+|---|---|---|---|
+| P1 | Release to production | Nothing ships until `main` | Owner approves a `develop → main` release PR; watch EXPAND apply both migrations; run `taxonomy:diff:prod` |
+| P1 | Seller-mobile store build | Crop + search are client code | Bump seller-mobile, then dispatch the AAB/IPA workflows (they need the approval gates) |
+| P2 | Real-device validation | Emulator only; iOS crop never built | Test on an Android device and an iPhone: camera → crop → 2 products from one photo; retry on a flaky network |
+| P2 | Catalogue decisions T1–T5 | Broad changes need the owner | Decide per row, then a narrow refusal-first migration each |
+| P3 | Admin alias edits take up to 60 s to show in search | In-memory index cache | Acceptable. If needed, invalidate the index on category update (same process) |
 ## Validation ledger
 
 | Item | Automated | Browser | Emulator | Real device |
