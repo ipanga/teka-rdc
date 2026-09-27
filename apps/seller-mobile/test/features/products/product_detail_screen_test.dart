@@ -10,6 +10,7 @@ import 'package:seller_mobile/features/auth/presentation/providers/auth_provider
 import 'package:seller_mobile/features/products/data/models/product_model.dart';
 import 'package:seller_mobile/features/products/data/products_repository.dart';
 import 'package:seller_mobile/features/products/presentation/screens/product_detail_screen.dart';
+import 'package:seller_mobile/features/products/presentation/similar_product.dart';
 import '../../support/seller_dashboard_fixtures.dart';
 
 class _Repo extends ProductsRepository {
@@ -103,6 +104,13 @@ Future<(_Repo, GoRouter)> _pump(WidgetTester tester, SellerProductModel product,
         path: '/products',
         builder: (_, __) => const Scaffold(body: Text('Liste des produits'))),
     GoRoute(
+        path: '/products/new',
+        builder: (_, s) {
+          final p = s.extra as ProductFormPrefill?;
+          return Scaffold(
+              body: Text('Nouveau depuis ${p?.sourceTitle} · ${p?.categoryId}'));
+        }),
+    GoRoute(
         path: '/products/:id',
         builder: (_, s) =>
             ProductDetailScreen(productId: s.pathParameters['id']!)),
@@ -187,12 +195,17 @@ void main() {
   });
 
   group('actions by status', () {
+    // « Ajouter un autre produit similaire » is offered on every status.
+    const similar = 'Ajouter un autre produit similaire';
     for (final (status, labels) in [
-      (ProductStatus.draft, ['Soumettre pour révision', 'Modifier le produit']),
-      (ProductStatus.pendingReview, ['Retirer de la révision', 'Dupliquer']),
-      (ProductStatus.active, ['Modifier le produit', 'Archiver', 'Dupliquer']),
-      (ProductStatus.archived, ['Restaurer', 'Dupliquer']),
-      (ProductStatus.suspended, ['Dupliquer']),
+      (ProductStatus.draft,
+          ['Soumettre pour révision', 'Modifier le produit', similar]),
+      (ProductStatus.pendingReview,
+          ['Retirer de la révision', 'Dupliquer', similar]),
+      (ProductStatus.active,
+          ['Modifier le produit', 'Archiver', 'Dupliquer', similar]),
+      (ProductStatus.archived, ['Restaurer', 'Dupliquer', similar]),
+      (ProductStatus.suspended, ['Dupliquer', similar]),
     ]) {
       testWidgets('${status.name}: ${labels.join(' / ')}', (tester) async {
         await _pump(tester, _product(status));
@@ -206,6 +219,24 @@ void main() {
             labels.length);
       });
     }
+  });
+
+  testWidgets('« Ajouter un autre produit similaire » opens a NEW form '
+      'prefilled from this product', (tester) async {
+    final (repo, _) = await _pump(tester, _product(ProductStatus.active));
+    const label = 'Ajouter un autre produit similaire';
+    await tester.scrollUntilVisible(find.text(label), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+    // Pushed with the prefill as `extra` (go_router keeps the base uri for
+    // an imperative push, so assert the screen, not the uri).
+    expect(find.text('Nouveau depuis Robe Wax Africaine - Taille M · ${_product(ProductStatus.active).categoryId}'),
+        findsOneWidget);
+    expect(repo.product.status, ProductStatus.active,
+        reason: 'the source product is not modified');
   });
 
   testWidgets('draft without photos: submit is refused client-side with a '

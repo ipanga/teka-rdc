@@ -61,7 +61,11 @@ Evidence: `STATUS.md` « FINAL RECONCILIATION PASS (2026-09-12) », plus a focus
 
 ## PR log
 
-### PR A — crop, source reuse, shared-asset fix (`feat/seller-photo-crop`)
+### PR A+B — crop, source reuse, shared-asset fix, similar product (`feat/seller-crop-similar-product`, one PR)
+
+A and B are shipped together because the kept shelf photo is what the similar product's photo step reuses.
+
+**A — crop, source reuse, shared-asset fix**
 
 - **API:**
   - new `common/uploads/shared-product-assets.ts` (`unreferencedProductAssetIds`)
@@ -84,9 +88,23 @@ Evidence: `STATUS.md` « FINAL RECONCILIATION PASS (2026-09-12) », plus a focus
   - the stale sweep works
 - **Schema / migration:** none. Old apps are unaffected.
 
+**B — « Ajouter un autre produit similaire »**
+
+- **Entry point:** a new action on the product detail screen, offered for every status. It pushes `/products/new` with `extra: ProductFormPrefill.fromProduct(product)` and emits `seller_similar_product_started`.
+- **Prefill:** `lib/features/products/presentation/similar_product.dart`.
+  - **Copied:** the category, the brand (dropped if the category no longer offers it, the form's existing rule), and SELECT/MULTISELECT values that are still current options (`similarProductSpecs`).
+  - **Never copied:** TEXT, NUMERIC and date values; title; description; prices; promotion; stock; images; ids.
+- **Form:**
+  - A banner reads « Repris de « … » : catégorie, marque, N caractéristiques… » and offers « Tout effacer ».
+  - The price starts empty. The hint « Prix du produit précédent : X FC » comes with a « Reprendre » chip (the user's decision).
+  - Changing the category drops the prefill.
+- **Server side:** the new product is created by the ordinary `POST /v1/sellers/products`, so ownership, id, shortCode, status and timestamps all come from the server, and the source product is never written. No API change.
+- The deep link `/products/new` without `extra` still opens an empty form.
+- **Tests:** 2 form tests, 1 pure test, 1 detail-navigation test, and updated per-status action expectations. Seller-mobile total: 501.
+- **Android compile check:** `flutter build apk --debug --flavor production` built OK with uCrop.
+
 ## Remaining phases
 
-- PR B — « Ajouter un autre produit similaire »
 - PR C — category search: `Category.searchKeywords`, `GET /v1/browse/categories/search`, the admin keyword field, the admin synonyms page, and the mobile and web selectors
 - PR D — Lessive `LAUNDRY` template (« Type de lessive », « Poids » appended), Bébé › Alimentation bébé, curated keywords, Boom/Cerelac brands
 - Phase 6/7 — cross-platform validation and close-out
@@ -96,4 +114,6 @@ Evidence: `STATUS.md` « FINAL RECONCILIATION PASS (2026-09-12) », plus a focus
 | Item | Automated | Browser | Emulator | Real device |
 |---|---|---|---|---|
 | PR A crop / reuse / retry | ✅ widget tests | n/a | pending | **not tested** |
+| PR B similar product | ✅ widget tests | n/a | pending | **not tested** |
+| Android build with uCrop | ✅ debug APK built | — | — | — |
 | PR A shared-asset delete | ✅ unit | — | — | — |

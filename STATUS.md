@@ -2,7 +2,7 @@
 
 ## Active initiative
 
-**Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next). Phase 0 reconciliation done; PR A (seller photo crop + source reuse + shared Cloudinary asset fix) in progress on `feat/seller-photo-crop`. Next: PR B similar product, PR C category search + aliases + admin synonyms page, PR D Lessive/Alimentation bébé taxonomy. **No production migration executed, no `main` merge, no store workflow** — each needs explicit approval.
+**Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next). Phase 0 reconciliation done; PR A+B (seller photo crop + source reuse + shared Cloudinary asset fix + « Ajouter un autre produit similaire ») implemented on `feat/seller-crop-similar-product`, automated tests green, emulator validation next. Then: PR C category search + aliases + admin synonyms page, PR D Lessive/Alimentation bébé taxonomy. **No production migration executed, no `main` merge, no store workflow** — each needs explicit approval.
 
 ## Previous snapshot (2026-09-12)
 

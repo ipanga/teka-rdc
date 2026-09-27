@@ -61,9 +61,11 @@ class _Repo extends ProductsRepository {
   @override
   Future<ProductImageModel> uploadImage(String productId, File imageFile) async {
     final bytes = await imageFile.readAsBytes();
-    if (fail) throw DioException(
-        requestOptions: RequestOptions(path: '/x'),
-        type: DioExceptionType.connectionError);
+    if (fail) {
+      throw DioException(
+          requestOptions: RequestOptions(path: '/x'),
+          type: DioExceptionType.connectionError);
+    }
     uploads.add(bytes);
     return ProductImageModel.fromJson({
       'id': 'new${uploads.length}',
