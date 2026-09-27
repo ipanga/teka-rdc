@@ -263,3 +263,30 @@ export function renderBrandSql(
 
   return parts.join('\n');
 }
+
+/**
+ * `categories."searchKeywords"` for the given leaves, from `taxonomy-data.ts`
+ * `kw` (Seller Catalogue Speed-up, 2026-09-27). Written ONLY where the list is
+ * still empty — the same rule `seed.ts` follows — so an admin's aliases are
+ * never overwritten by a re-run.
+ */
+export function renderKeywordSql(typeKeys: number[]): string {
+  const byKey = new Map<number, string[]>();
+  for (const cat of STRICT_CATEGORIES) {
+    for (const sub of cat.subs) {
+      for (const type of sub.types) byKey.set(type.n, type.kw ?? []);
+    }
+  }
+  const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+  return typeKeys
+    .map((n) => {
+      const kw = byKey.get(n);
+      if (kw === undefined) throw new Error(`product type ${n} is not defined in taxonomy-data.ts`);
+      if (kw.length === 0) throw new Error(`product type ${n} declares no search keywords`);
+      return (
+        `UPDATE "categories" SET "searchKeywords" = ARRAY[${kw.map(q).join(', ')}]::TEXT[], "updatedAt" = NOW()\n` +
+        ` WHERE "id" = '${strictTypeId(n)}' AND "searchKeywords" = '{}';`
+      );
+    })
+    .join('\n');
+}
