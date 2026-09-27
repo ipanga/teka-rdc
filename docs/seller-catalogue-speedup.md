@@ -174,9 +174,33 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | Post-deploy verification | ✅ counts exact (356/590/72/345/505/353); taxonomy:diff:prod 0/0/1; smoke omo/boom/savon poudre/cerelac/détergent correct and leaf-only; aliases absent from the buyer tree, category detail and product page; seller/admin noindex intact. Sentry not checked (no access) |
 | Seller-mobile bump 0.1.11+13 | ✅ #820 → #821, `main` `60d70ac`; redeploy 36337328372 succeeded (0 applied, 16 skipped) |
 | CI race in the crop test (cleanup after upload) | ✅ fixed, test-only (#822) |
-| Seller TestFlight | ⏸ run 36337679322: build succeeded (match AppStore profile, IPA 12.0 MB, build 1790530851, 15 dSYMs → Sentry); waiting on `ios-testflight` |
-| Seller Play internal | ⏸ run 36337681264: build succeeded (production-signed AAB 67.4 MB, mapping 25.4 MB, 9/18 native `.sym` as in #806); waiting on `android-play` |
-| Physical-device checklist | pending (owner hardware) |
+| Seller TestFlight | ✅ run 36337679322 (owner approved `ios-testflight`): « Successfully finished processing the build 0.1.11 - 1790530851 », « Verified … available to 'Testers Teka RDC' » |
+| Seller Play internal | ✅ run 36337681264 (owner approved `android-play`): mapping for version code 13 uploaded, « Updating track 'internal' », « Successfully finished the upload to Google Play »; metadata skipped, `release_status completed` |
+| Physical-device checklist | **NOT performed**: needs owner hardware (list below) |
+
+### Physical-device checklist (Seller 0.1.11: TestFlight build 1790530851 / Play internal versionCode 13)
+
+Nothing below has been tested on a physical device. Tick an item only after it has actually been run on one.
+
+1. Select one shelf photo containing several products.
+2. Crop Product A from it.
+3. Create Product B by reusing the same shelf photo (« Recadrer à nouveau la photo précédente ») and cropping another region.
+4. Confirm the original photo stays usable (its full frame reopens).
+5. Cancel a crop and confirm nothing is uploaded.
+6. Force a failed upload (airplane mode) and confirm « Réessayer » sends the same crop once.
+7. Confirm local crops are cleaned up (after the upload, after « Terminer avec cette photo », and after 24 h).
+8. Use « Ajouter un autre produit similaire ».
+9. Confirm the category, the brand and valid choice-type characteristics are carried over.
+10. Confirm the price starts empty.
+11. Confirm the « Prix du produit précédent » hint and « Reprendre » work.
+12. Confirm a « Dupliquer » product shares its assets, and that a similar product has its own.
+13. Delete or change an image on a duplicate and confirm the source product's image stays intact.
+14. Search the categories for omo, boom, savon poudre, cerelac and détergent.
+15. Confirm search returns leaf categories only.
+16. Confirm aliases are never displayed to sellers or buyers.
+17. Confirm the admin category alias editor and the « Synonymes de recherche » page still work (web).
+
+Items 1–16 must be run on **both** an Android phone and an iPhone. The iOS crop screen has not run anywhere yet.
 
 ## Genuine remaining work
 
