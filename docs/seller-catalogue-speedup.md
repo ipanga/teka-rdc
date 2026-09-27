@@ -188,5 +188,3 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
   - The isolated API (:5051) and the seller-web (:5100) and admin-web (:5200) dev servers were stopped.
   - The scratch files holding the QA passwords were deleted.
   - Nothing QA-related remains.
-
-  They are kept for the PR C seller-web and admin checks. **Delete them at close-out**: delete the images through the API, which destroys the assets, then hard-delete the products and delete the seller.
