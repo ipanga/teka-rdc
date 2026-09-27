@@ -181,10 +181,12 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 - Crop output measured on Cloudinary: square 1920×1920 → 24.5 KB, 4:3 1920×1440 → 21.9 KB, original 1920×1280 → 20.3 KB (WebP). This is well inside the 2G/3G budget.
 - The first emulator run used SwiftShader software rendering and ANR'd everywhere, including the system permission controller. That was an environment problem, not an app one. Restarting with `-gpu host` fixed it: no ANR, and uCrop was fluid.
 - The device check found image_picker's own cache copy of each pick left beside our source copy. `SourcePhotoSession.adopt` now deletes it after copying, but only inside the temp directory. This is covered by the widget test.
-- **QA fixtures still on the dev DB and the shared Cloudinary cloud:**
-  - admin `qa-admin-speedup@teka.test` (user `a32bd8c2-…`)
-  - seller `qa-crop@teka.test` (user `0f49422d-…`)
-  - products `7f9cdf4a-…` and `38687a61-…` (both DRAFT)
-  - 3 assets: `dxo3sqclekh12ed3izac`, `byo2ng4dlnt0o8j0ix7w`, `n2z9fbre9ojdmy2xrvdf`
+- **QA fixtures cleaned up (2026-09-27):**
+  - The 3 QA images were deleted through the seller API. The read-only Cloudinary Admin API then answers 404 for all three, so the last-reference path still destroys.
+  - Both QA products were hard-deleted.
+  - The QA seller and QA admin users were removed from the dev DB, with their refresh tokens (21), device token (1) and seller profile (1).
+  - The isolated API (:5051) and the seller-web (:5100) and admin-web (:5200) dev servers were stopped.
+  - The scratch files holding the QA passwords were deleted.
+  - Nothing QA-related remains.
 
   They are kept for the PR C seller-web and admin checks. **Delete them at close-out**: delete the images through the API, which destroys the assets, then hard-delete the products and delete the seller.
