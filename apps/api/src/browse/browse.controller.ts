@@ -24,12 +24,12 @@ export class BrowseController {
   @Get('categories/search')
   @Public()
   @Throttle({ default: { limit: 40, ttl: 10000 } })
-  searchCategories(@Query('q') q?: string, @Query('limit') limit?: string) {
-    const n = limit ? parseInt(limit, 10) : 20;
-    return this.browseService.searchCategories(
-      (q ?? '').slice(0, 100),
-      Number.isFinite(n) ? n : 20,
-    );
+  searchCategories(@Query('q') q?: unknown, @Query('limit') limit?: unknown) {
+    // A repeated parameter (?q=a&q=b) arrives as an ARRAY: accept strings only,
+    // so a tampered query degrades to "no results" instead of a type confusion.
+    const text = typeof q === 'string' ? q.slice(0, 100) : '';
+    const n = typeof limit === 'string' ? parseInt(limit, 10) : NaN;
+    return this.browseService.searchCategories(text, Number.isFinite(n) ? n : 20);
   }
 
   /**

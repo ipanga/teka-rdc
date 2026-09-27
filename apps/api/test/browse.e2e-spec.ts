@@ -72,6 +72,13 @@ describe('Browse (e2e)', () => {
       ]);
     });
 
+    it('treats a repeated (array) q or limit as no query — never a type confusion', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories/search?q=omo&q=boom&limit=5&limit=6')
+        .expect(200);
+      expect(res.body.data).toEqual([]);
+    });
+
     it('answers an empty list for a missing or one-letter query', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/browse/categories/search?q=a')
