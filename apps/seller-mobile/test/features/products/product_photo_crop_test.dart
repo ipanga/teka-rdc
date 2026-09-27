@@ -165,8 +165,12 @@ void main() {
   testWidgets('camera → crop → upload sends only the crop and keeps the source',
       (t) async {
     await _pump(t);
+    // Wait for the post-upload cleanup too: the crop file is deleted
+    // asynchronously AFTER the upload is recorded (a CI race otherwise).
     await _openSheetAndTap(t, 'Prendre une photo',
-        until: () => _repo.uploads.isNotEmpty);
+        until: () =>
+            _repo.uploads.isNotEmpty &&
+            !File('${_tmp.path}/crop_1.jpg').existsSync());
 
     expect(_picker.calls, 1);
     expect(_repo.uploads, hasLength(1));
