@@ -2,38 +2,31 @@
 
 ## Active initiative
 
-**Seller Catalogue Speed-up — RELEASE PHASE.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
-- **Current gate:** release PR **#818** (`develop → main`) is OPEN and **waiting for the owner's explicit approval to merge**.
-  - Merging deploys automatically (`deploy.yml` on push to `main`, no environment gate).
-  - The deploy's EXPAND phase applies the two migrations below before the rolling swap.
-- **Pre-release verification (2026-09-27), all green:**
-  - `develop` = `origin/develop`; 60 files ahead of `main`, all in scope; no workflow, env, secret, version or buyer changes.
-  - 14/14 checks green on `develop` `cd7f417`.
-  - `taxonomy:diff:prod` (read-only) = exactly the 8 expected additive items, judgement 0, historical 1.
-  - A read-only guard pre-check passes: the parent is active; the slug, ids and brand names are free; Autre and Nestlé exist; the column is absent; the ledger has no 2026-09-27 rows.
-- **Production baseline** (before → expected after):
+**Seller Catalogue Speed-up — RELEASED TO PRODUCTION (2026-09-27); seller-mobile store round in progress.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
 
-  | Table | Before | Expected after |
-  |---|---|---|
-  | categories | 355 | 356 |
-  | product_attributes | 586 | 590 |
-  | brands | 70 | 72 |
-  | brand_categories | 341 | 345 |
-  | products | 505 | 505 |
-  | product_specifications | 353 | 353 |
-  | `_manual_migrations` | 49 | 51 |
+**Production release**
+- Release PR **#818** merged as **`860b740`**.
+- Deploy run **36335462366** succeeded (17:02:46 → 17:08:58 UTC). All four images were built and the rolling swap completed.
 
-- **Migrations:** `2026-09-27_category_search_keywords.sql` and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`. Dev DB only so far; **production: NOT applied**.
-- **After the merge:**
-  1. Watch the deploy.
-  2. Verify each migration ran once (ledger 51).
-  3. Check health.
-  4. Run `taxonomy:diff:prod` (expect additive 0 / judgement 0).
-  5. Smoke-test search (omo, boom, savon poudre, cerelac, détergent).
-  6. Confirm aliases are absent from buyer payloads.
-  7. Then bump seller-mobile and dispatch the TestFlight + Play internal workflows with `app=seller` (they default to buyer!) — they stop at the approval environments.
-- **Real-device validation pending.**
-- **T1–T5 are deferred follow-ups** and do not block the release.
+**Migrations**
+- Each ran **exactly once**. The deploy log shows « 2 applied, 14 skipped ».
+- `_manual_migrations` rows: `2026-09-27_category_search_keywords.sql` at 17:08:13Z, and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql` at 17:08:14Z. The ledger went from 49 to **51**.
+- Production counts match the expected state exactly: categories 356 · product_attributes 590 · brands 72 · brand_categories 345 · products 505 · product_specifications 353. 10 leaves carry aliases.
+- `taxonomy:diff:prod` (read-only): **additive 0 · judgement 0 · historical 1**, exit 0.
+
+**Health and smoke tests**
+- The API `/v1/cities`, teka.cd, seller.teka.cd and admin.teka.cd all return 200. Seller and admin keep `noindex, nofollow`, and buyer `robots.txt` is unchanged.
+- Search: « omo » and « boom » → Lessive (brand); « savon poudre » → Lessive (alias); « cerelac » → Alimentation bébé; « détergent » → Détergents, then Lessive. All results are leaves. Latency is about 0.7 s.
+- Aliases are absent from the buyer tree, category detail and product page. The product page includes the full category row **without** `searchKeywords`, which confirms the global omit works.
+- Lessive serves Volume, Date d'expiration, Type de lessive and Poids.
+- **Sentry NOT checked:** no `sentry-cli` or auth token is available in this environment.
+
+**Seller-mobile store round**
+- The bump `0.1.10+12 → 0.1.11+13` is on `chore/seller-mobile-0.1.11-13` (PR into `develop`, then a `develop → main` release).
+- Next, dispatch `release-mobile-ipa.yml` and `release-mobile-aab.yml` with **`app=seller`** from `main`. Both stop at the `ios-testflight` and `android-play` approval environments, which **need the owner**.
+- No buyer build. No public track.
+
+**Still pending:** real-device validation, and the T1–T5 follow-ups.
 
 ## Previous snapshot (2026-09-12)
 

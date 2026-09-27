@@ -169,10 +169,11 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | Gate | State |
 |---|---|
 | Pre-release verification | ✅ done (see `STATUS.md`) |
-| Release PR #818 `develop → main` | ⏸ waiting for the owner's merge approval |
-| Deploy + EXPAND migrations | pending |
-| Post-deploy verification | pending |
-| Seller-mobile bump + TestFlight / Play internal | pending (dispatch with `app=seller`; stops at `ios-testflight` / `android-play`) |
+| Release PR #818 `develop → main` | ✅ approved and merged as `860b740` |
+| Deploy + EXPAND migrations | ✅ run 36335462366 succeeded; « 2 applied, 14 skipped »; each migration once (ledger 49 → 51) |
+| Post-deploy verification | ✅ counts exact (356/590/72/345/505/353); taxonomy:diff:prod 0/0/1; smoke omo/boom/savon poudre/cerelac/détergent correct and leaf-only; aliases absent from the buyer tree, category detail and product page; seller/admin noindex intact. Sentry not checked (no access) |
+| Seller-mobile bump 0.1.11+13 | in progress (`chore/seller-mobile-0.1.11-13`) |
+| Seller TestFlight / Play internal | pending (dispatch with `app=seller` from `main`; stops at `ios-testflight` / `android-play`) |
 | Physical-device checklist | pending (owner hardware) |
 
 ## Genuine remaining work
