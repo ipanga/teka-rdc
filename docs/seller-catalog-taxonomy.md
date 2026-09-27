@@ -234,3 +234,21 @@ Sentry was **not** checked — no `sentry-cli` and no auth token available from 
 environment. Health endpoints and all three web surfaces were verified instead.
 seller-mobile was never interactively exercised (`osascript` returns `-1719`, no
 `idb`/`cliclick`); the API response it consumes was verified.
+
+## Category search — brands, aliases and synonyms (2026-09-27)
+
+Seller Catalogue Speed-up (`docs/seller-catalogue-speedup.md`). The seller's category picker (mobile + web)
+asks `GET /v1/browse/categories/search?q=` and gets ranked **leaves** only. Three sources, each with one owner:
+
+| Source | Where it lives | What it is for | Who edits it |
+|---|---|---|---|
+| **Product brands** | `Brand` + `BrandCategory` (leaf links) | the brand a product carries; also lets « omo » find Lessive | admin « Marques »; `taxonomy-data.ts` STRICT_BRANDS |
+| **Category aliases** | `Category.searchKeywords` (TEXT[]) | invisible words a *seller* types to find a category (« savon poudre », « bouillie bébé ») | admin category editor « Mots-clés de recherche / Synonymes »; `taxonomy-data.ts` `kw` |
+| **Search synonyms** | `SearchSynonym` groups | equivalent words for *buyer product search* (« gsm » ≡ « portable ») | admin « Synonymes de recherche » |
+
+Rules: a brand is **never** a category name and never needs repeating as an alias (the link already makes it
+searchable; « Autre » is ignored). Aliases are omitted from every API payload by `PrismaService` except the
+search index and the admin editor, so buyers never see them. Seed and migrations write aliases **only where the
+list is empty**, never over an admin edit. Ranking: exact name → name → exact alias → alias → brand → path →
+mixed; every typed word must match; accents, case, punctuation and plurals are folded
+(`apps/api/src/common/taxonomy/category-search.ts`).

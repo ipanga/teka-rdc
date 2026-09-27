@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
@@ -13,6 +14,7 @@ import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../product_status_ui.dart';
 import '../providers/products_provider.dart';
+import '../similar_product.dart';
 import '../widgets/product_card.dart';
 import '../widgets/status_badge.dart';
 
@@ -286,6 +288,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ],
       ProductStatus.suspended => [duplicate],
     };
+    // Always offered: the fastest way to list the next product of the same
+    // kind (same shelf photo, same category, same brand).
+    buttons.add(_ActionButton(
+      label: 'Ajouter un autre produit similaire',
+      icon: Icons.library_add_outlined,
+      outlined: true,
+      busy: _busy,
+      onPressed: () => _startSimilar(product),
+    ));
     return Column(children: [
       for (var i = 0; i < buttons.length; i++) ...[
         if (i > 0) const SizedBox(height: TekaSpacing.xs),
@@ -328,6 +339,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 : 'Impossible de restaurer le produit. Réessayez.',
             tone: p != null ? AppSnackbarTone.success : AppSnackbarTone.error);
       });
+
+  void _startSimilar(SellerProductModel product) {
+    const PosthogAnalytics().capture('seller_similar_product_started');
+    context.push('/products/new',
+        extra: ProductFormPrefill.fromProduct(product));
+  }
 
   Future<void> _duplicate(SellerProductModel product) => _run(() async {
         final p = await ref

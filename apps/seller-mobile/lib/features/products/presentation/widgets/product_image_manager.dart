@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/layout/responsive.dart';
+import '../../../../core/media/source_photo.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/theme/teka_spacing.dart';
@@ -37,8 +40,17 @@ class ProductImageManager extends ConsumerStatefulWidget {
 
 class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
   static const int _maxImages = 8;
-  final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+
+  /// A confirmed crop whose upload failed, kept for « Réessayer ».
+  File? _failedCrop;
+
+  @override
+  void dispose() {
+    // Leaving the screen abandons an unsent crop: remove the local file.
+    unawaited(discardCropFile(_failedCrop));
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +106,15 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
               : 'La première photo sert de couverture.',
           style: theme.bodySmall?.copyWith(color: TekaColors.neutralForeground),
         ),
+        if (_failedCrop != null) ...[
+          const SizedBox(height: TekaSpacing.xs),
+          _FailedUploadNotice(
+            onRetry: _isUploading
+                ? null
+                : () => _uploadCrop(product.id, _failedCrop!),
+            onDiscard: _isUploading ? null : _discardFailedCrop,
+          ),
+        ],
         const SizedBox(height: TekaSpacing.xs),
         // Tablet phase (2026-09-07): tile count from the width the manager is
         // given, minimum three; the image_picker capture size is untouched.
@@ -133,11 +154,17 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
     );
   }
 
-  /// Source sheet (PR A white sheet theme): camera or gallery, one upload
-  /// pipeline for both.
+  /// Source sheet (PR A white sheet theme). Camera, gallery, and — while a
+  /// shelf photo is kept — « Recadrer à nouveau la photo précédente », so one
+  /// photo of several products feeds several product listings.
   Future<void> _chooseSourceAndUpload(String productId) async {
     if (_isUploading) return; // guard against duplicate taps
-    final source = await showModalBottomSheet<ImageSource>(
+    final session = ref.read(sourcePhotoSessionProvider.notifier);
+    final hasSource = await session.isAvailable();
+    if (!mounted) return;
+    final source = ref.read(sourcePhotoSessionProvider);
+
+    final choice = await showModalBottomSheet<_PhotoChoice>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -163,15 +190,43 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
                   child: Text('Ajouter une photo', style: theme.titleMedium),
                 ),
               ),
+              if (hasSource && source != null) ...[
+                ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.file(
+                      source,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      // Decode a thumbnail, never the full shelf photo.
+                      cacheWidth: 120,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.crop_outlined),
+                    ),
+                  ),
+                  title: const Text('Recadrer à nouveau la photo précédente'),
+                  subtitle: const Text('Pour un autre produit de la même photo'),
+                  onTap: () => Navigator.pop(sheetContext, _PhotoChoice.reuse),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.done_all_outlined),
+                  title: const Text('Terminer avec cette photo'),
+                  subtitle: const Text('Elle est retirée de votre téléphone'),
+                  onTap: () =>
+                      Navigator.pop(sheetContext, _PhotoChoice.finishSource),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: const Icon(Icons.photo_camera_outlined),
                 title: const Text('Prendre une photo'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+                onTap: () => Navigator.pop(sheetContext, _PhotoChoice.camera),
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
                 title: const Text('Choisir dans la galerie'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+                onTap: () => Navigator.pop(sheetContext, _PhotoChoice.gallery),
               ),
               const SizedBox(height: TekaSpacing.xs),
             ],
@@ -179,37 +234,61 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
         );
       },
     );
-    if (source == null || !mounted) return;
-    await _pickAndUploadImage(productId, source);
-  }
-
-  Future<void> _pickAndUploadImage(String productId, ImageSource source) async {
-    if (_isUploading) return; // guard against duplicate uploads
-    try {
-      // Capture size is a deliberate constant (Rule: not changed for a
-      // bigger screen); the repository compresses to ≤ 500 KB WebP after.
-      final xFile = await _picker.pickImage(
-        source: source,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 80,
-      );
-      if (xFile == null || !mounted) return;
-
-      setState(() => _isUploading = true);
-
-      final file = File(xFile.path);
-      await ref.read(productsRepositoryProvider).uploadImage(productId, file);
-
-      // Refresh the product (this widget) + the list thumbnails.
-      ref.invalidate(productDetailProvider(widget.productId));
-      ref.read(sellerProductsProvider.notifier).loadProducts();
-
+    if (choice == null || !mounted) return;
+    if (choice == _PhotoChoice.finishSource) {
+      await session.clear();
       if (mounted) {
         showAppSnackbar(context,
-            message: 'Photo ajoutée.', tone: AppSnackbarTone.success);
+            message: 'Photo précédente retirée.',
+            tone: AppSnackbarTone.neutral);
       }
-    } on PlatformException catch (e) {
+      return;
+    }
+    await _pickCropAndUpload(productId, choice);
+  }
+
+  /// pick (or reuse) → crop into a NEW file → upload. Nothing is uploaded
+  /// before the seller confirms the crop, so a cancelled crop costs nothing
+  /// on Cloudinary.
+  Future<void> _pickCropAndUpload(String productId, _PhotoChoice choice) async {
+    if (_isUploading) return; // guard against duplicate uploads
+    final session = ref.read(sourcePhotoSessionProvider.notifier);
+    try {
+      final String sourcePath;
+      if (choice == _PhotoChoice.reuse) {
+        if (!await session.isAvailable()) {
+          if (mounted) {
+            showAppSnackbar(context,
+                message:
+                    'La photo précédente n’est plus disponible. Reprenez une photo.',
+                tone: AppSnackbarTone.warning);
+          }
+          return;
+        }
+        sourcePath = ref.read(sourcePhotoSessionProvider)!.path;
+      } else {
+        final picked = await ref.read(sourcePhotoPickerProvider).pick(
+            choice == _PhotoChoice.camera
+                ? ImageSource.camera
+                : ImageSource.gallery);
+        if (picked == null || !mounted) return;
+        sourcePath = (await session.adopt(picked)).path;
+      }
+      if (!mounted) return;
+
+      final cropped = await ref.read(photoCropperProvider).crop(sourcePath);
+      if (cropped == null) {
+        const PosthogAnalytics().capture('seller_image_crop_cancelled');
+        return; // the source is kept for the next attempt
+      }
+      const PosthogAnalytics().capture('seller_image_crop_completed',
+          properties: {'source': choice.name});
+      if (!mounted) {
+        await discardCropFile(cropped);
+        return;
+      }
+      await _uploadCrop(productId, cropped);
+    } on PlatformException catch (e, stack) {
       // Camera / photo-library permission denied at the OS level.
       if (mounted) {
         final denied =
@@ -217,18 +296,61 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
         showAppSnackbar(context,
             message: denied
                 ? 'Accès refusé. Autorisez l’appareil photo ou les photos dans les réglages de votre téléphone.'
-                : friendlyErrorMessage(e),
+                : friendlyErrorMessage(e, stack),
             tone: AppSnackbarTone.error);
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        // The photo stays on the device: tapping « Ajouter » again retries.
         showAppSnackbar(context,
-            message: friendlyErrorMessage(e), tone: AppSnackbarTone.error);
+            message: friendlyErrorMessage(e, stack),
+            tone: AppSnackbarTone.error);
+      }
+    }
+  }
+
+  /// Uploads one confirmed crop. On failure the crop is KEPT and offered
+  /// back as « Réessayer » — an explicit tap, never an automatic replay: the
+  /// upload creates an image row and is not idempotent.
+  Future<void> _uploadCrop(String productId, File cropped) async {
+    if (_isUploading) return;
+    setState(() {
+      _isUploading = true;
+      _failedCrop = null;
+    });
+    try {
+      await ref.read(productsRepositoryProvider).uploadImage(productId, cropped);
+      await discardCropFile(cropped);
+
+      // Refresh the product (this widget) + the list thumbnails.
+      ref.invalidate(productDetailProvider(widget.productId));
+      ref.read(sellerProductsProvider.notifier).loadProducts();
+
+      if (mounted) {
+        final keepsSource = ref.read(sourcePhotoSessionProvider) != null;
+        showAppSnackbar(context,
+            message: keepsSource
+                ? 'Photo ajoutée. La photo d’origine reste disponible pour un autre produit.'
+                : 'Photo ajoutée.',
+            tone: AppSnackbarTone.success);
+      }
+    } catch (e, stack) {
+      if (mounted) {
+        setState(() => _failedCrop = cropped);
+        showAppSnackbar(context,
+            message: friendlyErrorMessage(e, stack),
+            tone: AppSnackbarTone.error);
+      } else {
+        await discardCropFile(cropped);
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  Future<void> _discardFailedCrop() async {
+    final failed = _failedCrop;
+    setState(() => _failedCrop = null);
+    await discardCropFile(failed);
   }
 
   Future<void> _confirmDeleteImage(
@@ -278,5 +400,39 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
             message: friendlyErrorMessage(e), tone: AppSnackbarTone.error);
       }
     }
+  }
+}
+
+enum _PhotoChoice { camera, gallery, reuse, finishSource }
+
+class _FailedUploadNotice extends StatelessWidget {
+  final VoidCallback? onRetry;
+  final VoidCallback? onDiscard;
+
+  const _FailedUploadNotice({required this.onRetry, required this.onDiscard});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.sm, TekaSpacing.xs, TekaSpacing.xs, TekaSpacing.xs),
+      decoration: BoxDecoration(
+        color: TekaColors.warningSubtle,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(children: [
+        const Icon(Icons.cloud_off_outlined,
+            size: 20, color: TekaColors.warningForeground),
+        const SizedBox(width: TekaSpacing.xs),
+        Expanded(
+          child: Text('Une photo recadrée n’a pas été envoyée.',
+              style: theme.bodySmall
+                  ?.copyWith(color: TekaColors.warningForeground)),
+        ),
+        TextButton(onPressed: onDiscard, child: const Text('Abandonner')),
+        TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+      ]),
+    );
   }
 }

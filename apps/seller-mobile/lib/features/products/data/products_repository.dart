@@ -8,6 +8,7 @@ import '../../../core/providers/seller_refresh_provider.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/utils/image_compress.dart';
 import 'models/attribute_model.dart';
+import 'models/category_search_hit.dart';
 import 'models/brand_option_model.dart';
 import 'models/product_model.dart';
 
@@ -206,6 +207,20 @@ class ProductsRepository {
     final data = response.data['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Ranked LEAF categories for what the seller types: name, full path,
+  /// invisible aliases and linked brand names (server-side). A GET, so the
+  /// default retry policy applies.
+  Future<List<CategorySearchHit>> searchCategories(String query) async {
+    final response = await _dio.get(
+      '/v1/browse/categories/search',
+      queryParameters: {'q': query, 'limit': 20},
+    );
+    final data = response.data['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => CategorySearchHit.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

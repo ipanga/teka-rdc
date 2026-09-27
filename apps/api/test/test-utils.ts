@@ -84,6 +84,11 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
   },
 
+  // Brand ↔ leaf links (category search index)
+  brandCategory: {
+    findMany: jest.fn(),
+  },
+
   // Product catalog
   category: {
     findUnique: jest.fn(),

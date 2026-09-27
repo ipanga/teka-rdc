@@ -41,6 +41,13 @@ export interface ProductTypeDef {
   fr: string;
   /** Attribute templates for this product type (order = display order). */
   attrs?: AttrTpl[];
+  /**
+   * Invisible seller-search aliases (`Category.searchKeywords`, 2026-09-27).
+   * Seeded ONLY while the row's list is still empty, so an admin's edits are
+   * never overwritten. Brand names linked to the leaf are searched already —
+   * do not repeat them here.
+   */
+  kw?: string[];
 }
 
 export interface SubcategoryDef {
@@ -146,6 +153,19 @@ const OIL: AttrTpl[] = [
   { fr: 'Type', type: SELECT, options: ['Huile végétale', "Huile d'olive", 'Huile de palme'] },
 ];
 const CONSUMABLE: AttrTpl[] = [VOLUME, EXPIRY];
+// Laundry (2026-09-27, Seller Catalogue Speed-up). « Lessive » stays ONE leaf:
+// powder, liquid, capsules and laundry soap are a CHARACTERISTIC, not four
+// categories a seller must choose between. Built on CONSUMABLE's two slots so
+// the live « Volume » …1040101 and « Date d'expiration » …1040102 keep their
+// ids; « Type de lessive » and « Poids » are APPENDED (…03, …04) — powder is
+// sold by weight, liquid by volume. Dedicated template, like OIL/IRON, so no
+// other CONSUMABLE leaf (Javel, Shampoings…) inherits a laundry type.
+const LAUNDRY: AttrTpl[] = [
+  VOLUME,
+  EXPIRY,
+  { fr: 'Type de lessive', type: SELECT, options: ['Poudre', 'Liquide', 'Capsules', 'Savon'] },
+  WEIGHT,
+];
 // Ordinary household milk. Deliberately NOT the FOOD template: a shopper picks
 // milk by form and size, and « lait infantile » keeps its own weight+expiry
 // shape (infant formula is a different product family — see Bébé).
@@ -198,7 +218,7 @@ const BATHROOM: AttrTpl[] = [MATERIAL, COLOR];
 // ────────────────────────────────────────────────────────────────────────────
 // CATEGORY TREE (7 categories, fixed display order)
 // ────────────────────────────────────────────────────────────────────────────
-const t = (n: number, fr: string, attrs?: AttrTpl[]): ProductTypeDef => ({ n, fr, attrs });
+const t = (n: number, fr: string, attrs?: AttrTpl[], kw?: string[]): ProductTypeDef => ({ n, fr, attrs, kw });
 
 export const STRICT_CATEGORIES: CategoryDef[] = [
   {
@@ -212,9 +232,28 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
       // volume+expiry template. Removing it from this array leaves the row
       // deactivated with a null slug (seed.ts deactivates every category
       // before rebuilding the strict tree) — retired, never hard-deleted.
-      { n: 103, fr: 'Hygiène Personnelle', types: [t(10301, 'Savons', CONSUMABLE), t(10302, 'Shampoings', CONSUMABLE), t(10303, 'Dentifrices', CONSUMABLE)] },
-      { n: 104, fr: 'Entretien Maison', types: [t(10401, 'Lessive', CONSUMABLE), t(10402, 'Détergents', CONSUMABLE), t(10403, 'Javel', CONSUMABLE), t(10404, 'Nettoyants', CONSUMABLE), t(10405, 'Désinfectants', CONSUMABLE)] },
-      { n: 105, fr: 'Bébé', types: [t(10501, 'Couches', DIAPER), t(10502, 'Lingettes', CONSUMABLE), t(10503, 'Lait infantile', FOOD), t(10504, 'Biberons', [COLOR])] },
+      { n: 103, fr: 'Hygiène Personnelle', types: [t(10301, 'Savons', CONSUMABLE, ['savon de toilette', 'savonnette', 'savon de bain']), t(10302, 'Shampoings', CONSUMABLE), t(10303, 'Dentifrices', CONSUMABLE)] },
+      // Search aliases (2026-09-27): what sellers actually type. « savon poudre »
+      // must land on Lessive, not on the toilet-soap leaves — every word has to
+      // match, so the alias is what decides it.
+      { n: 104, fr: 'Entretien Maison', types: [
+        t(10401, 'Lessive', LAUNDRY, ['lessive en poudre', 'lessive poudre', 'poudre à lessiver', 'savon en poudre', 'savon poudre', 'savon de lessive', 'lessive liquide', 'capsules de lessive', 'détergent', 'linge']),
+        t(10402, 'Détergents', CONSUMABLE, ['liquide vaisselle', 'vaisselle', 'dégraissant']),
+        t(10403, 'Javel', CONSUMABLE, ['eau de javel', 'chlore', 'blanchissant']),
+        t(10404, 'Nettoyants', CONSUMABLE, ['nettoyant sol', 'nettoyant vitres', 'nettoyant wc']),
+        t(10405, 'Désinfectants', CONSUMABLE, ['antiseptique', 'antibactérien']),
+      ] },
+      // « Alimentation bébé » (2026-09-27): baby cereal (Cerelac), porridge and
+      // purées had no leaf — the nearest were « Lait infantile » (formula, a
+      // different product family) and the general « Céréales ». Broad on
+      // purpose, not « Céréales bébé »: one leaf a seller cannot miss.
+      { n: 105, fr: 'Bébé', types: [
+        t(10501, 'Couches', DIAPER, ['couches bébé', 'couches jetables', 'couche-culotte']),
+        t(10502, 'Lingettes', CONSUMABLE),
+        t(10503, 'Lait infantile', FOOD, ['lait bébé', 'lait 1er âge', 'lait 2e âge', 'formule infantile']),
+        t(10504, 'Biberons', [COLOR]),
+        t(10505, 'Alimentation bébé', FOOD, ['nourriture bébé', 'aliment bébé', 'céréales bébé', 'céréales infantiles', 'bouillie bébé', 'bouillie infantile', 'farine bébé', 'purée bébé', 'petit pot', 'nestlé cerelac']),
+      ] },
       // Ordinary household milk (2026-09-10). Before this the ONLY dairy node
       // in the whole tree was « Lait infantile » under Bébé, so everyday milk
       // had nowhere to go — the one real milk product in production had been
@@ -270,7 +309,7 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
   {
     n: 6, emoji: '💄', fr: 'Beauté & Santé', subs: [
       { n: 601, fr: 'Beauté', types: [t(60101, 'Maquillage', MAKEUP), t(60102, 'Soins du visage', SKINCARE), t(60103, 'Soins capillaires', CONSUMABLE), t(60104, 'Vernis & Ongles', MAKEUP)] },
-      { n: 602, fr: 'Soins Personnels', types: [t(60201, 'Gels douche & Savons', CONSUMABLE), t(60202, 'Déodorants', DEODORANT), t(60203, 'Soins du corps', SKINCARE), t(60204, 'Rasage & Épilation', [VOLUME])] },
+      { n: 602, fr: 'Soins Personnels', types: [t(60201, 'Gels douche & Savons', CONSUMABLE, ['gel douche', 'savon liquide']), t(60202, 'Déodorants', DEODORANT), t(60203, 'Soins du corps', SKINCARE), t(60204, 'Rasage & Épilation', [VOLUME])] },
       { n: 603, fr: 'Parfums', types: [t(60301, 'Parfums Homme', PERFUME), t(60302, 'Parfums Femme', PERFUME), t(60303, 'Coffrets parfums', PERFUME)] },
       { n: 604, fr: 'Santé', types: [t(60401, 'Premiers secours', [EXPIRY]), t(60402, 'Vitamines & Compléments', [EXPIRY]), t(60403, 'Matériel médical', [WARRANTY])] },
       { n: 605, fr: 'Bien-être', types: [t(60501, 'Massage & Relaxation', [WARRANTY]), t(60502, 'Soins minceur', [VOLUME, EXPIRY])] },
@@ -345,7 +384,7 @@ export const STRICT_BRANDS: BrandDef[] = [
   // Supermarket
   { n: 45, fr: 'Omo', types: [10401] },
   { n: 46, fr: 'Ariel', types: [10401, 10402] },
-  { n: 47, fr: 'Nestlé', types: [10503, 10204, 10105, 10601, 10602] },
+  { n: 47, fr: 'Nestlé', types: [10503, 10204, 10105, 10601, 10602, 10505] },
   { n: 48, fr: 'Pampers', types: [10501, 10502] },
   { n: 49, fr: 'Huggies', types: [10501, 10502] },
   // Alcohol brands (2026-09-10). Deliberately few: only what is actually on
@@ -406,4 +445,9 @@ export const STRICT_BRANDS: BrandDef[] = [
   { n: 68, fr: 'Coca-Cola', types: [10203] },
   { n: 69, fr: "D'jino", types: [10203] },
   { n: 70, fr: 'World Cola', types: [10203] },
+  // Seller Catalogue Speed-up (2026-09-27): two shelf staples sellers search
+  // by brand. Linking them also makes « boom » / « cerelac » find the right
+  // leaf in the category picker without any hard-coded alias.
+  { n: 71, fr: 'Boom', types: [10401] },
+  { n: 72, fr: 'Cerelac', types: [10505] },
 ];

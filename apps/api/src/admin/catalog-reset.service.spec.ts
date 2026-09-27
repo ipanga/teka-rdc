@@ -14,7 +14,10 @@ function makeService(over: Record<string, unknown> = {}) {
       ]),
       deleteMany: jest.fn().mockResolvedValue({ count: 3 }),
     },
-    productImage: { count: jest.fn().mockResolvedValue(3) },
+    productImage: {
+      count: jest.fn().mockResolvedValue(3),
+      findMany: jest.fn().mockResolvedValue([]), // no surviving references
+    },
     productSpecification: { count: jest.fn().mockResolvedValue(5) },
     review: { count: jest.fn().mockResolvedValue(2) },
     wishlist: { count: jest.fn().mockResolvedValue(1) },

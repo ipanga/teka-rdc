@@ -16,6 +16,23 @@ export class BrowseController {
   }
 
   /**
+   * Seller category search: ranked LEAF categories (product types) matching
+   * the name, the full path, invisible aliases or a linked brand. Declared
+   * before `categories/:identifier` so « search » is not read as a slug.
+   * Same burst allowance as autocomplete (debounced per keystroke).
+   */
+  @Get('categories/search')
+  @Public()
+  @Throttle({ default: { limit: 40, ttl: 10000 } })
+  searchCategories(@Query('q') q?: unknown, @Query('limit') limit?: unknown) {
+    // A repeated parameter (?q=a&q=b) arrives as an ARRAY: accept strings only,
+    // so a tampered query degrades to "no results" instead of a type confusion.
+    const text = typeof q === 'string' ? q.slice(0, 100) : '';
+    const n = typeof limit === 'string' ? parseInt(limit, 10) : NaN;
+    return this.browseService.searchCategories(text, Number.isFinite(n) ? n : 20);
+  }
+
+  /**
    * Detail page for a category. Accepts a UUID OR a slug — buyer-web routes
    * via /categorie/<slug>; older /categories/<uuid> links keep working.
    */

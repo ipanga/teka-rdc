@@ -10,6 +10,11 @@ import {
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
 import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
+import {
+  CategorySearchLeaf,
+  normalizeCategoryText,
+  searchCategoryLeaves,
+} from '../common/taxonomy/category-search';
 
 // Lowercase + strip French accents (JS-side), mirroring the DB's f_unaccent so
 // synonym matching ("téléphone" ⇄ "telephone") is consistent on both sides.
@@ -136,6 +141,13 @@ export class BrowseService {
   // Short-lived cache of active synonym groups (admin-editable; reloaded every
   // 60s) so we don't hit the table on every search.
   private synonymCache: { at: number; groups: string[][] } | null = null;
+
+  // Seller category-search index (live leaves + path + aliases + brand names),
+  // rebuilt at most every 60s like the synonym cache.
+  private categorySearchCache: {
+    at: number;
+    leaves: CategorySearchLeaf[];
+  } | null = null;
 
   constructor(private prisma: PrismaService) {}
 
@@ -287,6 +299,84 @@ export class BrowseService {
    * (SEO-2) it is the number of publicly eligible products IN THAT TOWN — one
    * grouped query for the whole tree, never a count per category.
    */
+  /**
+   * Seller category search (`GET /v1/browse/categories/search`): ranked LEAF
+   * categories for what a seller types — name, full path, invisible aliases
+   * (`Category.searchKeywords`) and linked brand names. See
+   * `common/taxonomy/category-search.ts` for matching and ranking.
+   */
+  async searchCategories(q: string, limit = 20) {
+    const leaves = await this.getCategorySearchIndex();
+    return searchCategoryLeaves(q, leaves, Math.min(Math.max(limit, 1), 50));
+  }
+
+  private async getCategorySearchIndex(): Promise<CategorySearchLeaf[]> {
+    if (
+      this.categorySearchCache &&
+      Date.now() - this.categorySearchCache.at < 60_000
+    ) {
+      return this.categorySearchCache.leaves;
+    }
+    const [categories, links] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { isActive: true, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          parentCategoryId: true,
+          sortOrder: true,
+          searchKeywords: true,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+      this.prisma.brandCategory.findMany({
+        where: { brand: { isActive: true, deletedAt: null } },
+        select: { categoryId: true, brand: { select: { name: true } } },
+      }),
+    ]);
+
+    const brandsByCategory = new Map<string, string[]>();
+    for (const link of links) {
+      // « Autre » is the catch-all on every leaf — useless as a search hint.
+      if (normalizeCategoryText(link.brand.name) === 'autre') continue;
+      const list = brandsByCategory.get(link.categoryId) ?? [];
+      list.push(link.brand.name);
+      brandsByCategory.set(link.categoryId, list);
+    }
+
+    const children = new Map<string | null, typeof categories>();
+    for (const c of categories) {
+      const list = children.get(c.parentCategoryId) ?? [];
+      list.push(c);
+      children.set(c.parentCategoryId, list);
+    }
+
+    // Depth-first from the roots: a node under an inactive (absent) parent is
+    // never reached, so it is never offered. Leaves = no live child.
+    const leaves: CategorySearchLeaf[] = [];
+    const walk = (parentId: string | null, path: string[]) => {
+      for (const c of children.get(parentId) ?? []) {
+        const here = [...path, c.name];
+        if (children.has(c.id)) {
+          walk(c.id, here);
+        } else {
+          leaves.push({
+            id: c.id,
+            name: c.name,
+            path: here,
+            keywords: c.searchKeywords,
+            brands: brandsByCategory.get(c.id) ?? [],
+            treeOrder: leaves.length,
+          });
+        }
+      }
+    };
+    walk(null, []);
+
+    this.categorySearchCache = { at: Date.now(), leaves };
+    return leaves;
+  }
+
   async getCategories(cityId?: string) {
     const categories = await this.prisma.category.findMany({
       where: { isActive: true, deletedAt: null },

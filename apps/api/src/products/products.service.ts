@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { unreferencedProductAssetIds } from '../common/uploads/shared-product-assets';
 import { validateImageUpload } from '../common/uploads/image-upload';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import {
@@ -1025,16 +1026,19 @@ export class ProductsService {
 
     await this.prisma.product.delete({ where: { id: productId } });
 
-    if (cloudinaryIds.length > 0) {
-      await this.cloudinary.deleteImages(cloudinaryIds);
+    // A duplicated product shares its files with its source — destroy only
+    // the ones no surviving image still points at.
+    const purgeable = await unreferencedProductAssetIds(this.prisma, cloudinaryIds);
+    if (purgeable.length > 0) {
+      await this.cloudinary.deleteImages(purgeable);
     }
 
     this.logger.log(
       `Product ${productId} hard-deleted by seller ${sellerId} ` +
-        `(${cloudinaryIds.length} Cloudinary assets purged)`,
+        `(${purgeable.length} Cloudinary assets purged)`,
     );
 
-    return { deleted: true, purgedAssets: cloudinaryIds.length };
+    return { deleted: true, purgedAssets: purgeable.length };
   }
 
   /**
@@ -1120,13 +1124,21 @@ export class ProductsService {
       throw new NotFoundException('Image non trouvée');
     }
 
-    // Delete from Cloudinary
-    await this.cloudinary.deleteImage(image.cloudinaryId);
-
-    // Delete record
+    // DB first, Cloudinary after — the same ordering as hardDelete(): an
+    // orphaned file is a cost, a row pointing at a destroyed file is a broken
+    // product.
     await this.prisma.productImage.delete({
       where: { id: imageId },
     });
+
+    // A duplicated product shares this file with its source; keep it while
+    // any other image row still references it.
+    const [purgeable] = await unreferencedProductAssetIds(this.prisma, [
+      image.cloudinaryId,
+    ]);
+    if (purgeable) {
+      await this.cloudinary.deleteImage(purgeable);
+    }
 
     return { message: 'Image supprimée avec succès' };
   }

@@ -962,6 +962,14 @@ async function main() {
           update: { isActive: true, name: type.fr, slug: typeSlug, sortOrder: type.n % 100, parentCategoryId: subId },
           create: { id: typeId, name: type.fr, slug: typeSlug, sortOrder: type.n % 100, parentCategoryId: subId, isActive: true },
         });
+        // Search aliases: seed only while the list is still empty — never
+        // overwrite what an admin has since edited (Seller Catalogue Speed-up).
+        if (type.kw?.length) {
+          await prisma.category.updateMany({
+            where: { id: typeId, searchKeywords: { isEmpty: true } },
+            data: { searchKeywords: type.kw },
+          });
+        }
         allTypeIds.push(typeId);
         strictTypeCount++;
         const attrs = type.attrs ?? [];
