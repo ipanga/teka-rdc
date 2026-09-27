@@ -99,6 +99,7 @@ export function Sidebar() {
       { href: '/dashboard/products', label: 'Produits', icon: 'products', badge: pendingProducts },
       { href: '/dashboard/categories', label: 'Catégories', icon: 'catalog' },
       { href: '/dashboard/brands', label: 'Marques', icon: 'products' },
+      { href: '/dashboard/search-synonyms', label: 'Synonymes de recherche', icon: 'reports' },
       { href: '/dashboard/catalog-coverage', label: 'Couverture catalogue', icon: 'reports' },
       { href: '/dashboard/reviews', label: 'Avis', icon: 'quality' },
     ] },

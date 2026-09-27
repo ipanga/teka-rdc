@@ -52,6 +52,10 @@ export class PrismaService
       log:
         process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
       datasourceUrl: withPoolParams(process.env.DATABASE_URL),
+      // Category search aliases are internal: omitted from every query (and so
+      // from every buyer-facing payload that includes a category row) unless a
+      // caller opts in with `omit: { searchKeywords: false }` or `select`.
+      omit: { category: { searchKeywords: true } },
     });
   }
 

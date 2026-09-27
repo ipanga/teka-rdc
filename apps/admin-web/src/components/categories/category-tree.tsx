@@ -10,6 +10,8 @@ export interface Category {
   sortOrder: number;
   isActive: boolean;
   parentCategoryId?: string | null;
+  /** Invisible seller-search aliases (admin only; never shown to buyers). */
+  searchKeywords?: string[];
   _count?: { products: number };
   children?: Category[];
 }

@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/lib/api-client';
 import type { Category } from './category-tree';
+import {
+  formatKeywordInput,
+  keywordInputError,
+  parseKeywordInput,
+} from '@/lib/category-keywords';
 
 interface CategoryFormModalProps {
   isOpen: boolean;
@@ -19,6 +24,7 @@ export interface CategoryFormData {
   emoji?: string;
   sortOrder?: number;
   isActive?: boolean;
+  searchKeywords?: string[];
 }
 
 export function CategoryFormModal({
@@ -34,6 +40,7 @@ export function CategoryFormModal({
   const [emoji, setEmoji] = useState('');
   const [sortOrder, setSortOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const [keywordText, setKeywordText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   // The API refuses structurally unsafe changes (P3-3) with an actionable
   // French 400 — e.g. re-parenting a node under a leaf that still serves
@@ -49,6 +56,7 @@ export function CategoryFormModal({
       setEmoji(category.emoji || '');
       setSortOrder(category.sortOrder || 0);
       setIsActive(category.isActive ?? true);
+      setKeywordText(formatKeywordInput(category.searchKeywords));
       setSaveError(null);
     } else {
       setName('');
@@ -57,6 +65,7 @@ export function CategoryFormModal({
       setEmoji('');
       setSortOrder(0);
       setIsActive(true);
+      setKeywordText('');
       setSaveError(null);
     }
   }, [category, isOpen]);
@@ -64,6 +73,12 @@ export function CategoryFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    const searchKeywords = parseKeywordInput(keywordText);
+    const keywordError = keywordInputError(searchKeywords);
+    if (keywordError) {
+      setSaveError(keywordError);
+      return;
+    }
 
     setIsSaving(true);
     setSaveError(null);
@@ -75,6 +90,7 @@ export function CategoryFormModal({
         emoji: emoji.trim() || undefined,
         sortOrder,
         isActive,
+        searchKeywords,
       };
       await onSave(data);
       onClose();
@@ -184,6 +200,29 @@ export function CategoryFormModal({
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="searchKeywords"
+              className="block text-sm font-medium text-foreground mb-1"
+            >
+              Mots-clés de recherche / Synonymes
+            </label>
+            <textarea
+              id="searchKeywords"
+              value={keywordText}
+              onChange={(e) => setKeywordText(e.target.value)}
+              rows={3}
+              aria-describedby="searchKeywordsHelp"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+              placeholder={'savon poudre\ndétergent\nlinge'}
+            />
+            <p id="searchKeywordsHelp" className="mt-1 text-xs text-muted-foreground">
+              Ces termes ne sont pas affichés aux clients. Ils servent à améliorer la
+              recherche de catégorie. Un terme par ligne ou séparés par des virgules.
+              Inutile d&apos;ajouter les marques déjà liées à la catégorie.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

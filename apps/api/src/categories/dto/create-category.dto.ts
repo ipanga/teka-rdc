@@ -1,4 +1,7 @@
 import {
+  ArrayMaxSize,
+  IsArray,
+  Length,
   IsOptional,
   IsString,
   IsBoolean,
@@ -35,4 +38,19 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsBoolean({ message: 'Le champ actif doit être un booléen' })
   isActive?: boolean;
+
+  /**
+   * Invisible search aliases for the seller category picker (never shown to
+   * buyers). Cleaned server-side: trimmed, de-duplicated ignoring accents and
+   * case. Sending an empty array clears them.
+   */
+  @IsOptional()
+  @IsArray({ message: 'Les mots-clés doivent être une liste' })
+  @ArrayMaxSize(40, { message: 'Au plus 40 mots-clés par catégorie' })
+  @IsString({ each: true, message: 'Chaque mot-clé doit être un texte' })
+  @Length(2, 60, {
+    each: true,
+    message: 'Chaque mot-clé doit contenir entre 2 et 60 caractères',
+  })
+  searchKeywords?: string[];
 }

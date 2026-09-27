@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../data/models/category_search_hit.dart';
 import '../../data/models/product_model.dart';
+import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 
 class CategorySelector extends ConsumerWidget {
@@ -152,7 +156,7 @@ class CategorySelector extends ConsumerWidget {
   }
 }
 
-class _CategoryList extends StatefulWidget {
+class _CategoryList extends ConsumerStatefulWidget {
   final List<CategoryModel> categories;
   final String? selectedId;
   final ScrollController scrollController;
@@ -166,60 +170,77 @@ class _CategoryList extends StatefulWidget {
   });
 
   @override
-  State<_CategoryList> createState() => _CategoryListState();
+  ConsumerState<_CategoryList> createState() => _CategoryListState();
 }
 
-// Lowercases + strips common French accents so "tele"/"chauss" match
-// "Téléphones"/"Chaussures". Dart has no built-in unaccent; this covers the
-// accents used in the taxonomy.
-String _normalizeCat(String s) {
-  const from = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿ';
-  const to = 'aaaaaaceeeeiiiinooooouuuuyy';
-  var r = s.toLowerCase();
-  for (var i = 0; i < from.length; i++) {
-    r = r.replaceAll(from[i], to[i]);
-  }
-  return r.trim();
-}
-
-class _FlatMatch {
-  final CategoryModel node;
-  final String? parentName;
-  const _FlatMatch(this.node, this.parentName);
-}
-
-class _CategoryListState extends State<_CategoryList> {
+/// Search (Seller Catalogue Speed-up): the server ranks LEAVES by name, full
+/// path, invisible aliases and linked brands (« omo » → Lessive). While the
+/// request is in flight, or when it fails (offline), a local match on the
+/// leaf's name/path keeps the list useful. Only leaves are ever offered —
+/// the API refuses a product on an intermediate category.
+class _CategoryListState extends ConsumerState<_CategoryList> {
   final Set<String> _expandedIds = {};
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
+  Timer? _debounce;
+  int _requestSeq = 0;
+  String? _remoteQuery;
+  List<CategorySearchHit>? _remoteHits;
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  // Flat matches across ALL levels (category, subcategory, product type) by
-  // own-name match, each carrying its full parent path for context (e.g.
-  // "Téléphones & Accessoires › Smartphones"). Client-side — the full taxonomy
-  // is already loaded.
-  List<_FlatMatch> _matches(String query) {
-    final nq = _normalizeCat(query);
-    final out = <_FlatMatch>[];
-    void walk(CategoryModel node, String? path) {
-      if (_normalizeCat(node.name).contains(nq)) {
-        out.add(_FlatMatch(node, path));
+  void _onQueryChanged(String value) {
+    setState(() => _query = value);
+    _debounce?.cancel();
+    final q = value.trim();
+    if (normalizeCategoryQuery(q).replaceAll(' ', '').length < 2) return;
+    _debounce = Timer(const Duration(milliseconds: 300), () => _fetch(q));
+  }
+
+  Future<void> _fetch(String q) async {
+    final seq = ++_requestSeq;
+    try {
+      final hits =
+          await ref.read(productsRepositoryProvider).searchCategories(q);
+      if (!mounted || seq != _requestSeq) return; // a newer query won
+      setState(() {
+        _remoteQuery = q;
+        _remoteHits = hits;
+      });
+    } catch (_) {
+      // Offline or server error: the local fallback stays on screen.
+      if (!mounted || seq != _requestSeq) return;
+      setState(() {
+        _remoteQuery = null;
+        _remoteHits = null;
+      });
+    }
+  }
+
+  List<CategorySearchHit> _currentHits() {
+    final q = _query.trim();
+    if (_remoteHits != null && _remoteQuery == q) return _remoteHits!;
+    return localCategorySearch(widget.categories, q);
+  }
+
+  CategoryModel _nodeFor(CategorySearchHit hit) {
+    CategoryModel? find(List<CategoryModel> nodes) {
+      for (final n in nodes) {
+        if (n.id == hit.id) return n;
+        final r = find(n.subcategories);
+        if (r != null) return r;
       }
-      final childPath = path == null ? node.name : '$path › ${node.name}';
-      for (final child in node.subcategories) {
-        walk(child, childPath);
-      }
+      return null;
     }
 
-    for (final cat in widget.categories) {
-      walk(cat, null);
-    }
-    return out;
+    return find(widget.categories) ??
+        CategoryModel(id: hit.id, name: hit.name);
   }
 
   @override
@@ -234,20 +255,21 @@ class _CategoryListState extends State<_CategoryList> {
             controller: _searchController,
             autofocus: false,
             decoration: InputDecoration(
-              hintText: "Rechercher une catégorie…",
+              hintText: "Rechercher : lessive, omo, céréales…",
               prefixIcon: const Icon(Icons.search),
               isDense: true,
               suffixIcon: searching
                   ? IconButton(
                       icon: const Icon(Icons.clear),
+                      tooltip: 'Effacer la recherche',
                       onPressed: () {
                         _searchController.clear();
-                        setState(() => _query = '');
+                        _onQueryChanged('');
                       },
                     )
                   : null,
             ),
-            onChanged: (v) => setState(() => _query = v),
+            onChanged: _onQueryChanged,
           ),
         ),
         const Divider(height: 1),
@@ -259,36 +281,33 @@ class _CategoryListState extends State<_CategoryList> {
   }
 
   Widget _buildSearchResults() {
-    final matches = _matches(_query);
-    if (matches.isEmpty) {
-      return Center(
+    final hits = _currentHits();
+    if (hits.isEmpty) {
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text("Aucune catégorie trouvée"),
+          padding: EdgeInsets.all(24),
+          child: Text(
+            "Aucune catégorie trouvée. Essayez un autre mot ou parcourez la liste.",
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
     return ListView.builder(
       controller: widget.scrollController,
-      itemCount: matches.length,
+      itemCount: hits.length,
       itemBuilder: (context, index) {
-        final m = matches[index];
+        final hit = hits[index];
+        final selected = widget.selectedId == hit.id;
         return ListTile(
-          leading: m.node.emoji != null
-              ? Text(m.node.emoji!, style: const TextStyle(fontSize: 22))
-              : Icon(
-                  m.parentName == null
-                      ? Icons.category_outlined
-                      : Icons.subdirectory_arrow_right,
-                  size: 20,
-                ),
-          title: Text(m.node.name),
-          subtitle: m.parentName != null ? Text(m.parentName!) : null,
-          trailing: widget.selectedId == m.node.id
+          leading: const Icon(Icons.subdirectory_arrow_right, size: 20),
+          title: Text(hit.name),
+          subtitle: hit.parentPath != null ? Text(hit.parentPath!) : null,
+          trailing: selected
               ? const Icon(Icons.check, color: TekaColors.success)
               : null,
-          selected: widget.selectedId == m.node.id,
-          onTap: () => widget.onSelect(m.node),
+          selected: selected,
+          onTap: () => widget.onSelect(_nodeFor(hit)),
         );
       },
     );
