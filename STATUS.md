@@ -2,7 +2,7 @@
 
 ## Active initiative
 
-**Seller Catalogue Speed-up — RELEASED (2026-09-27). Waiting for physical-device validation.** Tracker: `docs/seller-catalogue-speedup.md`. No implementation work is in flight.
+**Seller Catalogue Speed-up — RELEASED (2026-09-27); PHASE CLOSED.** Physical iPhone validation by the owner: 2 real products cropped and published on Seller 0.1.11. Remaining P2 manual checks: iPhone photo reuse, and one Android phone crop + publish. Tracker: `docs/seller-catalogue-speedup.md`. No implementation work is in flight.
 
 **Production**
 - Release #818 → `860b740`; deploy run 36335462366 succeeded.
@@ -33,7 +33,7 @@
 | Seller | TestFlight **`0.1.11` (1790530851)** | Play internal **`0.1.11+13`** |
 
 **Open**
-- The 17-item **physical-device checklist**: NOT performed. The list is in the tracker.
+- **Physical-device checklist:** classified in the tracker. Items 1–2 are VERIFIED on a physical iPhone; items 4–17 are covered by automated, runtime or browser validation. Still to do, P2 and not blocking: #3 (iPhone photo reuse) and Android physical parity.
 - Catalogue decisions **T1–T5**: deferred follow-ups.
 - **Sentry check:** needs owner access.
 - Known non-blocking CI warnings: Node 20 / setup-java deprecations, Flutter notices about Kotlin/Gradle/AGP versions, and the Swift Package Manager notice for plugins.

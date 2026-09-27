@@ -176,31 +176,38 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | CI race in the crop test (cleanup after upload) | ✅ fixed, test-only (#822) |
 | Seller TestFlight | ✅ run 36337679322 (owner approved `ios-testflight`): « Successfully finished processing the build 0.1.11 - 1790530851 », « Verified … available to 'Testers Teka RDC' » |
 | Seller Play internal | ✅ run 36337681264 (owner approved `android-play`): mapping for version code 13 uploaded, « Updating track 'internal' », « Successfully finished the upload to Google Play »; metadata skipped, `release_status completed` |
-| Physical-device checklist | **NOT performed**: needs owner hardware (list below) |
+| Physical-device validation | ✅ iPhone: crop + publish on 2 real products (owner, 2026-09-27). Remaining: iPhone photo reuse (#3) and one Android phone pass. P2, not blocking |
 
-### Physical-device checklist (Seller 0.1.11: TestFlight build 1790530851 / Play internal versionCode 13)
+### Physical-device validation
 
-Nothing below has been tested on a physical device. Tick an item only after it has actually been run on one.
+**Owner test on a physical iPhone (2026-09-27), Seller 0.1.11 (TestFlight build 1790530851) against production.** Two real products were created and published. Photos were selected from the device, cropped with the new crop screen (TOCropViewController), and the publication workflow completed after cropping. This is the first run of the iOS crop screen anywhere; it had previously only been compile-checked.
 
-1. Select one shelf photo containing several products.
-2. Crop Product A from it.
-3. Create Product B by reusing the same shelf photo (« Recadrer à nouveau la photo précédente ») and cropping another region.
-4. Confirm the original photo stays usable (its full frame reopens).
-5. Cancel a crop and confirm nothing is uploaded.
-6. Force a failed upload (airplane mode) and confirm « Réessayer » sends the same crop once.
-7. Confirm local crops are cleaned up (after the upload, after « Terminer avec cette photo », and after 24 h).
-8. Use « Ajouter un autre produit similaire ».
-9. Confirm the category, the brand and valid choice-type characteristics are carried over.
-10. Confirm the price starts empty.
-11. Confirm the « Prix du produit précédent » hint and « Reprendre » work.
-12. Confirm a « Dupliquer » product shares its assets, and that a similar product has its own.
-13. Delete or change an image on a duplicate and confirm the source product's image stays intact.
-14. Search the categories for omo, boom, savon poudre, cerelac and détergent.
-15. Confirm search returns leaf categories only.
-16. Confirm aliases are never displayed to sellers or buyers.
-17. Confirm the admin category alias editor and the « Synonymes de recherche » page still work (web).
+### Checklist classification
 
-Items 1–16 must be run on **both** an Android phone and an iPhone. The iOS crop screen has not run anywhere yet.
+| # | Item | Status | Evidence |
+|---|---|---|---|
+| 1 | Select a shelf photo with several products | **VERIFIED: physical iPhone** (selection) | Owner iPhone test. A multi-product source was also cropped on the Android emulator |
+| 2 | Crop product A | **VERIFIED: physical iPhone** | Owner iPhone test, 2 products |
+| 3 | Reuse the same photo for product B | **STILL NEEDS PHYSICAL TEST** (iPhone, 1 minute) | Emulator and widget tests pass. The iOS-specific part is not yet proven on a device: that the copied source survives in the iOS temp directory between two crops |
+| 4 | The original photo stays usable | Covered by #3 | Emulator: the full, untouched frame reopened twice. A widget test checks the bytes are unchanged |
+| 5 | A cancelled crop uploads nothing | **VERIFIED: automated + emulator** | Widget test; on the emulator a cancel left 0/8 photos |
+| 6 | A failed upload retries once | **VERIFIED: automated**; device test OPTIONAL | Widget test: the same bytes are sent, and the notice clears |
+| 7 | Local crops are cleaned up | **VERIFIED: automated + emulator** | Widget tests (crop, picker copy, 24 h sweep); an `run-as` listing on the emulator showed no leftover crops |
+| 8 | « Ajouter un autre produit similaire » | **VERIFIED: automated + emulator**; iPhone OPTIONAL | Pure Dart UI with no platform code. Widget and navigation tests; created a real new draft on the emulator |
+| 9 | Carries category, brand and valid choice characteristics | **VERIFIED: automated + emulator** | Widget test (`similarProductSpecs`, filter-out cases); emulator showed Lessive and Omo kept and the free-text Volume left empty |
+| 10 | Price starts empty | **VERIFIED: automated + emulator** | Widget test; emulator |
+| 11 | Previous-price hint and « Reprendre » | **VERIFIED: automated + emulator** | Widget test; on the emulator « Reprendre » filled 12500 |
+| 12 | Asset independence | **VERIFIED: API/runtime** | A similar product always uploads new crops: 3 distinct `cloudinaryId`s in the dev DB. « Dupliquer » shares ids by design, and #13 covers that |
+| 13 | Deleting on a duplicate keeps the source image | **VERIFIED: API/runtime** | Against the API and the read-only Cloudinary Admin API: duplicate → delete an image on the clone → hard-delete the clone (`purgedAssets: 0`) → all source assets still EXIST. Unit specs on all 4 delete paths. This is server-side, so it is the same for every client |
+| 14 | Search omo, boom, savon poudre, cerelac, détergent | **VERIFIED: production API + browser + emulator** | Production smoke tests after the deploy; seller-web; the Android emulator |
+| 15 | Leaf-only results | **VERIFIED: automated + production API** | e2e test (intermediate nodes never returned); production smoke tests |
+| 16 | Aliases never displayed | **VERIFIED: production API + automated** | Production: tree, category detail and product page carry no `searchKeywords`. The pickers show name and path only. e2e test (the alias is never echoed) |
+| 17 | Admin alias editor and synonyms page | **VERIFIED: browser** (dev) | Admin-web: keystroke save and de-duplication; synonyms create, deactivate, reactivate, delete and conflict |
+| + | Android physical parity (crop + publish) | **STILL NEEDS PHYSICAL TEST** (Android, about 3 minutes) | The same flow passed on the Android emulator. uCrop's memory use on a low-end 2 GB phone and OEM camera handoffs cannot be proven on an emulator, and Android is most of the target market |
+
+**Minimum remaining manual tests (P2, not release blockers):**
+- **iPhone, #3:** after publishing product A, open product B → Ajouter → « Recadrer à nouveau la photo précédente » → crop another region → save.
+- **Android phone:** one crop from the camera or gallery → publish, ideally on a low-end device.
 
 ## Genuine remaining work
 
