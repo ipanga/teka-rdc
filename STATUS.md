@@ -21,10 +21,22 @@
 - Lessive serves Volume, Date d'expiration, Type de lessive and Poids.
 - **Sentry NOT checked:** no `sentry-cli` or auth token is available in this environment.
 
-**Seller-mobile store round**
-- The bump `0.1.10+12 → 0.1.11+13` is on `chore/seller-mobile-0.1.11-13` (PR into `develop`, then a `develop → main` release).
-- Next, dispatch `release-mobile-ipa.yml` and `release-mobile-aab.yml` with **`app=seller`** from `main`. Both stop at the `ios-testflight` and `android-play` approval environments, which **need the owner**.
-- No buyer build. No public track.
+**Seller-mobile store round — BOTH BUILDS AT THE APPROVAL GATES**
+- `0.1.11+13` was released to `main` through #820 → #821, merge `60d70ac`. Redeploy run 36337328372 succeeded with « 0 applied, 16 skipped », so the migrations did not re-run.
+- **iOS, run 36337679322:**
+  - `build (seller)` succeeded.
+  - Signed with match `AppStore com.tootiye.tekaseller`, team YK6Z393A4D.
+  - `Teka Vendeur.ipa` is 12.0 MB, CFBundleVersion **1790530851** (epoch).
+  - 15 dSYMs were uploaded to Sentry.
+  - `testflight (seller)` is **WAITING on `ios-testflight`**.
+- **Android, run 36337681264:**
+  - `build (seller)` succeeded.
+  - The AAB is 67.4 MB and production-signed (the workflow's check confirms it is not debug-signed).
+  - `mapping.txt` is 25.4 MB and will be uploaded by the play job.
+  - Native symbols: **9/18 `.sym`** (libapp, libflutter and libdartjni × 3 ABIs). This is identical to versionCode 12; the 9 missing belong to AARs that ship pre-stripped, as analysed in PR #806 (still open, no artifact change). uCrop added no native library.
+  - `play (seller)` is **WAITING on `android-play`**, track `internal`.
+- No buyer job ran. The store listing and metadata upload steps are skipped by the workflows.
+- **Next:** the owner approves both environments; then verify the store acceptance lines and record the results here.
 
 **Still pending:** real-device validation, and the T1–T5 follow-ups.
 

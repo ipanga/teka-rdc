@@ -172,8 +172,10 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | Release PR #818 `develop → main` | ✅ approved and merged as `860b740` |
 | Deploy + EXPAND migrations | ✅ run 36335462366 succeeded; « 2 applied, 14 skipped »; each migration once (ledger 49 → 51) |
 | Post-deploy verification | ✅ counts exact (356/590/72/345/505/353); taxonomy:diff:prod 0/0/1; smoke omo/boom/savon poudre/cerelac/détergent correct and leaf-only; aliases absent from the buyer tree, category detail and product page; seller/admin noindex intact. Sentry not checked (no access) |
-| Seller-mobile bump 0.1.11+13 | in progress (`chore/seller-mobile-0.1.11-13`) |
-| Seller TestFlight / Play internal | pending (dispatch with `app=seller` from `main`; stops at `ios-testflight` / `android-play`) |
+| Seller-mobile bump 0.1.11+13 | ✅ #820 → #821, `main` `60d70ac`; redeploy 36337328372 succeeded (0 applied, 16 skipped) |
+| CI race in the crop test (cleanup after upload) | ✅ fixed, test-only (#822) |
+| Seller TestFlight | ⏸ run 36337679322: build succeeded (match AppStore profile, IPA 12.0 MB, build 1790530851, 15 dSYMs → Sentry); waiting on `ios-testflight` |
+| Seller Play internal | ⏸ run 36337681264: build succeeded (production-signed AAB 67.4 MB, mapping 25.4 MB, 9/18 native `.sym` as in #806); waiting on `android-play` |
 | Physical-device checklist | pending (owner hardware) |
 
 ## Genuine remaining work
