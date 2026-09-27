@@ -2,7 +2,16 @@
 
 ## Active initiative
 
-**Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next). Phase 0 reconciliation done; PR A+B (seller photo crop + source reuse + shared Cloudinary asset fix + « Ajouter un autre produit similaire ») implemented on `feat/seller-crop-similar-product`, automated tests green, emulator validation next. Then: PR C category search + aliases + admin synonyms page, PR D Lessive/Alimentation bébé taxonomy. **No production migration executed, no `main` merge, no store workflow** — each needs explicit approval.
+**Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next).
+- **Merged to `develop`:** PR #814 (`6d66323`): in-app photo crop with shelf-photo reuse, « Ajouter un autre produit similaire », and the shared-Cloudinary-asset delete fix.
+- **Open:** PR C+D on `feat/category-search-keywords`: category search with invisible aliases and linked brands, the admin keyword field, the admin « Synonymes de recherche » page, « Type de lessive », Bébé › Alimentation bébé, and Boom/Cerelac.
+- **Two new auto-apply migrations** (`2026-09-27_category_search_keywords.sql`, `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`):
+  - applied on the **dev DB only**;
+  - **NOT applied to production**;
+  - they run automatically only when a release PR merges `develop → main`, which is the approval gate.
+- **No `main` merge, no store workflow.**
+- **Real-device validation pending.**
+- **Taxonomy decisions T1–T5** are reported in the tracker and wait for the owner.
 
 ## Previous snapshot (2026-09-12)
 
