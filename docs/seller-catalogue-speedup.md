@@ -168,7 +168,7 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
 | Android build with uCrop | ✅ debug APK built (production + development flavors) | — | — | — |
 | Camera source (vs gallery) | shares the same pipeline, covered by widget test | n/a | not exercised (emulator virtual camera not driven) | **not tested** |
 | iOS (TOCropViewController) | — | — | not built (no iOS build in this pass) | **not tested** |
-| PR C search endpoint + ranking | ✅ unit (15) + e2e (2) + DTO + service | ✅ seller-web combobox: « omo », « savon poudre », « cerelac », « hygiene » → the right leaves; selecting Lessive loads « Type de lessive » + « Poids » and the Boom/Omo brands | not re-run on the emulator (the selector is widget-tested: server hit, offline fallback, leaves only) | **not tested** |
+| PR C search endpoint + ranking | ✅ unit (15) + e2e (2) + DTO + service | ✅ seller-web combobox: « omo », « savon poudre », « cerelac », « hygiene » → the right leaves; selecting Lessive loads « Type de lessive » + « Poids » and the Boom/Omo brands | ✅ emulator (rebuilt APK → :5051): « savon poudre » → only Lessive; « cerelac » → Alimentation bébé; selecting it loads « Poids » + « Date d'expiration » | **not tested** |
 | PR C admin keywords | ✅ vitest + API spec | ✅ admin-web: migrated aliases shown; a keystroke edit saved, collapsed spaces, merged a case/accent duplicate; restored afterwards | — | — |
 | PR C admin synonyms page | ✅ type-check | ✅ create, deactivate, reactivate, two-step delete; « gsm » conflict shows the API's French refusal next to the form | — | — |
 | PR D taxonomy | ✅ shape + generated-SQL specs (276 taxonomy tests) | ✅ admin tree shows « Alimentation bébé » | — | — |
