@@ -110,20 +110,32 @@ Future<void> _pump(WidgetTester t) async {
   await t.pump();
 }
 
-Future<void> _openSheetAndTap(WidgetTester t, String label) async {
+/// The flow does real file IO (copy, read, delete), which only progresses in
+/// real time: let it run until [done] holds (or 5 s pass), pumping frames in
+/// between. A fixed delay was flaky on slower CI runners.
+Future<void> _settle(WidgetTester t, bool Function() done) async {
+  for (var i = 0; i < 100 && !done(); i++) {
+    await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pump();
+  }
+  await t.pump(const Duration(milliseconds: 400));
+}
+
+/// True once no upload is in flight and the manager has settled.
+bool _idle() =>
+    find.byType(CircularProgressIndicator).evaluate().isEmpty;
+
+Future<void> _openSheetAndTap(WidgetTester t, String label,
+    {bool Function()? until}) async {
   await t.runAsync(() async {
     await t.tap(find.byType(ImageUploadTile).last);
     await Future<void>.delayed(const Duration(milliseconds: 20));
   });
   await t.pump();
   await t.pump(const Duration(milliseconds: 400));
-  await t.runAsync(() async {
-    await t.tap(find.text(label));
-    // Real file IO (copy, read) needs real async time.
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-  });
-  await t.pump();
-  await t.pump(const Duration(milliseconds: 400));
+  await t.tap(find.text(label));
+  await _settle(t, until ?? _idle);
 }
 
 void main() {
@@ -153,7 +165,8 @@ void main() {
   testWidgets('camera → crop → upload sends only the crop and keeps the source',
       (t) async {
     await _pump(t);
-    await _openSheetAndTap(t, 'Prendre une photo');
+    await _openSheetAndTap(t, 'Prendre une photo',
+        until: () => _repo.uploads.isNotEmpty);
 
     expect(_picker.calls, 1);
     expect(_repo.uploads, hasLength(1));
@@ -171,10 +184,12 @@ void main() {
   testWidgets('a second crop reuses the same source without picking again',
       (t) async {
     await _pump(t);
-    await _openSheetAndTap(t, 'Prendre une photo');
+    await _openSheetAndTap(t, 'Prendre une photo',
+        until: () => _repo.uploads.isNotEmpty);
     final source = _container.read(sourcePhotoSessionProvider)!;
 
-    await _openSheetAndTap(t, 'Recadrer à nouveau la photo précédente');
+    await _openSheetAndTap(t, 'Recadrer à nouveau la photo précédente',
+        until: () => _repo.uploads.length == 2);
 
     expect(_picker.calls, 1, reason: 'no second pick');
     expect(_cropper.sources, [source.path, source.path]);
@@ -185,7 +200,8 @@ void main() {
   testWidgets('a cancelled crop uploads nothing and keeps the source', (t) async {
     _cropper.cancel = true;
     await _pump(t);
-    await _openSheetAndTap(t, 'Choisir dans la galerie');
+    await _openSheetAndTap(t, 'Choisir dans la galerie',
+        until: () => _cropper.sources.isNotEmpty);
 
     expect(_repo.uploads, isEmpty);
     expect(_container.read(sourcePhotoSessionProvider)!.existsSync(), isTrue);
@@ -195,17 +211,18 @@ void main() {
       (t) async {
     _repo.fail = true;
     await _pump(t);
-    await _openSheetAndTap(t, 'Prendre une photo');
+    await _openSheetAndTap(t, 'Prendre une photo',
+        until: () => find
+            .text('Une photo recadrée n’a pas été envoyée.')
+            .evaluate()
+            .isNotEmpty);
 
     expect(_repo.uploads, isEmpty);
     expect(find.text('Une photo recadrée n’a pas été envoyée.'), findsOneWidget);
 
     _repo.fail = false;
-    await t.runAsync(() async {
-      await t.tap(find.text('Réessayer'));
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
-    await t.pump();
+    await t.tap(find.text('Réessayer'));
+    await _settle(t, () => _repo.uploads.isNotEmpty);
 
     expect(_repo.uploads.single, List.filled(16, 1));
     expect(_cropper.sources, hasLength(1), reason: 'no re-crop needed');
@@ -214,10 +231,12 @@ void main() {
 
   testWidgets('« Terminer avec cette photo » deletes the source', (t) async {
     await _pump(t);
-    await _openSheetAndTap(t, 'Prendre une photo');
+    await _openSheetAndTap(t, 'Prendre une photo',
+        until: () => _repo.uploads.isNotEmpty);
     final source = _container.read(sourcePhotoSessionProvider)!;
 
-    await _openSheetAndTap(t, 'Terminer avec cette photo');
+    await _openSheetAndTap(t, 'Terminer avec cette photo',
+        until: () => !source.existsSync());
 
     expect(_container.read(sourcePhotoSessionProvider), isNull);
     expect(source.existsSync(), isFalse);
