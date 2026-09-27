@@ -2,21 +2,38 @@
 
 ## Active initiative
 
-**Seller Catalogue Speed-up** — tracker: `docs/seller-catalogue-speedup.md` (read it next).
-- **Implementation COMPLETE on `develop`:**
-  - #814: in-app photo crop with shelf-photo reuse, « Ajouter un autre produit similaire », and the shared-Cloudinary-asset delete fix.
-  - #817: category search with invisible aliases and linked brands, the admin keyword field, the admin « Synonymes de recherche » page, « Type de lessive », Bébé › Alimentation bébé, and Boom/Cerelac.
-  - CI was green on both, including CodeQL. #817's first CodeQL run flagged a type confusion on a repeated `?q=`; it is fixed and covered by an e2e test.
-- **NOT in production. Pending approval gates:**
-  1. **Release PR `develop → main`.** Merging it auto-applies two additive migrations before the rolling swap: `2026-09-27_category_search_keywords.sql`, then `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`. Both have been applied on the dev DB only. After the deploy, run `pnpm --filter api taxonomy:diff:prod` read-only and expect additive 0 / judgement 0.
-  2. **Seller-mobile store build.** It is needed for the crop (a new native plugin: uCrop / TOCropViewController) and for the new search. It requires a version bump and the store workflows, which are not triggered.
-  3. **Catalogue decisions T1–T5** (tracker « Taxonomy audit »).
-- **Validation gaps:**
-  - real device (both OSes);
-  - the iOS crop screen (not built in this pass);
-  - camera source and retry-after-network-failure on a device;
-  - buyer surfaces, which were not browser-tested (no buyer code changed).
-- **QA fixtures:** all cleaned up.
+**Seller Catalogue Speed-up — RELEASE PHASE.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
+- **Current gate:** release PR **#818** (`develop → main`) is OPEN and **waiting for the owner's explicit approval to merge**.
+  - Merging deploys automatically (`deploy.yml` on push to `main`, no environment gate).
+  - The deploy's EXPAND phase applies the two migrations below before the rolling swap.
+- **Pre-release verification (2026-09-27), all green:**
+  - `develop` = `origin/develop`; 60 files ahead of `main`, all in scope; no workflow, env, secret, version or buyer changes.
+  - 14/14 checks green on `develop` `cd7f417`.
+  - `taxonomy:diff:prod` (read-only) = exactly the 8 expected additive items, judgement 0, historical 1.
+  - A read-only guard pre-check passes: the parent is active; the slug, ids and brand names are free; Autre and Nestlé exist; the column is absent; the ledger has no 2026-09-27 rows.
+- **Production baseline** (before → expected after):
+
+  | Table | Before | Expected after |
+  |---|---|---|
+  | categories | 355 | 356 |
+  | product_attributes | 586 | 590 |
+  | brands | 70 | 72 |
+  | brand_categories | 341 | 345 |
+  | products | 505 | 505 |
+  | product_specifications | 353 | 353 |
+  | `_manual_migrations` | 49 | 51 |
+
+- **Migrations:** `2026-09-27_category_search_keywords.sql` and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql`. Dev DB only so far; **production: NOT applied**.
+- **After the merge:**
+  1. Watch the deploy.
+  2. Verify each migration ran once (ledger 51).
+  3. Check health.
+  4. Run `taxonomy:diff:prod` (expect additive 0 / judgement 0).
+  5. Smoke-test search (omo, boom, savon poudre, cerelac, détergent).
+  6. Confirm aliases are absent from buyer payloads.
+  7. Then bump seller-mobile and dispatch the TestFlight + Play internal workflows with `app=seller` (they default to buyer!) — they stop at the approval environments.
+- **Real-device validation pending.**
+- **T1–T5 are deferred follow-ups** and do not block the release.
 
 ## Previous snapshot (2026-09-12)
 

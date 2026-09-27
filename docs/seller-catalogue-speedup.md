@@ -164,6 +164,17 @@ CI was fully green, including CodeQL. The first CI run found a timing flake in t
   3. Smoke-test `GET https://api.teka.cd/api/v1/browse/categories/search?q=omo`; expect Lessive.
 - **Seller-mobile needs a store build.** `image_cropper` adds native code, so an OTA-style change is impossible and the version must be bumped. Buyer-mobile is untouched.
 
+## Release (started 2026-09-27)
+
+| Gate | State |
+|---|---|
+| Pre-release verification | ✅ done (see `STATUS.md`) |
+| Release PR #818 `develop → main` | ⏸ waiting for the owner's merge approval |
+| Deploy + EXPAND migrations | pending |
+| Post-deploy verification | pending |
+| Seller-mobile bump + TestFlight / Play internal | pending (dispatch with `app=seller`; stops at `ios-testflight` / `android-play`) |
+| Physical-device checklist | pending (owner hardware) |
+
 ## Genuine remaining work
 
 | Priority | Item | Reason | Next action |
