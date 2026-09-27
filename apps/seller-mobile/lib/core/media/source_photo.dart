@@ -139,6 +139,13 @@ class SourcePhotoSession extends Notifier<File?> {
     final owned = await File(pickedPath).copy(
         '${dir.path}/source_${DateTime.now().microsecondsSinceEpoch}$ext');
     await _deleteQuietly(state);
+    // image_picker hands back its own copy in the app's cache; once we own a
+    // copy it is dead weight. Only ever delete inside our temp directory —
+    // never a file we did not get from the picker's cache.
+    final tmp = dir.parent.path;
+    if (pickedPath.startsWith('$tmp/') && pickedPath != owned.path) {
+      await _deleteQuietly(File(pickedPath));
+    }
     state = owned;
     return owned;
   }

@@ -164,6 +164,8 @@ void main() {
     expect(source.readAsBytesSync(), List.filled(64, 7)); // untouched
     // The uploaded crop file is cleaned up.
     expect(File('${_tmp.path}/crop_1.jpg').existsSync(), isFalse);
+    // …and so is the picker's own cache copy, once adopted.
+    expect(File('${_tmp.path}/picked_1.jpg').existsSync(), isFalse);
   });
 
   testWidgets('a second crop reuses the same source without picking again',

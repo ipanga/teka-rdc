@@ -113,7 +113,22 @@ A and B are shipped together because the kept shelf photo is what the similar pr
 
 | Item | Automated | Browser | Emulator | Real device |
 |---|---|---|---|---|
-| PR A crop / reuse / retry | ✅ widget tests | n/a | pending | **not tested** |
-| PR B similar product | ✅ widget tests | n/a | pending | **not tested** |
-| Android build with uCrop | ✅ debug APK built | — | — | — |
-| PR A shared-asset delete | ✅ unit | — | — | — |
+| PR A crop / reuse / cancel | ✅ widget tests | n/a | ✅ Pixel 8 Pro emulator (Android 14, host GPU), dev flavor → isolated API :5051: gallery → uCrop (French title, square / 4:3 / Original presets) → upload; a cancelled crop (edge back-gesture) uploaded nothing; « Recadrer à nouveau » reopened the **full, untouched** shelf photo twice; cover = first image | **not tested** |
+| PR A retry after failed upload | ✅ widget test | n/a | not exercised (would need network fault injection) | **not tested** |
+| PR B similar product | ✅ widget tests | n/a | ✅ emulator: prefilled Lessive + Omo, free-text Volume left empty, price empty + « Reprendre 12.500 FC », saved as a NEW draft (new id + shortCode), source `updatedAt` unchanged; the kept shelf photo was offered and cropped for the new product | **not tested** |
+| Android build with uCrop | ✅ debug APK built (production + development flavors) | — | — | — |
+| Camera source (vs gallery) | shares the same pipeline, covered by widget test | n/a | not exercised (emulator virtual camera not driven) | **not tested** |
+| iOS (TOCropViewController) | — | — | not built (no iOS build in this pass) | **not tested** |
+| PR A shared-asset delete | ✅ unit | — | ✅ runtime against :5051 + read-only Cloudinary Admin API: duplicate → delete the clone's image → hard-delete the clone (`purgedAssets: 0`) → all 3 source assets still EXIST | — |
+
+### Runtime notes (2026-09-27)
+
+- Crop output measured on Cloudinary: square 1920×1920 → 24.5 KB, 4:3 1920×1440 → 21.9 KB, original 1920×1280 → 20.3 KB (WebP). This is well inside the 2G/3G budget.
+- The first emulator run used SwiftShader software rendering and ANR'd everywhere, including the system permission controller. That was an environment problem, not an app one. Restarting with `-gpu host` fixed it: no ANR, and uCrop was fluid.
+- The device check found image_picker's own cache copy of each pick left beside our source copy. `SourcePhotoSession.adopt` now deletes it after copying, but only inside the temp directory. This is covered by the widget test.
+- **QA fixtures still on the dev DB and the shared Cloudinary cloud:**
+  - seller `qa-crop@teka.test` (user `0f49422d-…`)
+  - products `7f9cdf4a-…` and `38687a61-…` (both DRAFT)
+  - 3 assets: `dxo3sqclekh12ed3izac`, `byo2ng4dlnt0o8j0ix7w`, `n2z9fbre9ojdmy2xrvdf`
+
+  They are kept for the PR C seller-web and admin checks. **Delete them at close-out**: delete the images through the API, which destroys the assets, then hard-delete the products and delete the seller.
