@@ -165,6 +165,45 @@ jobs:
             --dart-define=POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} \
             --dart-define=SENTRY_RELEASE=${{ github.sha }}
 
+      # ── Native debug symbols ────────────────────────────────────────────
+      # Play symbolicates native crashes and ANRs from the .sym files AGP packs
+      # into BUNDLE-METADATA. They are NOT the R8 mapping.txt uploaded below —
+      # that covers Java/Kotlin only. Both are required; this guards the half
+      # that has no other check.
+      #
+      # The bar is the three libraries Flutter hands us UNSTRIPPED (libapp,
+      # libflutter, libdartjni) across every ABI in the bundle. Deliberately not
+      # "every .so": plugin AARs such as Sentry ship pre-stripped binaries that
+      # no Gradle setting can symbolise, so demanding full coverage would fail
+      # every release for something we cannot fix. This fails only when symbols
+      # we DO control disappear — an AGP default change, a bad debugSymbolLevel
+      # edit, or a Flutter packaging change.
+      - name: Verify native debug symbols are present
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          set -euo pipefail
+          aab="build/app/outputs/bundle/productionRelease/app-production-release.aab"
+          abis=$(unzip -Z1 "$aab" 'base/lib/*/*.so' | awk -F/ '{print $3}' | sort -u)
+          if [ -z "$abis" ]; then
+            echo "::error::No native libraries found in the AAB — unexpected for a Flutter app."
+            exit 1
+          fi
+          missing=0
+          for abi in $abis; do
+            for lib in libapp libflutter libdartjni; do
+              # SYMBOL_TABLE writes .so.sym, FULL writes .so.dbg — accept either.
+              if unzip -Z1 "$aab" "BUNDLE-METADATA/com.android.tools.build.debugsymbols/${abi}/${lib}.so.sym" >/dev/null 2>&1 \
+                 || unzip -Z1 "$aab" "BUNDLE-METADATA/com.android.tools.build.debugsymbols/${abi}/${lib}.so.dbg" >/dev/null 2>&1; then
+                echo "  ✓ ${abi}/${lib}"
+              else
+                echo "::error::Missing native debug symbols for ${abi}/${lib}.so — check ndk.debugSymbolLevel in android/app/build.gradle.kts"
+                missing=$((missing + 1))
+              fi
+            done
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          echo "✓ native debug symbols present for every ABI ($abis)"
+
       - name: Verify the bundle is NOT debug-signed
         working-directory: apps/${{ matrix.app }}-mobile
         run: |
