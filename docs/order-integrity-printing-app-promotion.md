@@ -6,9 +6,13 @@ This tracker extends the existing continuity system: `STATUS.md` is the entry
 point, `PROGRESS.md` the chronological record, and `CLAUDE.md` the durable rules.
 Do not create a parallel progress system. On 2026-10-18 the owner authorized a
 temporary local review branch, selective staging and six structured local commits;
-see the current local handoff at the end. Pushes, PRs, merges, production deployments,
-production writes/stock corrections and destructive database commands remain
-unauthorized. The owner did request read-only historical
+the subsequent authorization also allowed that existing branch to be pushed and one
+PR into develop. Both are complete. The owner then authorized PR836's merge commit
+into develop only; it is merged and post-merge CI/CodeQL succeeded. See the current
+handoff at the end. The owner subsequently authorized a separate four-file
+documentation branch/commit/push/PR into develop and a Draft develop→main PR.
+Neither PR merge, deployment/data change, stock correction nor mobile distribution
+is authorized. The owner did request read-only historical
 reconciliation; reviewed aggregate reads may use a verified READ ONLY transaction
 without exposing customer rows or credentials.
 
@@ -394,7 +398,7 @@ Do not reset/shut down the owner-booted devices or touch normal browser sessions
 - Fresh isolated web reruns PASS: actual admin order→delivery note→print action
   and zero writes; buyer cancellation with follow-up GET503; seller stale stock
   409 preserving price; full Chromium/WebKit promotion matrix. Contact initially
-  returned cached404 after fresh seed, then normal ISR revalidation returned200
+  returned cached404 after fresh seed, then normal ISR revalidation returned 200
   and the complete rerun passed. An actual database-backed 80-line order was
   seeded separately and opened through admin order→document: 10.005.000 FC COD,
   repeated print table header and zero stock/order/item/transaction/audit writes.
@@ -475,7 +479,7 @@ local Dart VM service URLs are private temporary files, not committed evidence.
 - Seller iOS: all6 named scenarios PASS,26s execution, final log
   `/private/tmp/teka-native-seller-ios-empty-drive.log`;11 scenario screenshots plus
   independent full-simulator capture. Login/reject/retry, buyer+admin cancellation
-  with real pull-to-refresh, stock409 preserving price, read-error footer/retry.
+  with real pull-to-refresh, stock 409 preserving price, read-error footer/retry.
 - Buyer Android: all3 named scenarios PASS, 93s execution, normal renderer, log
   `/private/tmp/teka-native-buyer-android-normal-drive.log`; 11 screenshots.
   Software-renderer trial passed checkout but failed only SDK PixelCopy capture
@@ -1268,3 +1272,537 @@ already resolved. Merge into develop, subsequent main merge/automatic deployment
 production smoke writes, signed mobile builds/uploads and publication each remain
 separate approvals. Preserve API→Buyer→Seller→Admin rollout and compatible API
 rollback for new seller clients. No remote or production action occurred here.
+
+
+## Review branch push and PR into develop — 2026-10-18
+
+**READY TO MERGE INTO DEVELOP — awaiting explicit owner merge authorization.**
+
+[PR #836](https://github.com/ipanga/teka-rdc/pull/836), source
+`codex/order-integrity-release-review` → target `develop`.
+Remote HEAD: `33993416e980124603d02e2eedcef8ae1dd64710`.
+Base: `9e6bd60d488de644d4526fdcba08a641d233e964`, unchanged after fetch and final
+remote verification; main remains `60d70ac`. Exactly the accepted six commits
+were pushed without force, amendment or another commit. The sixth documentation
+commit's literal hash is now recorded above. No implementation correction or
+new Claude delegation was necessary; accepted Opus 5.5 implementation is preserved.
+
+All 195 GitHub file blobs match approved local HEAD: 55 modified, 140 added,
+zero deleted, including 81 intentional synthetic PNG/PDF artifacts. The complete
+six-commit GitHub patch was reviewed and screened. No unexpected file, credential,
+schema/migration, environment, infrastructure, workflow, flavor or signing change.
+API/client compatibility and expectedQuantity rollback constraints remain as reviewed.
+
+Tested merge candidate: `76f305c51316167c9507871268aad3394bfcada7`.
+Its tree `ab133a512ed3a56a3250afddecbdc2015b21bfab` equals approved HEAD's tree;
+CI checkout logs identify that candidate. GitHub reports OPEN, MERGEABLE and CLEAN.
+Auto-merge is disabled, and no merge occurred.
+
+### Exact-head GitHub Actions
+
+[CI run 39105213864](https://github.com/ipanga/teka-rdc/actions/runs/39105213864)
+completed SUCCESS. All 13 live required contexts succeeded:
+
+| Required context | Result |
+|---|---|
+| Lint & Type Check | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452447) |
+| API Tests | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452325) |
+| Web Tests | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452412) |
+| Dependency Audit | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452461) |
+| Release Config | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452477) |
+| Web Build (buyer-web) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452403) |
+| Web Build (seller-web) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452429) |
+| Web Build (admin-web) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452413) |
+| Flutter Tests (buyer-mobile) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452430) |
+| Flutter Tests (seller-mobile) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452408) |
+| Flutter Analysis (buyer-mobile) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452449) |
+| Flutter Analysis (seller-mobile) | [SUCCESS](https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452374) |
+| CodeQL | [SUCCESS](https://github.com/ipanga/teka-rdc/runs/117609554971) |
+
+Both extra Analyze (actions) and Analyze (javascript-typescript) checks in
+[CodeQL run 39105212841](https://github.com/ipanga/teka-rdc/actions/runs/39105212841)
+also succeeded. The required [CodeQL aggregate](https://github.com/ipanga/teka-rdc/runs/117609554971)
+was verified on exact HEAD from github-advanced-security integration 57789,
+matching the rule. No context/ruleset change, bypass, rerun or suppression.
+
+Actual CI counts: API 1,335 unit/322 endpoint; Buyer/Seller/Admin web 278/53/105;
+Buyer/Seller Flutter 527/509. Three Node 20 web production builds passed on Ubuntu.
+Analyzers passed with 7/7 info-only notices, no warnings/errors. CI Seller has one
+more info than scoped local analysis: use_super_parameters at unchanged baseline
+test/support/seller_profile_fixtures.dart:87. No unrelated lint repair was made.
+
+Enforced Dependency Audit passes: 8 findings, 6 moderate + two previously ignored highs.
+The full informational audit retains its warning: 21 findings, 2 critical/5 high
+(including 2 existing exceptions)/12 moderate/2 low. The push banner's 23 default-branch
+alerts are a separate branch/feed view. Six Sentry/OTel package findings remain
+**unresolved, temporarily risk-accepted until November 17, 2026** under existing
+conditions; no new exception. Matching drivers are absent, but tracing can inherit
+sampled parents. Live production telemetry was not inspected. The passing enforced
+gate does not establish a vulnerability-free full tree or image.
+
+No check failed and no corrective commit or rerun was needed. PR validation and
+its four Docker jobs are configured only for main-targeted PRs, so they did not
+run here; none was disabled. They remain a later release-PR gate. No release PR
+into main, production deployment/data operation or mobile build/upload occurred.
+
+### Persistent handoff and authorization boundary
+
+The PR description now includes exact-head CI links/results and documented
+security/QA limits. Existing release-preflight-result.json records full result
+metadata under github_pr_review. Raw CI logs remain private temporary material.
+
+Four existing progress files are locally updated and left **unstaged/uncommitted**:
+STATUS.md, PROGRESS.md, this tracker and release-preflight-result.json. The owner
+requested continuity updates but prohibited additional commits/pushes without
+authorization. Preserve these updates; do not reset/discard, amend the sixth
+commit or automatically add/push a seventh. Remote PR HEAD remains 33993416.
+
+Next safe action: request explicit owner authorization to merge PR 836 into develop
+with a merge commit. Keep auto-merge disabled. Main merge/automatic deployment,
+production smoke writes, stock reconciliation, mobile version bumps/signed builds/
+uploads/publication remain separate approvals. Physical store installation/open-app
+handoff, native Safari printing and live Sentry inspection remain unverified;
+signed-mobile/physical/backup/rollback gates remain. Historical nine units stay
+restoration-unproven and untouched.
+
+
+## Authorized develop merge and read-only production release assessment — 2026-10-18
+
+### Merge verification and preservation
+
+Owner authorization was limited to PR836 → develop using a merge commit. Immediately
+before execution: target develop; exact HEAD `33993416e980124603d02e2eedcef8ae1dd64710`;
+base `9e6bd60d488de644d4526fdcba08a641d233e964`; MERGEABLE/CLEAN;
+all **13 required checks SUCCESS**, including Advanced Security CodeQL aggregate.
+Required approvals/protections were respected; no admin bypass or settings change.
+`gh pr merge --merge --match-head-commit` completed at **07:15:46 UTC**.
+
+Result: **`41f684d827b05f656b512d00b8c99186975ed94e`**
+([merged PR](https://github.com/ipanga/teka-rdc/pull/836)). Its parents are the
+previous develop `9e6bd60d488de644d4526fdcba08a641d233e964` and approved head
+`33993416e980124603d02e2eedcef8ae1dd64710`. Tree
+`ab133a512ed3a56a3250afddecbdc2015b21bfab` equals the approved PR tree exactly.
+Remote develop and local develop match the merge commit. Remote/local review branch
+remains at approved head; automatic deletion is disabled and no branch was deleted.
+
+The four already-dirty files (STATUS.md, PROGRESS.md, this tracker and
+release-preflight-result.json) were copied privately with a binary patch and SHA256
+checkpoint before the merge. Local develop was fast-forwarded and switched to;
+all four hashes still matched **before** these intentional documentation updates.
+Nothing was stashed/reset/discarded/staged or accidentally committed. The same four
+files remain locally modified, unstaged/uncommitted. No additional commit/push is
+authorized; separately approve documentation inclusion before a later release PR.
+Private checkpoint: `/private/tmp/teka-develop-merge-20261018` (temporary, not the durable handoff).
+
+### Checks on the actual develop merge
+
+[CI 39107009104](https://github.com/ipanga/teka-rdc/actions/runs/39107009104)
+**SUCCESS, 12/12 jobs**: types, API, web tests, all three web builds, both Flutter
+test and analysis legs, Dependency Audit and Release Config.
+[CodeQL 39107008969](https://github.com/ipanga/teka-rdc/actions/runs/39107008969)
+**SUCCESS, 2/2 analyses** (actions and javascript-typescript), exact merge SHA.
+The separate CodeQL aggregate was required/successful on PR836; this push has the
+two analysis checks rather than a new PR aggregate. No failed CI job or rerun.
+
+Actual counts: API 82 suites/1,335 unit tests + 26 suites/322 endpoint tests;
+web Buyer/Seller/Admin 278/53/105; Flutter Buyer/Seller 527/509. Both analyzers
+report 7 info-only items, no warnings/errors; known lint/deprecation debt unchanged.
+Enforced `pnpm audit --prod --audit-level=high` passes with 6 moderate + two prior
+excepted highs. Full informational audit warns: 2 critical/5 high (2 ignored)/
+12 moderate/2 low. Neither outcome establishes a vulnerability-free full tree/image.
+
+Automatic Dependabot update jobs also ran against the new default-branch commit;
+some fail and remain visible maintenance follow-ups. All nine inspected failures
+say `security_update_not_possible`: the six accepted Sentry/OTel adapters, plus
+brace-expansion 1.x, postcss-selector-parser and handlebars full-tree follow-ups.
+Examples: pg latest resolvable 0.66.0 vs fixed 0.73.0; selector-parser 6.0.10 vs
+7.1.6. No new exception or risk acceptance was added for the other findings.
+These jobs are separate from the successful CI/CodeQL workflows; no override,
+suppression, rerun, automatic update merge or dependency change was made.
+The machine-readable snapshot records observed states without claiming all
+Actions jobs green; remaining updater jobs are not release-validation jobs.
+
+### Prospective develop → main release (read-only)
+
+Remote main remains **`60d70aceb199c75370044dd0e7980f22a4ab5ba5`**. No main PR was
+created. Current compare is **196 paths: 56 modified, 140 added, zero deleted**;
+PR836 contributed 195 paths, and already-present develop documentation history
+accounts for the additional tracker path. There are 12 develop-only commits and
+one main-only previous release merge; that topology is not a source conflict.
+Local merge-tree calculation reports no conflicts and the same approved tree.
+A future PR must recheck its actual head/base and merge candidate.
+
+No schema/migration/auto-apply manifest, environment validation/files, Docker/NGINX,
+GitHub workflow, Fastlane, flavor or signing configuration change in the release
+compare. The added inventory-hold SQL file is a **read-only report, not a migration**;
+never execute stock restoration from it automatically. The unchanged manifest has
+16 entries; the prior production run logged 0 applied/16 skipped. Live production
+ledger is not inspected here, so the release window must confirm expected skips.
+Native dev-dependency integration_test entries and two accepted Seller SwiftPM
+TOCropViewController 3.2.0 resolutions are included; mobile version fields unchanged.
+
+Live main rules still require a PR, merge commits only and the same 13 contexts:
+types, API, web tests, Dependency Audit, Release Config, three web builds, two
+Flutter tests, two Flutter analyses and CodeQL aggregate. Its own CodeQL analyses
+must pass. Main-targeted `pr-validation.yml` additionally runs lint-typecheck-test
+and **four Docker build checks**. These are operational release gates even though
+not separately named in the 13-context ruleset. Lint remains explicitly
+non-blocking; do not refactor baseline lint or weaken protection.
+
+**Main merge automatically deploys** independently of the CI workflow, without a
+production-environment pause. Therefore approve production deployment explicitly
+before authorizing a main merge; creating a release PR alone would not authorize it.
+No workflow was dispatched or changed in this assessment.
+
+### Backup and rollback readiness
+
+Last successful production deploy remains [36337328372](https://github.com/ipanga/teka-rdc/actions/runs/36337328372),
+2026-09-27, main `60d70ac`. Its logs prove historical push of all four full-SHA tags:
+
+| Image at ghcr.io/ipanga/teka-rdc/ | Historical manifest digest |
+|---|---|
+| api | `sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a` |
+| buyer-web | `sha256:1cf58ab2368c6f34618628cb838dce583b989c19bf83979d097277cc8de7801e` |
+| seller-web | `sha256:36ba5df1fb58f19dc2f3e0b9e58dd6d0fda837cc55b2a0324e30aa5b3bf8fbcd` |
+| admin-web | `sha256:0fa02f9e58052820c462e296772d52ca92e013cc4f08f3a688f9de3efb052d53` |
+
+These establish provenance **only**. A read of GHCR API versions returned 403:
+current GitHub token lacks read:packages. No token scope/credential was changed.
+Current registry retention/pullability, actual running VPS image IDs/digests and
+operator access remain **unverified release gates**; verify all four, use immutable
+full-SHA/digest targets rather than latest, preserve runtime-only environment labels.
+No image was pulled/re-tagged/pruned and no VPS command was executed.
+
+The deployment guide describes provider backups/manual pg_dump and restore, but
+contains no current backup timestamp, restore-test evidence or confirmed provider
+retention/PITR state; no repo-owned automated backup workflow was found. **Fresh
+production backup + known age, verified storage/access/retention and isolated
+restore evidence/RPO/RTO remain required before release**. A DB restore is an
+incident recovery action requiring separate authorization; none was taken or
+rehearsed against production. No claim is made that provider backups are enabled.
+
+### Deployment sequence, compatibility and mobile gates
+
+Recommended approved window: verify the release head, CI, backup/current rollback
+images and operator access first. Existing deploy builds/pushes four images, runs
+the unchanged migration ledger step, then health-gated rolls **API → Buyer web →
+Seller web → Admin web**, with no manual per-service pause. API liveness alone is
+not DB readiness: check full/ready health and compatible seller behavior before
+calling release healthy. Watch errors/telemetry after rollout; live Sentry access
+and production smoke writes require the separately authorized release scope.
+
+Released old Flutter request shapes remain compatible with the new API.
+`expectedQuantity` stays optional; old seller forms retain their documented stale
+form limitation. New seller web/mobile sends that field, which the old strict API
+rejects with 400. **Roll out API first; roll back an affected website first and
+retain an API accepting the field after any new seller binary is distributed.**
+Prefer reviewed forward repair/revert to restoring the old integrity bug. No new
+schema rollback is required by this change; never repair order/stock history as a
+rollback shortcut. Installed mobile clients cannot be recalled by a Git rollback.
+
+No mobile workflow was dispatched, version changed, signed binary built or uploaded.
+Buyer remains 0.1.8+11, Seller 0.1.11+13; used Android codes require fresh store readback
+and separately approved unique codes/marketing versions. Android signing/AAB and
+iOS device/archive/export/Firebase checks, existing environment reviewers and
+TestFlight/Play processing/tester verification remain gates. IPA workflow includes
+upload after its environment gate; do not assume artifact-only mode. Internal
+physical-device checks must precede public publication. Existing simulator journeys
+stand; physical store install/open-app handoff and native Safari print pagination
+remain **unverified**. Chromium A4 output is accepted; Safari needs a physical check
+if used operationally. Android ANR diagnosis remains system/emulator contention,
+no demonstrated Teka-specific defect and no speculative correction.
+
+Six Sentry/OTel package findings sharing GHSA-qqmp-wf37-98f9 / CVE-2026-104872 remain
+**UNRESOLVED, TEMPORARILY RISK-ACCEPTED until November 17, 2026**, under the existing
+reachability/privacy/review conditions and existing two high exceptions. Matching
+drivers are absent in accepted runtime images; incoming sampled parents can still
+activate tracing. Any active exploitable path blocks release regardless of severity.
+No new audit exception/forced incompatible adapter or telemetry claim is introduced.
+The nine historical restoration-unproven units remain separate and untouched.
+
+**Next recommended step:** review this handoff, then separately authorize a scoped
+documentation commit/push and creation of the develop→main PR. Its review/CI and
+backup/rollback preflight must complete before a separate main-merge/production
+deployment authorization. Mobile versions/signed builds/internal distribution,
+public publication and any production smoke writes remain separate approvals.
+Codex performed review/orchestration/documentation only; no implementation correction
+or Claude inference/API billing was needed for this merge task.
+
+
+## Documentation synchronization and Draft release preparation — 2026-10-18
+
+The owner explicitly authorizes the four pending documentation updates through
+`codex/release-handoff-docs` → develop, and a **Draft** develop → main PR. No merge,
+auto-merge, deploy, production data/infrastructure/secret change, mobile version/
+signed build/upload or historical stock restoration is authorized.
+
+The four pending files were copied/hashed before branch preparation, their exact
+diff reviewed and added lines screened: zero private keys, tokens/JWTs, credential
+URLs or email addresses; no customer records or raw private CI logs. Stored CI
+metadata is check/job/step state and public GitHub links. Existing accepted source,
+tests, dependency pins and security exceptions are unchanged. No new app correction
+or Claude inference is needed; Codex handles review, Git and documentation only.
+
+Current release source **41f684d827b05f656b512d00b8c99186975ed94e** includes PR836.
+Develop CI39107009104 (12 jobs) and CodeQL39107008969 (2 analyses) remain SUCCESS.
+Main is **60d70aceb199c75370044dd0e7980f22a4ab5ba5**. The 12-ahead/1-behind shape
+comes from main-only #821 merge60d70ac, parents860b740/b0f4643. A direct tree diff
+against its second/develop parent b0f4643 is empty; there is **no production-only
+content to preserve separately**. The main commit itself remains in history.
+Prospective main/develop merge tree is ab133a512ed3a56a3250afddecbdc2015b21bfab,
+conflict-free and identical to approved develop. No reset/rebase/force-push or
+unapproved back-merge is necessary. Release compare remains196 paths (56M/140A/0D),
+including previously merged develop-only documentation history.
+
+**Rollback preflight improvement:** Docker's existing credential-store setup can
+read all four `60d70ace...` rollback manifests through `buildx imagetools inspect
+--raw`. Their SHA256 values exactly equal the four historical deployment digests
+listed above, with linux/amd64 images present. No layers were pulled, no login,
+permission/token change or registry/VPS mutation performed. GitHub package-version
+API still returns403/missing read:packages; this does not invalidate the independently
+successful registry manifest reads. Blob downloads/complete image pullability and
+**actual running VPS image IDs/digests remain unverified**. Minimal access needed:
+an existing read-only-capable deployment connection/operator report for narrowly
+scoped Docker ps/inspect fields (never print container Env), plus registry pull/read
+for any later separately approved layer verification. No packages:write needed.
+
+**PostgreSQL preflight remains BLOCKED:** existing docs describe backup/restore,
+but no authoritative current backup timestamp, availability/location/retention,
+checksum/integrity evidence, provider PITR or last isolated restore-test result is
+available. No production deploy/provider connection is inherited; only an SSH alias
+for another project is configured and it was not used. No production DB connection
+or customer-row query was made. Requested an existing connection name or sanitized
+operator metadata, without secrets. Do not infer enabled backups from generic
+provider guidance. Before release, verify a fresh successful backup and its age,
+storage/access/retention, integrity evidence and recoverability. Proposed separate
+restore rehearsal: restore a verified backup into a disposable isolated PostgreSQL
+instance, outbound integrations disabled, restricted local storage/access; validate
+schema/ledger/count/integrity aggregates without exposing rows, record restore time
+and recovery point, then separately approve retention/cleanup. Never restore over
+production; no backup download or restore was performed here.
+
+Documentation PR and Draft release PR metadata/checks will be recorded after
+creation. The Draft source is current develop and **excludes this documentation
+branch until its PR is separately authorized/merged**. After a docs merge,
+revalidate actual release head, merge candidate and all 13 required contexts plus
+main-only PR validation/four Docker builds; previous successful runs are insufficient.
+Do not enable auto-merge. Main merge automatically deploys without an environment
+pause: a later main-merge authorization must also explicitly authorize production
+deployment. Retain API→Buyer→Seller→Admin order and expectedQuantity compatibility.
+
+The six moderate Sentry/OTel findings stay UNRESOLVED/risk-accepted through
+November 17, 2026, and the two existing high exceptions stay separate/unchanged.
+Any active exploitable affected production path is a blocker. Dependabot update
+resolution outcomes remain separate from candidate application CI. Mobile versions,
+signing/Fastlane/flavors and workflow/environment reviewer settings stay unchanged;
+current signed binaries, store readback, physical install/open-app handoff and
+native Safari pagination remain outside verified results. Historical two orders/
+nine restoration-unproven units remain untouched.
+
+
+## Documentation and release PR handoff — 2026-10-18
+
+**Recommendation: BLOCKED for production approval; authorized PR preparation complete.**
+[Documentation PR840](https://github.com/ipanga/teka-rdc/pull/840) is open from
+codex/release-handoff-docs → develop, initial commit39d0513d0036150df5d1ed4527ee2cb3da234d41.
+A second focused documentation-only commit records the resulting PR numbers,
+actual candidate CI and operator procedure without amending/force-pushing the
+first. Resolve its literal SHA from the branch tip/PR; only the same four existing
+files are committed. PR840's current-head checks remain a pre-merge requirement;
+its initial39d0513d head passed all 13 plus two CodeQL analyses. No docs merge authorized.
+
+[Draft release PR841](https://github.com/ipanga/teka-rdc/pull/841) is open develop → main,
+source41f684d827b05f656b512d00b8c99186975ed94e/base60d70aceb199c75370044dd0e7980f22a4ab5ba5.
+It **does not include PR840**. Both PRs have auto-merge disabled; neither is merged.
+After any documentation merge, recheck the changed release source/candidate and
+all required jobs. No direct develop/main push, rebase/reset, back-merge or branch
+deletion was performed. The original review branch is retained.
+
+The main-only commit60d70ac is previous release merge#821 (parents860b740/b0f4643)
+with no tree difference from its develop parent; no production-only change needs
+manual copying. Current12-ahead/1-behind history is preserved. GitHub's actual
+release merge candidate is **5a006bbb39deb1d3c0ff9b2973763b4b2e9ee0c5**, parents
+60d70ace.../41f684d8..., treeab133a512ed3a56a3250afddecbdc2015b21bfab. It equals
+the approved source tree; all 196 GitHub file blobs match local source (56 modified/
+140 added/zero deleted). CI checkout logs confirm the actual merge SHA, not merely
+the previously successful develop push. No application/dependency/schema/env/
+workflow/signing/mobile-version correction was necessary.
+
+### Candidate checks and maintenance classification
+
+| Check group on actual Draft source/candidate | Result |
+|---|---|
+| CI39108428751 | [SUCCESS,12/12 jobs](https://github.com/ipanga/teka-rdc/actions/runs/39108428751) |
+| Main-only PR validation39108428679 | [SUCCESS,5/5 jobs](https://github.com/ipanga/teka-rdc/actions/runs/39108428679) |
+| Four Docker build checks | API/Buyer/Seller/Admin SUCCESS, no image push |
+| Required contexts | 13/13 SUCCESS; old duplicate push results excluded from canonical assessment |
+| CodeQL aggregate117619186111 | [SUCCESS](https://github.com/ipanga/teka-rdc/runs/117619186111), exact41f684d8, Advanced Security app57789 |
+
+The CodeQL aggregate was created for this Draft at 07:38:31 UTC. The underlying
+successful actions/javascript-typescript analyses are from39107008969 at the
+**identical source SHA/tree**, and no new Draft-specific CodeQL analysis run was
+observed. Do not label them new PR analysis runs. Required aggregate/protection
+is satisfied; reverify scans/aggregate at the actual candidate after any change
+or later review transition. No CodeQL configuration was changed/bypassed.
+
+Actual new run counts: API 82/1,335 unit and 26/322 endpoint; web 278/53/105;
+Flutter 527/509; three web builds and both analyses 7 info-only. Enforced production
+high audit SUCCESS: six moderate + two pre-existing ignored highs. Full report-only
+audit remains 2 critical/5 high/12 moderate/2 low. Root lint reports API 2,639 problems
+(2,159 errors/480 warnings) in the explicitly non-blocking step; main validation's
+type/test steps still pass. No clean-lint claim or unrelated lint refactor.
+No application regression, enforced dependency failure, Actions configuration
+failure or runner failure was observed in the candidate's completed jobs.
+
+The earlier pending Dependabot jobs (joi39107090796 and grouped npm39107088445)
+are now SUCCESS. Final merge-triggered maintenance tally **9 SUCCESS/9 FAILURE/
+0 pending**. Correction to the earlier snapshot: a successful CodeQL dynamic run
+was previously counted as Dependabot; the canonical tally filters by workflowName
+Dependabot Updates and contains18 updater jobs. CI/CodeQL results are unchanged.
+All nine inspected failures are security_update_not_possible:
+six Sentry adapters plus brace-expansion1.x (1.1.18→1.1.21), selector-parser
+(6.0.10→7.1.6), handlebars(4.7.9→4.7.10). They concern dependency resolution,
+not failed app tests; no dependency update was merged. Six remain under their
+specific temporary acceptance, the other full-tree findings remain visible
+maintenance/security follow-ups with **no new acceptance or audit exception**.
+The full-tree warning is not converted to a clean/security-complete claim.
+
+### Operational evidence and remaining gates
+
+All four known-good60d70ace... image manifests are currently accessible through
+existing Docker authentication and exactly match the digests in the prior table;
+linux/amd64 descriptors present. GitHub package API403 persists but no scope/secret
+change is necessary for successful manifest reads. This proves **manifest availability
+only**. Complete blob/layer pullability, actual VPS image digests, host architecture,
+headroom and operator rollout access are not proven. No pull, restart, deploy,
+config change, GitHub secret extraction or connection to an unverified host occurred.
+
+Owner confirmed there is no verified production SSH alias/access method available.
+Backup availability/latest success UTC/location/retention/integrity/PITR and last
+verified isolated restore test remain **RELEASE BLOCKERS**, together with current
+running-image and complete rollback readiness verification. No backup was downloaded,
+created or restored, and no production DB records were accessed. Anonymous API
+live/full/ready returned 200/database ok; Buyer/Seller/Admin login surfaces returned 200,
+private portals retained noindex. These reads do not prove authenticated flows,
+backups, image identities or a new deployment. Last successful deploy remains
+36337328372/main60d70ac. Use the operator procedure below to close the evidence gap.
+
+### Read-only operator verification procedure (not executed by Codex)
+
+Owner confirms no verified production SSH connection is available. Do not use the
+unrelated alias, extract GitHub deployment credentials, edit SSH configuration or
+connect to an unverified host. A production operator can supply this sanitized
+report using an existing authorized connection/provider console. The documented
+path is a reference to verify, not evidence of today's host layout.
+
+1. **Identity and paths:** record UTC verification time and the owner's verified
+   Teka host/account identifier (redact public origin IP if desired). Verify the
+   actual deployment directory and compose filename against the operator's host;
+   expected historical path `/home/deploy/teka-rdc`. Confirm compose/env/nginx files
+   exist without printing `.env.production` or secrets. If the path differs, report
+   the actual verified non-secret paths; do not create/move/overwrite anything.
+2. **Backup catalog:** from the provider or existing backup-job metadata, report
+   latest successful PostgreSQL backup ID, started/completed UTC, status and age;
+   location/provider/storage class (no credentials or signed URLs), retention and
+   oldest/latest recovery points, encryption/access controls and whether PITR is
+   enabled. Include authoritative job/catalog evidence and existing checksum/
+   provider integrity verification. Explicitly mark each unavailable item unknown.
+3. **Restore evidence:** report latest completed isolated restoration test date,
+   backup ID, PostgreSQL version, successful schema/ledger/count/integrity aggregate
+   validation, observed recovery point and duration, plus agreed RPO/RTO. A backup
+   success banner/checksum alone does not prove recoverability. If no verified
+   rehearsal exists, retain the blocker and request separate authorization for a
+   disposable isolated PostgreSQL restore, restricted backup storage/access and
+   outbound integrations disabled. Never restore live production or expose rows.
+4. **Running containers:** after independently verifying host/path, use narrowly
+   scoped read-only commands below. Capture all four application images and nginx,
+   immutable image IDs/RepoDigests, actual requested tags, status/health, restart
+   count and start time. Do not print full Docker inspect output, container Env,
+   `docker compose config`, credentials, request logs or customer data.
+
+```bash
+# Operator only: use an existing verified host; verify this documented path first.
+cd /home/deploy/teka-rdc
+pwd -P
+test -f docker-compose.prod.yml && test -f .env.production
+date -u
+for service in api buyer-web seller-web admin-web nginx; do
+  for container_id in $(docker compose --env-file .env.production -f docker-compose.prod.yml ps --all --quiet "$service"); do
+    docker inspect --format '{{.Name}} image={{.Config.Image}} id={{.Image}} state={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}not-configured{{end}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$container_id"
+    image_id=$(docker inspect --format '{{.Image}}' "$container_id")
+    docker image inspect --format '{{.Id}} {{json .RepoDigests}}' "$image_id"
+  done
+done
+```
+
+5. **Rollback readiness:** compare actual running digests with the recorded
+   successful release and confirm the known-good four full-SHA tags/digests listed
+   above. Manifest availability is verified here; cached layers/complete pullability
+   and VPS architecture/disk headroom/operator execution access are not. An operator
+   may read existing local image metadata; any required pull/resource change or
+   isolated rehearsal needs its own authorized scope. Preserve current runtime-only
+   environment labels without printing values. Confirm old schema compatibility,
+   but retain a new API accepting expectedQuantity once new Seller clients ship.
+6. **Return:** sanitized catalog/restore metadata and container image/health table,
+   authoritative evidence links or excerpts and UTC timestamps. Resolve the backup,
+   recovery and running-image blockers only after independent review. Do not run
+   migration/seed/stock SQL, restart/recreate containers, change configs/secrets,
+   deploy or perform any restore under this read-only procedure.
+
+
+### Mobile readiness and future controlled smoke plan
+
+| App/platform | Historical installed/internal baseline | Remaining release gates |
+|---|---|---|
+| Buyer Android | 0.1.8+11, Play internal | live store versionCode readback; unique approved code; production-signed AAB; internal processing/install/auth/order/cancel/stock/device parity |
+| Buyer iOS | 0.1.8/build1789243959, TestFlight | live store readback; approved marketing version/monotonic CFBundleVersion; production device/archive/export; processing/group availability; physical installation/open-app |
+| Seller Android | 0.1.11+13, Play internal | live code readback; unique approved code; production-signed AAB; internal processing; physical stock 409/cancellation/COD tests against compatible API |
+| Seller iOS | 0.1.11/build1790530851, TestFlight | store readback/version approval; device/archive/export with existing signing; processing/tester group; physical current-feature and open-app checks |
+
+These are historical distribution records, not current store-console verification.
+No version/build/upload was initiated. Existing flavor/signing/Fastlane credentials,
+read-only match and workflows are preserved; both android-play and ios-testflight
+still have one required reviewer. Existing released-client request compatibility
+is maintained by optional expectedQuantity, but the older UI remains limited.
+New cancellation/snapshot UI needs updated binaries later; deploy API first and
+retain expectedQuantity support during rollback. Native simulator Buyer 3/3 and
+Seller 6/6 per platform remain accepted; physical store install/open-app and native
+Safari print pagination remain unverified. Do not present old physical catalogue
+checks as physical validation of the new order features.
+
+Future smoke plan, **not executed**: after explicit deployment approval, record
+actual release/image/health baseline; check API live/full/ready database ok and
+restart/error/latency metrics, Buyer availability/canonical/robots/JSON-LD/sitemap,
+Seller/Admin auth boundaries and existing test-account order access. With separately
+authorized test-account access, read Admin snapshot/totals/COD and render/preview/
+print a delivery note through accepted Chromium without writes; physical Safari
+pagination remains separate if operationally required. Observe Sentry release,
+API 5xx/error rate and latency against baseline for 15 min; live Sentry access unverified.
+
+**Production mutation smoke requires its own approved scope:** isolated disposable
+QA buyer/seller/product/order, fixed stock/payment baseline, one allowed cancellation,
+repeat retry rejection, exactly-once stock/audit restoration and COD consistency,
+authoritative API readback and approved cleanup/retention. Never use historical
+held orders, customer inventory or real financial records. None was run here.
+
+Rollback plan: stop further promotion on a demonstrated regression; retain a
+compatible API and roll back the affected website first using verified immutable
+images/current runtime labels, or ship a reviewed forward repair/revert. Existing
+workflow rolls API→Buyer→Seller→Admin without a manual pause. Main merge auto-deploys
+independently of CI; no deployment-environment pause exists. No new schema rollback
+is needed. Do not restore stock/history or revive terminal orders as a rollback.
+A DB restore is a separate incident action requiring authorization.
+
+Six moderate Sentry/OTel findings remain **UNRESOLVED / temporarily risk-accepted
+until November 17, 2026** under all existing conditions; two prior high exceptions
+stay separate. Any exploitable active production path blocks release. Historical
+two orders/nine units remain restoration-unproven and untouched.
+
+**Exact next information/approvals:** sanitized operator backup/restore report and
+running image/digest/health table; verify complete rollback readiness. If an isolated
+restore or layer pull needs resources/access, obtain separate approval. A separate
+owner approval is needed to merge docs PR840, followed by new Draft candidate CI;
+later ready-for-review/main merge must explicitly include production deployment
+authorization. Mobile versions, signed builds, internal/public distribution and
+production mutation smoke each retain separate authorization. No merge is authorized
+by green checks or Draft creation. Current final recommendation remains **BLOCKED**.

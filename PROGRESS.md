@@ -2,13 +2,21 @@
 
 ## Current phase — 2026-10-18
 
-**Six local review commits prepared**, branch `codex/order-integrity-release-review`,
-base develop `9e6bd60`. Accepted source preserved; focused frozen-install/type/API/
-web/Flutter/audit checks pass, with six moderate unresolved risk acceptances due
-November 17, 2026 and two unchanged prior exceptions. Documentation commit records
-five literal hashes and resolves its own sixth hash from the review-branch tip.
-No remote/release/production action authorized or performed. See
-[local handoff](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
+**Documentation PR840 and Draft release PR841 created; PRODUCTION BLOCKED.**
+Only four continuity docs on codex/release-handoff-docs (initial39d0513d + focused
+PR/operator handoff follow-up); no app source changed. Docs PR840 targets develop;
+Draft841 source41f684d8 targets main60d70ac and excludes unmerged docs. Actual
+candidate5a006bbb/treeab133a51 is conflict-free; all196 file blobs match.
+New release CI39108428751 12/12 + PR validation39108428679 5/5 (four Docker builds)
+and all13 required contexts SUCCESS. CodeQL aggregate117619186111 is fresh for
+exact source; analyses are shared same-SHA/tree scans, not new Draft-specific runs.
+Root lint stays non-blocking; no implementation or paid API activity.
+Rollback manifests verified; backup/restore evidence, live VPS digests and full
+pullability remain blockers. Read-only operator procedure prepared; no verified
+production access. Dependabot9 success/9 resolution failures/0 pending.
+Six moderates unresolved/risk-accepted until Nov17; existing two exceptions intact.
+No merge/auto-merge/main push/deploy/production data/secrets/mobile/stock action.
+[Current handoff](docs/order-integrity-printing-app-promotion.md#documentation-and-release-pr-handoff--2026-10-18).
 
 Historical September 10 status snapshot below (retained for context; current facts above and in STATUS.md):
 
@@ -18,6 +26,14 @@ Historical September 10 status snapshot below (retained for context; current fac
 ## Last Updated: 2026-09-10
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
+
+- **Oct 18, 2026 — Docs PR840 and Draft production release PR841 created:** focused four-doc commit39d0513d pushed only to codex/release-handoff-docs; actual Draft source41f684d8/main60d70ac/candidate5a006bbb verified, all196 GitHub blobs match. New CI12/12, main-only validation5/5 including four Docker builds and all13 required contexts SUCCESS; CodeQL aggregate exact source, underlying same-tree scan reused. Owner confirmed no verified production access; read-only operator backup/restore/running-digest procedure added. Four registry manifests verified, full pullability/live images and backup evidence remain blockers. Dependabot9 success/9 resolution failures/0 pending. Six moderate risks and two exceptions unchanged. Both PRs unmerged, auto-merge off; no deployment/mobile/production or stock mutation.
+
+- **Oct 18, 2026 — Documentation synchronization and Draft release preparation authorized:** verified unchanged develop41f684d8/main60d70ac; copied/screened four pending docs, created codex/release-handoff-docs from develop. Main-only #821 merge tree equals its develop parent; no content loss or history rewrite required. Existing Docker credentials verify all four rollback manifests; GitHub API403 persists, actual VPS/backup/restore evidence missing. Separate docs PR into develop and Draft develop→main PR authorized; neither merge/deploy nor mobile/production mutations authorized.
+
+- **Oct 18, 2026 — Authorized PR #836 merge into develop:** merge commit 41f684d827b05f656b512d00b8c99186975ed94e, parents 9e6bd60/33993416; all 13 required PR checks reverified before merge, no protection bypass. New CI 39107009104 (12/12) and CodeQL 39107008969 (2/2) SUCCESS. Four dirty docs byte-preserved through local develop synchronization, then updated locally; review branch retained. Read-only production assessment and historical rollback digests recorded; fresh backup/current image evidence and future release-PR CI remain gates. Six moderate risks unresolved through Nov 17; no main PR/merge/deploy, mobile distribution, production write or nine-unit stock correction.
+
+- **Oct 18, 2026 — PR #836 opened into develop; all checks green:** pushed only the accepted six commits at 33993416; all 195 GitHub file blobs match. All 13 required contexts + two extra CodeQL analyses SUCCESS (CI 39105213864, CodeQL 39105212841, aggregate 117609554971); mergeable/clean, auto-merge disabled. No failure/corrective commit/rerun. Six Sentry moderates remain unresolved through Nov 17, existing full-tree warnings visible. READY TO MERGE INTO DEVELOP, awaiting explicit approval; no merge/main/mobile/production action. Four local continuity docs remain uncommitted by authorization boundary.
 
 - **Oct 18, 2026 — Local six-commit review preparation:** created `codex/order-integrity-release-review` from develop `9e6bd60`; selectively separated security, integrity, printing, promotion, native QA and documentation. All 195 accepted paths preserved; fresh focused API 135/48, web 278/53/105, Flutter 91/67, types/frozen install and exact CI audit pass. Six moderate residuals remain unresolved through Nov 17; no new exceptions. No push/PR/merge/deploy/upload/production data action. Exact history and next authorization boundary in the existing tracker.
 

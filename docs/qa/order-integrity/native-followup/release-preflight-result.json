@@ -334,7 +334,7 @@
     "signed_release_builds_for_current_diff": "not run",
     "production_mobile_store_distribution": "not authorized"
   },
-  "authorization": "Local branch/selective staging/six commits explicitly authorized and prepared; no push, PR, merge, deploy, dispatch, upload, secret/signing/infrastructure change or production mutation.",
+  "authorization": "Documentation branch commits/push/PR840 into develop and Draft release PR841 develop-to-main plus read-only preflight/local documentation authorized. Neither PR merge/auto-merge/protected-branch push/deploy/prod data or secret/config changes/mobile version/signed build/upload/historical inventory correction authorized.",
   "github": {
     "main_ruleset": 15451167,
     "develop_ruleset": 22732572,
@@ -359,7 +359,7 @@
       "Flutter Analysis (seller-mobile)",
       "CodeQL"
     ],
-    "codeql_context_risk": "Configured literal CodeQL; observed baseline runs named Analyze (javascript-typescript) / Analyze (actions). Resolve requirement on release PR; no settings change performed.",
+    "codeql_context_risk": "Resolved on PR836: required CodeQL aggregate SUCCESS before merge (integration57789). Both analyses SUCCESS on actual develop merge; future main PR requires its own aggregate/checks.",
     "main_push_automatically_deploys": true,
     "deploy_waits_for_ci_workflow": false,
     "deploy_production_environment_pause": false,
@@ -778,5 +778,2923 @@
     "nextSafeAction": "Verify git status/log after interruption. Stop before remote operations; obtain explicit authorization to push this review branch and open a PR into develop. Candidate GitHub checks/review must pass before separately authorized merges. Main merge automatically deploys and requires separate release authorization.",
     "securityResiduals": "Six moderate Sentry/OTel package records remain temporarily risk-accepted, unresolved until2026-11-17; shared GHSA-qqmp-wf37-98f9/CVE-2026-104872. Two existing high audit exceptions unchanged.",
     "limits": "Existing physical store handoff/native Safari printing/signed mobile distribution and live Sentry telemetry limits remain. Historical nine units untouched."
+  },
+  "github_pr_review": {
+    "checkedAtUTC": "2026-10-18T06:51:45.863793+00:00",
+    "assessment": "READY TO MERGE INTO DEVELOP",
+    "pr": {
+      "autoMergeRequest": null,
+      "baseRefName": "develop",
+      "baseRefOid": "9e6bd60d488de644d4526fdcba08a641d233e964",
+      "changedFiles": 195,
+      "headRefName": "codex/order-integrity-release-review",
+      "headRefOid": "33993416e980124603d02e2eedcef8ae1dd64710",
+      "mergeStateStatus": "CLEAN",
+      "mergeable": "MERGEABLE",
+      "number": 836,
+      "reviewDecision": "",
+      "state": "OPEN",
+      "title": "Teka RDC: Order Integrity, Security Hardening, Printable Delivery Documents and Mobile QA",
+      "url": "https://github.com/ipanga/teka-rdc/pull/836"
+    },
+    "commits": [
+      "6151b4fa969c6034082e95ed5a6467b51ce33e04",
+      "f7f0a09ee8bf8d22117134e2483456b22d6256d9",
+      "f788bb37a77f6dfd429671e65891adac2be96835",
+      "c9b8d88c8b475f42a9bee0a575993d8bd97b3346",
+      "0409da050047b3791a3a75a8db6877d3e5521e5a",
+      "33993416e980124603d02e2eedcef8ae1dd64710"
+    ],
+    "requiredContexts": [
+      {
+        "context": "Lint & Type Check",
+        "integration_id": 15368
+      },
+      {
+        "context": "API Tests",
+        "integration_id": 15368
+      },
+      {
+        "context": "Web Tests",
+        "integration_id": 15368
+      },
+      {
+        "context": "Dependency Audit",
+        "integration_id": 15368
+      },
+      {
+        "context": "Release Config",
+        "integration_id": 15368
+      },
+      {
+        "context": "Web Build (buyer-web)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Web Build (seller-web)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Web Build (admin-web)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Flutter Tests (buyer-mobile)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Flutter Tests (seller-mobile)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Flutter Analysis (buyer-mobile)",
+        "integration_id": 15368
+      },
+      {
+        "context": "Flutter Analysis (seller-mobile)",
+        "integration_id": 15368
+      },
+      {
+        "context": "CodeQL",
+        "integration_id": 57789
+      }
+    ],
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452447",
+        "name": "Lint & Type Check",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:46:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105212841/job/117609451129",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:27Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105212841/job/117609451353",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452325",
+        "name": "API Tests",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452412",
+        "name": "Web Tests",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:48:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452403",
+        "name": "Web Build (buyer-web)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452429",
+        "name": "Web Build (seller-web)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:48:14Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452413",
+        "name": "Web Build (admin-web)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:48:42Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452430",
+        "name": "Flutter Tests (buyer-mobile)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:48:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452408",
+        "name": "Flutter Tests (seller-mobile)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:46:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452461",
+        "name": "Dependency Audit",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452449",
+        "name": "Flutter Analysis (buyer-mobile)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:47:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452374",
+        "name": "Flutter Analysis (seller-mobile)",
+        "startedAt": "2026-10-18T06:46:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:46:23Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452477",
+        "name": "Release Config",
+        "startedAt": "2026-10-18T06:46:12Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-18T06:46:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/ipanga/teka-rdc/runs/117609554971",
+        "name": "CodeQL",
+        "startedAt": "2026-10-18T06:46:44Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "requiredSuccess": 13,
+    "additionalSuccess": 2,
+    "ciRun": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864",
+    "codeqlRun": "https://github.com/ipanga/teka-rdc/actions/runs/39105212841",
+    "codeqlAggregate": "https://github.com/ipanga/teka-rdc/runs/117609554971",
+    "codeqlAggregateIntegrationId": 57789,
+    "mergeCandidate": "76f305c51316167c9507871268aad3394bfcada7",
+    "candidateAndHeadTree": "ab133a512ed3a56a3250afddecbdc2015b21bfab",
+    "remoteFileBlobsCompared": 195,
+    "modifiedFiles": 55,
+    "addedFiles": 140,
+    "deletedFiles": 0,
+    "noUnexpectedFilesOrCommitChanges": true,
+    "autoMergeEnabled": false,
+    "merged": false,
+    "noCorrectiveCommitsOrReruns": true,
+    "ciCounts": {
+      "apiUnit": 1335,
+      "apiEndpoints": 322,
+      "buyerFlutter": 527,
+      "sellerFlutter": 509,
+      "buyer-web": 278,
+      "seller-web": 53,
+      "admin-web": 105
+    },
+    "audit": {
+      "enforcedProductionCommand": "pnpm audit --prod --audit-level=high",
+      "enforcedJobResult": "SUCCESS",
+      "productionOutput": "8 findings:6 moderate +2 high(2 ignored)",
+      "fullInformationalOutput": "21 findings:2 critical/5 high(2 ignored)/12 moderate/2 low; warning preserved",
+      "sixModerateStatus": "Unresolved, owner-approved temporary risk acceptance until2026-11-17; shared GHSA-qqmp-wf37-98f9/CVE-2026-104872",
+      "newExceptions": false
+    },
+    "scope": "Only existing review branch push and PR836 creation performed. No merge, production release/data write or mobile upload. Documentation updates remain local and uncommitted.",
+    "warnings": [
+      "Enforced Dependency Audit passes while full informational audit warns:21 findings,2 critical/5 high(2 previously ignored)/12 moderate/2 low.",
+      "CI analyzers pass with buyer7/seller7 info-only notices and no warnings/errors. Local scoped seller analysis had6; CI extra use_super_parameters at unchanged baseline test/support/seller_profile_fixtures.dart:87. No unrelated lint refactoring.",
+      "Push banner reports23 existing default-branch Dependabot alerts; that is a separate branch/feed view, not the PR production audit."
+    ],
+    "remainingLimits": [
+      "Physical store installation/open-app handoff/native Safari print pagination remain unverified.",
+      "Signed mobile builds/unique upload versions/device validation and main-targeted release CI remain separate gates.",
+      "Live production/Sentry telemetry was not inspected; no production data was changed.",
+      "Six moderate telemetry findings remain unresolved under the owner-approved2026-11-17 deadline.",
+      "Historical nine units remain restoration-unproven and untouched."
+    ],
+    "ciAnalyzerInfos": {
+      "buyer": 7,
+      "seller": 7
+    },
+    "localDocumentationFiles": [
+      "STATUS.md",
+      "PROGRESS.md",
+      "docs/order-integrity-printing-app-promotion.md",
+      "docs/qa/order-integrity/native-followup/release-preflight-result.json"
+    ],
+    "localDocumentationPublication": "Local updates only, left unstaged and uncommitted; no additional commit/push authorized."
+  },
+  "develop_merge_release_assessment": {
+    "checked_at_utc": "2026-10-18T07:24:22.035894+00:00",
+    "assessment": "MERGED_INTO_DEVELOP; CI_AND_CODEQL_SUCCESS; PRODUCTION_RELEASE_NOT_AUTHORIZED",
+    "pr": {
+      "baseRefName": "develop",
+      "headRefName": "codex/order-integrity-release-review",
+      "headRefOid": "33993416e980124603d02e2eedcef8ae1dd64710",
+      "mergeCommit": {
+        "oid": "41f684d827b05f656b512d00b8c99186975ed94e"
+      },
+      "mergedAt": "2026-10-18T07:15:46Z",
+      "mergedBy": {
+        "id": "MDQ6VXNlcjc0MDcxNDk=",
+        "is_bot": false,
+        "login": "ipanga",
+        "name": "Valéry"
+      },
+      "number": 836,
+      "state": "MERGED",
+      "url": "https://github.com/ipanga/teka-rdc/pull/836"
+    },
+    "method": "merge commit",
+    "approved_head": "33993416e980124603d02e2eedcef8ae1dd64710",
+    "merge_sha": "41f684d827b05f656b512d00b8c99186975ed94e",
+    "parents": [
+      "9e6bd60d488de644d4526fdcba08a641d233e964",
+      "33993416e980124603d02e2eedcef8ae1dd64710"
+    ],
+    "tree": "ab133a512ed3a56a3250afddecbdc2015b21bfab",
+    "approved_tree_matches": true,
+    "pre_merge_required_checks": [
+      {
+        "link": "https://github.com/ipanga/teka-rdc/runs/117609554971",
+        "name": "CodeQL",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452477",
+        "name": "Release Config",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452429",
+        "name": "Web Build (seller-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452325",
+        "name": "API Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452412",
+        "name": "Web Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452403",
+        "name": "Web Build (buyer-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452447",
+        "name": "Lint & Type Check",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452413",
+        "name": "Web Build (admin-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452430",
+        "name": "Flutter Tests (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452408",
+        "name": "Flutter Tests (seller-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452461",
+        "name": "Dependency Audit",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452449",
+        "name": "Flutter Analysis (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39105213864/job/117609452374",
+        "name": "Flutter Analysis (seller-mobile)",
+        "state": "SUCCESS"
+      }
+    ],
+    "post_merge_ci": {
+      "conclusion": "success",
+      "databaseId": 39107009104,
+      "event": "push",
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "jobs": [
+        {
+          "completedAt": "2026-10-18T07:17:02Z",
+          "conclusion": "success",
+          "databaseId": 117614950290,
+          "name": "Lint & Type Check",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:04Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:21Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:23Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:25Z",
+              "conclusion": "success",
+              "name": "Generate Prisma client",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:54Z",
+              "conclusion": "success",
+              "name": "Type check",
+              "number": 8,
+              "startedAt": "2026-10-18T07:16:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 14,
+              "startedAt": "2026-10-18T07:16:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 15,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 16,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950290"
+        },
+        {
+          "completedAt": "2026-10-18T07:16:03Z",
+          "conclusion": "success",
+          "databaseId": 117614950438,
+          "name": "Release Config",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:59Z",
+              "conclusion": "success",
+              "name": "Run ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:00Z",
+              "conclusion": "success",
+              "name": "TestFlight distribution config",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:00Z",
+              "conclusion": "success",
+              "name": "Play release config",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:00Z",
+              "conclusion": "success",
+              "name": "Auto-apply migration manifest",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:00Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 12,
+              "startedAt": "2026-10-18T07:16:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:00Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-18T07:16:00Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950438"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:33Z",
+          "conclusion": "success",
+          "databaseId": 117614950444,
+          "name": "Flutter Analysis (seller-mobile)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:58Z",
+              "conclusion": "success",
+              "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Get dependencies",
+              "number": 4,
+              "startedAt": "2026-10-18T07:16:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Generate l10n (if configured)",
+              "number": 5,
+              "startedAt": "2026-10-18T07:17:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:30Z",
+              "conclusion": "success",
+              "name": "Analyze",
+              "number": 6,
+              "startedAt": "2026-10-18T07:17:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:30Z",
+              "conclusion": "success",
+              "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 11,
+              "startedAt": "2026-10-18T07:17:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:30Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 12,
+              "startedAt": "2026-10-18T07:17:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:30Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-18T07:17:30Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950444"
+        },
+        {
+          "completedAt": "2026-10-18T07:16:39Z",
+          "conclusion": "success",
+          "databaseId": 117614950446,
+          "name": "Dependency Audit",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:59Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:04Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:22Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:24Z",
+              "conclusion": "success",
+              "name": "pnpm audit (production dependencies, high+)",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:29Z",
+              "conclusion": "success",
+              "name": "pnpm audit (full tree, report only)",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:35Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 12,
+              "startedAt": "2026-10-18T07:16:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:35Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 13,
+              "startedAt": "2026-10-18T07:16:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:36Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 14,
+              "startedAt": "2026-10-18T07:16:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:36Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-18T07:16:36Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950446"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:14Z",
+          "conclusion": "success",
+          "databaseId": 117614950450,
+          "name": "API Tests",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:59Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:04Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:20Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:23Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:25Z",
+              "conclusion": "success",
+              "name": "Generate Prisma client",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:41Z",
+              "conclusion": "success",
+              "name": "Run API unit tests",
+              "number": 8,
+              "startedAt": "2026-10-18T07:16:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:06Z",
+              "conclusion": "success",
+              "name": "Run API e2e tests",
+              "number": 9,
+              "startedAt": "2026-10-18T07:16:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 16,
+              "startedAt": "2026-10-18T07:17:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 17,
+              "startedAt": "2026-10-18T07:17:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 18,
+              "startedAt": "2026-10-18T07:17:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:11Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 19,
+              "startedAt": "2026-10-18T07:17:11Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950450"
+        },
+        {
+          "completedAt": "2026-10-18T07:18:20Z",
+          "conclusion": "success",
+          "databaseId": 117614950454,
+          "name": "Flutter Tests (seller-mobile)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:54Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:47Z",
+              "conclusion": "success",
+              "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:58Z",
+              "conclusion": "success",
+              "name": "Get dependencies",
+              "number": 4,
+              "startedAt": "2026-10-18T07:16:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:07Z",
+              "conclusion": "success",
+              "name": "flutter test",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:18Z",
+              "conclusion": "success",
+              "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 9,
+              "startedAt": "2026-10-18T07:18:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:18Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 10,
+              "startedAt": "2026-10-18T07:18:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:18Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-18T07:18:18Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950454"
+        },
+        {
+          "completedAt": "2026-10-18T07:16:46Z",
+          "conclusion": "success",
+          "databaseId": 117614950457,
+          "name": "Web Tests",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:54Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:03Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:24Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:26Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:38Z",
+              "conclusion": "success",
+              "name": "buyer-web tests",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:39Z",
+              "conclusion": "success",
+              "name": "seller-web tests",
+              "number": 8,
+              "startedAt": "2026-10-18T07:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:41Z",
+              "conclusion": "success",
+              "name": "admin-web tests",
+              "number": 9,
+              "startedAt": "2026-10-18T07:16:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:44Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 16,
+              "startedAt": "2026-10-18T07:16:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:44Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 17,
+              "startedAt": "2026-10-18T07:16:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:45Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 18,
+              "startedAt": "2026-10-18T07:16:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:45Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 19,
+              "startedAt": "2026-10-18T07:16:45Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950457"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:22Z",
+          "conclusion": "success",
+          "databaseId": 117614950462,
+          "name": "Flutter Analysis (buyer-mobile)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:54Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:55Z",
+              "conclusion": "success",
+              "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:05Z",
+              "conclusion": "success",
+              "name": "Get dependencies",
+              "number": 4,
+              "startedAt": "2026-10-18T07:16:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:05Z",
+              "conclusion": "success",
+              "name": "Generate l10n (if configured)",
+              "number": 5,
+              "startedAt": "2026-10-18T07:17:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:20Z",
+              "conclusion": "success",
+              "name": "Analyze",
+              "number": 6,
+              "startedAt": "2026-10-18T07:17:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:20Z",
+              "conclusion": "success",
+              "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 11,
+              "startedAt": "2026-10-18T07:17:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:20Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 12,
+              "startedAt": "2026-10-18T07:17:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:20Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-18T07:17:20Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950462"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:10Z",
+          "conclusion": "success",
+          "databaseId": 117614950481,
+          "name": "Web Build (admin-web)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:02Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:16Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:18Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:06Z",
+              "conclusion": "success",
+              "name": "next build",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 12,
+              "startedAt": "2026-10-18T07:17:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:08Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 13,
+              "startedAt": "2026-10-18T07:17:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 14,
+              "startedAt": "2026-10-18T07:17:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:09Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-18T07:17:08Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950481"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:01Z",
+          "conclusion": "success",
+          "databaseId": 117614950502,
+          "name": "Web Build (seller-web)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:01Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:13Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:15Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:56Z",
+              "conclusion": "success",
+              "name": "next build",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 12,
+              "startedAt": "2026-10-18T07:16:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 13,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 14,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:59Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-18T07:16:59Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950502"
+        },
+        {
+          "completedAt": "2026-10-18T07:17:15Z",
+          "conclusion": "success",
+          "databaseId": 117614950521,
+          "name": "Web Build (buyer-web)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:59Z",
+              "conclusion": "success",
+              "name": "Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:03Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:19Z",
+              "conclusion": "success",
+              "name": "Install dependencies",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:20Z",
+              "conclusion": "success",
+              "name": "Build shared package",
+              "number": 6,
+              "startedAt": "2026-10-18T07:16:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:10Z",
+              "conclusion": "success",
+              "name": "next build",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:12Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+              "number": 12,
+              "startedAt": "2026-10-18T07:17:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:13Z",
+              "conclusion": "success",
+              "name": "Post Run pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+              "number": 13,
+              "startedAt": "2026-10-18T07:17:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:13Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 14,
+              "startedAt": "2026-10-18T07:17:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:13Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-18T07:17:13Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950521"
+        },
+        {
+          "completedAt": "2026-10-18T07:18:27Z",
+          "conclusion": "success",
+          "databaseId": 117614950522,
+          "name": "Flutter Tests (buyer-mobile)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:54Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:56Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:54Z",
+              "conclusion": "success",
+              "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:17:05Z",
+              "conclusion": "success",
+              "name": "Get dependencies",
+              "number": 4,
+              "startedAt": "2026-10-18T07:16:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:17Z",
+              "conclusion": "success",
+              "name": "flutter test",
+              "number": 5,
+              "startedAt": "2026-10-18T07:17:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:25Z",
+              "conclusion": "success",
+              "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+              "number": 9,
+              "startedAt": "2026-10-18T07:18:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:25Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              "number": 10,
+              "startedAt": "2026-10-18T07:18:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:25Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-18T07:18:25Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104/job/117614950522"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107009104"
+    },
+    "post_merge_codeql": {
+      "conclusion": "success",
+      "databaseId": 39107008969,
+      "event": "dynamic",
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "jobs": [
+        {
+          "completedAt": "2026-10-18T07:16:43Z",
+          "conclusion": "success",
+          "databaseId": 117614952397,
+          "name": "Analyze (actions)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Checkout repository",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Setup proxy for registries",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:10Z",
+              "conclusion": "success",
+              "name": "Initialize CodeQL",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:39Z",
+              "conclusion": "success",
+              "name": "Perform CodeQL Analysis",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:40Z",
+              "conclusion": "success",
+              "name": "Post Perform CodeQL Analysis",
+              "number": 7,
+              "startedAt": "2026-10-18T07:16:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:40Z",
+              "conclusion": "success",
+              "name": "Post Initialize CodeQL",
+              "number": 8,
+              "startedAt": "2026-10-18T07:16:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:41Z",
+              "conclusion": "success",
+              "name": "Post Setup proxy for registries",
+              "number": 9,
+              "startedAt": "2026-10-18T07:16:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:41Z",
+              "conclusion": "success",
+              "name": "Post Checkout repository",
+              "number": 10,
+              "startedAt": "2026-10-18T07:16:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:41Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-18T07:16:41Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107008969/job/117614952397"
+        },
+        {
+          "completedAt": "2026-10-18T07:18:13Z",
+          "conclusion": "success",
+          "databaseId": 117614952578,
+          "name": "Analyze (javascript-typescript)",
+          "startedAt": "2026-10-18T07:15:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-18T07:15:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-18T07:15:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:56Z",
+              "conclusion": "success",
+              "name": "Checkout repository",
+              "number": 2,
+              "startedAt": "2026-10-18T07:15:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:15:57Z",
+              "conclusion": "success",
+              "name": "Setup proxy for registries",
+              "number": 3,
+              "startedAt": "2026-10-18T07:15:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:16:10Z",
+              "conclusion": "success",
+              "name": "Initialize CodeQL",
+              "number": 4,
+              "startedAt": "2026-10-18T07:15:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:10Z",
+              "conclusion": "success",
+              "name": "Perform CodeQL Analysis",
+              "number": 5,
+              "startedAt": "2026-10-18T07:16:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:10Z",
+              "conclusion": "success",
+              "name": "Post Perform CodeQL Analysis",
+              "number": 7,
+              "startedAt": "2026-10-18T07:18:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:11Z",
+              "conclusion": "success",
+              "name": "Post Initialize CodeQL",
+              "number": 8,
+              "startedAt": "2026-10-18T07:18:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:11Z",
+              "conclusion": "success",
+              "name": "Post Setup proxy for registries",
+              "number": 9,
+              "startedAt": "2026-10-18T07:18:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:11Z",
+              "conclusion": "success",
+              "name": "Post Checkout repository",
+              "number": 10,
+              "startedAt": "2026-10-18T07:18:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-18T07:18:12Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-18T07:18:11Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107008969/job/117614952578"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107008969"
+    },
+    "post_merge_pr_aggregate": "No new PR aggregate for branch push; required aggregate passed on PR836 before merge.",
+    "audit": {
+      "enforced_command": "pnpm audit --prod --audit-level=high",
+      "conclusion": "success",
+      "production_findings": {
+        "moderate": 6,
+        "high": 2,
+        "high_ignored_existing": 2
+      },
+      "full_report_only": {
+        "critical": 2,
+        "high": 5,
+        "moderate": 12,
+        "low": 2,
+        "high_ignored_existing": 2
+      }
+    },
+    "dependabot_maintenance": {
+      "checked_at_utc": "2026-10-18T07:24:22.035894+00:00",
+      "separate_from_ci_and_codeql": true,
+      "snapshot": [
+        {
+          "conclusion": "success",
+          "databaseId": 39107096292,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for compression - Update #1633901699",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107096292",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107095534,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /apps/buyer-web for next - Update #1633901697",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107095534",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107094896,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /apps/admin-web for next - Update #1633901691",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107094896",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107094073,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for next - Update #1633901682",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107094073",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107091634,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "pub in /apps/seller-mobile for build_runner, riverpod_generator, riverpod_annotation, intl, flutter_riverpod, dio, firebase_core, firebase_messaging, flutter_image_compress, flutter_riverpod, image_picker, intl, posthog_flutter, riverpod_annotation, riverpod_generator, shared_preferences - Update #1633901656",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107091634",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107091977,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "pub in /apps/buyer-mobile for build_runner, riverpod_generator, riverpod_annotation, intl, flutter_riverpod, dio, firebase_core, firebase_messaging, flutter_riverpod, image_picker, intl, posthog_flutter, riverpod_annotation, riverpod_generator, sentry_dart_plugin, shared_preferences, url_launcher, uuid - Update #1633901649",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107091977",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 39107090796,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for joi - Update #1633901648",
+          "status": "in_progress",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107090796",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107089418,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for multer - Update #1633901639",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107089418",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 39107088445,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for @sentry/nextjs, next, posthog-js, react, @types/react, react-dom, @types/react-dom, recharts, zustand, @eslint/eslintrc, @tailwindcss/postcss, @types/node, @types/react, @types/react-dom, eslint-config-next, tailwindcss, vitest, @nestjs/common, @nestjs/config, @nestjs/core, @nestjs/mapped-types, @nestjs/platform-express, @nestjs/throttler, @prisma/client, @sentry/node, class-validator, cloudinary, compression, helmet, joi, multer, @types/multer, posthog-node, @eslint/js, @nestjs/cli...",
+          "status": "in_progress",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107088445",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107023805,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql2 - Update #1633901083",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107023805",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107022127,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for brace-expansion - Update #1633901067",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107022127",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020882,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-tedious - Update #1633901048",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020882",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020903,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-pg - Update #1633901049",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020903",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107021500,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-knex - Update #1633901052",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107021500",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020913,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for postcss-selector-parser - Update #1633901047",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020913",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020919,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for handlebars - Update #1633901036",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020919",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020754,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql - Update #1633901043",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020754",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 39107020875,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mongoose - Update #1633901046",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020875",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107008969,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "Push on develop",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107008969",
+          "workflowName": "CodeQL"
+        }
+      ],
+      "inspected_failures": [
+        {
+          "id": 39107023805,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql2 - Update #1633901083",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107023805",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql2",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107022127,
+          "name": "npm_and_yarn in /. for brace-expansion - Update #1633901067",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107022127",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "brace-expansion",
+            "latest-resolvable-version": "1.1.18",
+            "lowest-non-vulnerable-version": "1.1.21"
+          }
+        },
+        {
+          "id": 39107020882,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-tedious - Update #1633901048",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020882",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-tedious",
+            "latest-resolvable-version": "0.33.0",
+            "lowest-non-vulnerable-version": "0.40.0"
+          }
+        },
+        {
+          "id": 39107020903,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-pg - Update #1633901049",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020903",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-pg",
+            "latest-resolvable-version": "0.66.0",
+            "lowest-non-vulnerable-version": "0.73.0"
+          }
+        },
+        {
+          "id": 39107021500,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-knex - Update #1633901052",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107021500",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-knex",
+            "latest-resolvable-version": "0.58.0",
+            "lowest-non-vulnerable-version": "0.65.0"
+          }
+        },
+        {
+          "id": 39107020913,
+          "name": "npm_and_yarn in /. for postcss-selector-parser - Update #1633901047",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020913",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "postcss-selector-parser",
+            "latest-resolvable-version": "6.0.10",
+            "lowest-non-vulnerable-version": "7.1.6"
+          }
+        },
+        {
+          "id": 39107020919,
+          "name": "npm_and_yarn in /. for handlebars - Update #1633901036",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020919",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "handlebars",
+            "latest-resolvable-version": "4.7.9",
+            "lowest-non-vulnerable-version": "4.7.10"
+          }
+        },
+        {
+          "id": 39107020754,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql - Update #1633901043",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020754",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107020875,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mongoose - Update #1633901046",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020875",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mongoose",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        }
+      ],
+      "no_suppression_or_dependency_change": true,
+      "summary": {
+        "completed:success": 8,
+        "in_progress:": 2,
+        "completed:failure": 9
+      },
+      "interpretation": "Nine inspected failures are security_update_not_possible: all six unresolved accepted Sentry/OTel adapters plus brace-expansion 1.x, postcss-selector-parser and handlebars full-tree maintenance follow-ups. No new exception or acceptance added; full-tree warnings remain visible. Remaining version-update jobs do not replace the exact release-PR checks."
+    },
+    "local_reconciliation": {
+      "branch": "develop",
+      "head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "all_four_docs_byte_preserved": true,
+      "staged_files": 0,
+      "sha256": {
+        "PROGRESS.md": "4dc947b4033ebb5e06efe9c8a5d2e3076a4499d335a4027be04e22eb63d5ae3a",
+        "STATUS.md": "532a41a0d40ee66bcb3004e99851f4b76bcf00fee4ad16dba1ea3b5aa01cfa3d",
+        "docs/order-integrity-printing-app-promotion.md": "fc9613e4a5cba0d031aa3c484cac1c9a155da15198e92efc768fac05f127fd4f",
+        "docs/qa/order-integrity/native-followup/release-preflight-result.json": "0dba0191ff4d9cabed1c775c9e54362fd0e9bad681501a75de6959d609bf60d8"
+      }
+    },
+    "local_docs_after_handoff": {
+      "paths": [
+        "PROGRESS.md",
+        "STATUS.md",
+        "docs/order-integrity-printing-app-promotion.md",
+        "docs/qa/order-integrity/native-followup/release-preflight-result.json"
+      ],
+      "state": "intentionally updated; unstaged/uncommitted",
+      "new_commit_or_push": false
+    },
+    "review_branch": {
+      "local_and_remote_retained": true,
+      "head": "33993416e980124603d02e2eedcef8ae1dd64710"
+    },
+    "release_compare": {
+      "main": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+      "develop": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "paths": 196,
+      "modified": 56,
+      "added": 140,
+      "deleted": 0,
+      "develop_only_commits": 12,
+      "main_only_prior_release_merge": 1,
+      "prospective_merge_conflicts": false,
+      "prospective_tree_matches": true,
+      "schema_migration_env_workflow_signing_changes": false,
+      "unchanged_auto_apply_entries": 16,
+      "added_sql": "read-only inventory candidate report; not a migration; no stock correction"
+    },
+    "backup": {
+      "fresh_backup_age": "unverified",
+      "provider_retention_pitr": "unverified",
+      "restore_evidence_rpo_rto": "unverified",
+      "repo_owned_backup_workflow_found": false,
+      "production_access_or_backup_restore_executed": false,
+      "gate": "Verify fresh backup timestamp, storage/access/retention and isolated restore evidence before production release."
+    },
+    "rollback": {
+      "sha": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+      "run": 36337328372,
+      "historical_push_digests": {
+        "buyer-web": "sha256:1cf58ab2368c6f34618628cb838dce583b989c19bf83979d097277cc8de7801e",
+        "api": "sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a",
+        "admin-web": "sha256:0fa02f9e58052820c462e296772d52ca92e013cc4f08f3a688f9de3efb052d53",
+        "seller-web": "sha256:36ba5df1fb58f19dc2f3e0b9e58dd6d0fda837cc55b2a0324e30aa5b3bf8fbcd"
+      },
+      "current_registry_availability": "unverified: GitHub token lacks read:packages (403)",
+      "current_running_images": "not inspected"
+    },
+    "deployment": {
+      "main_merge_auto_deploys": true,
+      "waits_for_separate_ci": false,
+      "production_environment_pause": false,
+      "order": [
+        "api",
+        "buyer-web",
+        "seller-web",
+        "admin-web"
+      ],
+      "api_first_required": true,
+      "old_mobile_new_api_compatible": true,
+      "new_seller_old_api": "400 expectedQuantity unknown field; retain compatible API after mobile distribution",
+      "preferred_rollback": "affected web first / compatible API / reviewed forward repair; no stock corrections"
+    },
+    "main_pr": {
+      "created": false,
+      "same_13_required_contexts": true,
+      "additional_operational_gates": [
+        "PR validation lint-typecheck-test",
+        "docker-build-check x4",
+        "CodeQL analyses + aggregate on actual release PR"
+      ],
+      "lint_debt_preserved": true,
+      "open_release_prs_readonly_snapshot": []
+    },
+    "mobile": {
+      "buyer_version": "0.1.8+11",
+      "seller_version": "0.1.11+13",
+      "versions_changed": false,
+      "signed_builds_or_uploads": false,
+      "remaining": [
+        "live store version/code readback",
+        "separate version approval",
+        "production signing/AAB and iOS device/archive/export validation",
+        "existing environment reviewer approvals",
+        "TestFlight/Play processing/tester verification",
+        "physical install/open-app handoff",
+        "native Safari print if operationally used"
+      ]
+    },
+    "security": {
+      "six_moderates": "UNRESOLVED / TEMPORARILY_RISK_ACCEPTED",
+      "deadline": "2026-11-17",
+      "advisory": "GHSA-qqmp-wf37-98f9",
+      "cve": "CVE-2026-104872",
+      "existing_two_high_exceptions_unchanged": true,
+      "active_exploitable_path_blocks_release": true,
+      "live_production_telemetry_inspected": false
+    },
+    "historical_nine_units": "restoration-unproven; untouched",
+    "next_approvals": [
+      "scoped documentation commit/push",
+      "create develop-to-main PR",
+      "later main merge and production deployment after gates",
+      "separate mobile version/signed build/distribution/publication",
+      "separate production smoke writes if needed"
+    ],
+    "implementation_or_claude_inference_needed": false
+  },
+  "release_pr_preparation": {
+    "checked_at_utc": "2026-10-18T07:47:31.722886+00:00",
+    "assessment": "BLOCKED_FOR_PRODUCTION; BOTH_AUTHORIZED_PRS_CREATED; CANDIDATE_CI_SUCCESS",
+    "release_head": "41f684d827b05f656b512d00b8c99186975ed94e",
+    "main_baseline": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+    "documentation_branch": "codex/release-handoff-docs",
+    "documentation_pr": {
+      "number": 840,
+      "url": "https://github.com/ipanga/teka-rdc/pull/840",
+      "head_branch": "codex/release-handoff-docs",
+      "base": "develop",
+      "initial_commit": "39d0513d0036150df5d1ed4527ee2cb3da234d41",
+      "followup_commit": "Resolve from current PR branch tip; four docs only; no amend/force-push",
+      "state": "OPEN",
+      "merged": false,
+      "auto_merge": false,
+      "current_head_checks": "Read live PR840 check panel before any separately authorized merge; initial head passed."
+    },
+    "release_pr": {
+      "number": 841,
+      "url": "https://github.com/ipanga/teka-rdc/pull/841",
+      "head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "head_branch": "develop",
+      "base": "main",
+      "base_sha": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+      "draft": true,
+      "state": "OPEN",
+      "merged": false,
+      "auto_merge": false,
+      "potential_merge_commit": "5a006bbb39deb1d3c0ff9b2973763b4b2e9ee0c5",
+      "tree": "ab133a512ed3a56a3250afddecbdc2015b21bfab",
+      "file_blobs_verified": 196
+    },
+    "unmerged_docs_in_release": false,
+    "divergence": {
+      "develop_only": 12,
+      "main_only": 1,
+      "main_only_commit": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+      "identity": "previous release merge #821",
+      "second_parent": "b0f4643999fe70c838f8d1a1a414597f85329222",
+      "tree_diff_against_second_parent": "empty",
+      "production_only_changes": false,
+      "prospective_merge_tree": "ab133a512ed3a56a3250afddecbdc2015b21bfab",
+      "conflicts": false,
+      "history_rewrite": false
+    },
+    "rollback": {
+      "checked_at_utc": "2026-10-18T07:34:19.962014+00:00",
+      "method": "docker buildx imagetools inspect --raw; existing Docker credential-store configuration; no login or permission changes",
+      "github_package_api": "403: read:packages missing; registry manifest route independently successful",
+      "images": {
+        "api": {
+          "tag": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+          "digest": "sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a",
+          "manifest_available_now": true,
+          "platforms": [
+            {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            {
+              "architecture": "unknown",
+              "os": "unknown"
+            }
+          ],
+          "layers_downloaded": false
+        },
+        "buyer-web": {
+          "tag": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+          "digest": "sha256:1cf58ab2368c6f34618628cb838dce583b989c19bf83979d097277cc8de7801e",
+          "manifest_available_now": true,
+          "platforms": [
+            {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            {
+              "architecture": "unknown",
+              "os": "unknown"
+            }
+          ],
+          "layers_downloaded": false
+        },
+        "seller-web": {
+          "tag": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+          "digest": "sha256:36ba5df1fb58f19dc2f3e0b9e58dd6d0fda837cc55b2a0324e30aa5b3bf8fbcd",
+          "manifest_available_now": true,
+          "platforms": [
+            {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            {
+              "architecture": "unknown",
+              "os": "unknown"
+            }
+          ],
+          "layers_downloaded": false
+        },
+        "admin-web": {
+          "tag": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+          "digest": "sha256:0fa02f9e58052820c462e296772d52ca92e013cc4f08f3a688f9de3efb052d53",
+          "manifest_available_now": true,
+          "platforms": [
+            {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            {
+              "architecture": "unknown",
+              "os": "unknown"
+            }
+          ],
+          "layers_downloaded": false
+        }
+      },
+      "running_vps_images": "unverified; authorized connection metadata unavailable",
+      "layer_blob_pullability": "not tested; manifest verification only"
+    },
+    "backup": {
+      "current_availability": "unverified",
+      "latest_successful_backup": "unverified",
+      "retention": "unverified",
+      "location": "unverified",
+      "integrity": "unverified",
+      "restore_procedure": "docs/deployment.md; untested current credentials/backup",
+      "last_verified_restore_test": "unverified",
+      "access": "no authorized production connection metadata available; unrelated SSH alias not used",
+      "restore_test": "separate approval, disposable isolated PostgreSQL only; never live production",
+      "gate": "BLOCKER",
+      "owner_confirmed_no_verified_access": true,
+      "operator_procedure_prepared": true
+    },
+    "dependabot": {
+      "snapshot": [
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:16Z",
+          "databaseId": 39107096292,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for compression - Update #1633901699",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107096292",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:15Z",
+          "databaseId": 39107095534,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /apps/buyer-web for next - Update #1633901697",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107095534",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:15Z",
+          "databaseId": 39107094896,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /apps/admin-web for next - Update #1633901691",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107094896",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:14Z",
+          "databaseId": 39107094073,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for next - Update #1633901682",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107094073",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:11Z",
+          "databaseId": 39107091634,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "pub in /apps/seller-mobile for build_runner, riverpod_generator, riverpod_annotation, intl, flutter_riverpod, dio, firebase_core, firebase_messaging, flutter_image_compress, flutter_riverpod, image_picker, intl, posthog_flutter, riverpod_annotation, riverpod_generator, shared_preferences - Update #1633901656",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107091634",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:11Z",
+          "databaseId": 39107091977,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "pub in /apps/buyer-mobile for build_runner, riverpod_generator, riverpod_annotation, intl, flutter_riverpod, dio, firebase_core, firebase_messaging, flutter_riverpod, image_picker, intl, posthog_flutter, riverpod_annotation, riverpod_generator, sentry_dart_plugin, shared_preferences, url_launcher, uuid - Update #1633901649",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107091977",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107090796,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for joi - Update #1633901648",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107090796"
+        },
+        {
+          "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:09Z",
+          "databaseId": 39107089418,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for multer - Update #1633901639",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107089418",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 39107088445,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in / for @sentry/nextjs, next, posthog-js, react, @types/react, react-dom, @types/react-dom, recharts, zustand, @eslint/eslintrc, @tailwindcss/postcss, @types/node, @types/react, @types/react-dom, eslint-config-next, tailwindcss, vitest, @nestjs/common, @nestjs/config, @nestjs/core, @nestjs/mapped-types, @nestjs/platform-express, @nestjs/throttler, @prisma/client, @sentry/node, class-validator, cloudinary, compression, helmet, joi, multer, @types/multer, posthog-node, @eslint/js, @nestjs/cli...",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107088445"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:06Z",
+          "databaseId": 39107023805,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql2 - Update #1633901083",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107023805",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:04Z",
+          "databaseId": 39107022127,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for brace-expansion - Update #1633901067",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107022127",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020882,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-tedious - Update #1633901048",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020882",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020903,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-pg - Update #1633901049",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020903",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107021500,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-knex - Update #1633901052",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107021500",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020913,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for postcss-selector-parser - Update #1633901047",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020913",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020919,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for handlebars - Update #1633901036",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020919",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020754,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql - Update #1633901043",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020754",
+          "workflowName": "Dependabot Updates"
+        },
+        {
+          "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
+          "databaseId": 39107020875,
+          "event": "dynamic",
+          "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mongoose - Update #1633901046",
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020875",
+          "workflowName": "Dependabot Updates"
+        }
+      ],
+      "summary": {
+        "completed:success": 9,
+        "completed:failure": 9
+      },
+      "previously_pending_jobs_completed_successfully": [
+        39107090796,
+        39107088445
+      ],
+      "inspected_failures": [
+        {
+          "id": 39107023805,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql2 - Update #1633901083",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107023805",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql2",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107022127,
+          "name": "npm_and_yarn in /. for brace-expansion - Update #1633901067",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107022127",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "brace-expansion",
+            "latest-resolvable-version": "1.1.18",
+            "lowest-non-vulnerable-version": "1.1.21"
+          }
+        },
+        {
+          "id": 39107020882,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-tedious - Update #1633901048",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020882",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-tedious",
+            "latest-resolvable-version": "0.33.0",
+            "lowest-non-vulnerable-version": "0.40.0"
+          }
+        },
+        {
+          "id": 39107020903,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-pg - Update #1633901049",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020903",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-pg",
+            "latest-resolvable-version": "0.66.0",
+            "lowest-non-vulnerable-version": "0.73.0"
+          }
+        },
+        {
+          "id": 39107021500,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-knex - Update #1633901052",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107021500",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-knex",
+            "latest-resolvable-version": "0.58.0",
+            "lowest-non-vulnerable-version": "0.65.0"
+          }
+        },
+        {
+          "id": 39107020913,
+          "name": "npm_and_yarn in /. for postcss-selector-parser - Update #1633901047",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020913",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "postcss-selector-parser",
+            "latest-resolvable-version": "6.0.10",
+            "lowest-non-vulnerable-version": "7.1.6"
+          }
+        },
+        {
+          "id": 39107020919,
+          "name": "npm_and_yarn in /. for handlebars - Update #1633901036",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020919",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "handlebars",
+            "latest-resolvable-version": "4.7.9",
+            "lowest-non-vulnerable-version": "4.7.10"
+          }
+        },
+        {
+          "id": 39107020754,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql - Update #1633901043",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020754",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107020875,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mongoose - Update #1633901046",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020875",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mongoose",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        }
+      ],
+      "new_exception_or_risk_acceptance": false,
+      "count_correction": "Earlier event=dynamic count included one successful CodeQL run. Canonical Dependabot Updates workflow count is18:9 success/9 failure/0 pending."
+    },
+    "source_changes": false,
+    "additional_implementation_or_claude_inference": false,
+    "next": "Create docs PR and Draft release PR; monitor actual candidate checks; retain production blockers.",
+    "canonical_required_checks": [
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193046",
+        "name": "Web Build (buyer-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193145",
+        "name": "Release Config",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193044",
+        "name": "Web Build (admin-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192974",
+        "name": "Flutter Analysis (seller-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192990",
+        "name": "API Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193074",
+        "name": "Flutter Analysis (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192875",
+        "name": "Web Build (seller-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192979",
+        "name": "Flutter Tests (seller-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193039",
+        "name": "Flutter Tests (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193059",
+        "name": "Web Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193095",
+        "name": "Dependency Audit",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193034",
+        "name": "Lint & Type Check",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/runs/117619186111",
+        "name": "CodeQL",
+        "state": "SUCCESS"
+      }
+    ],
+    "ci": {
+      "databaseId": 39108428751,
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751",
+      "event": "pull_request",
+      "jobs": [
+        {
+          "name": "Web Build (seller-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192875"
+        },
+        {
+          "name": "Flutter Analysis (seller-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192974"
+        },
+        {
+          "name": "Flutter Tests (seller-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192979"
+        },
+        {
+          "name": "API Tests",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192990"
+        },
+        {
+          "name": "Lint & Type Check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193034"
+        },
+        {
+          "name": "Flutter Tests (buyer-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193039"
+        },
+        {
+          "name": "Web Build (admin-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193044"
+        },
+        {
+          "name": "Web Build (buyer-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193046"
+        },
+        {
+          "name": "Web Tests",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193059"
+        },
+        {
+          "name": "Flutter Analysis (buyer-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193074"
+        },
+        {
+          "name": "Dependency Audit",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193095"
+        },
+        {
+          "name": "Release Config",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193145"
+        }
+      ]
+    },
+    "main_pr_validation": {
+      "databaseId": 39108428679,
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679",
+      "event": "pull_request",
+      "jobs": [
+        {
+          "name": "lint-typecheck-test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192255"
+        },
+        {
+          "name": "docker-build-check (buyer-web, apps/buyer-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192351"
+        },
+        {
+          "name": "docker-build-check (admin-web, apps/admin-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192370"
+        },
+        {
+          "name": "docker-build-check (seller-web, apps/seller-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192377"
+        },
+        {
+          "name": "docker-build-check (api, apps/api/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192432"
+        }
+      ]
+    },
+    "codeql": {
+      "aggregate_id": 117619186111,
+      "url": "https://github.com/ipanga/teka-rdc/runs/117619186111",
+      "head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "conclusion": "success",
+      "app_id": 57789,
+      "started_at": "2026-10-18T07:38:31Z",
+      "underlying_analysis_run": 39107008969,
+      "underlying_analysis_head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "underlying_tree_matches_candidate": true,
+      "new_draft_specific_analysis_run_observed": false,
+      "note": "Fresh required aggregate exact source succeeds; underlying two analyses are earlier shared same-SHA/tree scans, not new Draft-specific runs. Revalidate actual candidate after docs merge/head changes."
+    },
+    "lint": {
+      "non_blocking": true,
+      "api_problems": 2639,
+      "api_errors": 2159,
+      "api_warnings": 480,
+      "unrelated_refactor": false,
+      "clean_lint_claim": false
+    },
+    "failure_classification": {
+      "application_regression": false,
+      "enforced_dependency_security_failure": false,
+      "actions_configuration_failure": false,
+      "runner_failure": false,
+      "baseline_lint": "visible non-blocking debt; no source correction"
+    },
+    "owner_access_reply": "No verified production connection. Do not use unrelated alias/decrypt deployment credentials/edit SSH/connect unverified host. Operator procedure prepared; missing operational evidence blocks release, not PR creation/ordinary CI.",
+    "operator_procedure": "docs/order-integrity-printing-app-promotion.md#read-only-operator-verification-procedure-not-executed-by-codex",
+    "production_health_anonymous": {
+      "checked_at_utc": "2026-10-18T07:34:14.257747+00:00",
+      "anonymous_read_only": true,
+      "results": [
+        {
+          "url": "https://api.teka.cd/api/v1/health/live",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "alive"
+            }
+          }
+        },
+        {
+          "url": "https://api.teka.cd/api/v1/health/ready",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "ready",
+              "checks": {
+                "database": "ok"
+              }
+            }
+          }
+        },
+        {
+          "url": "https://api.teka.cd/api/v1/health",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "ok",
+              "timestamp": "2026-10-18T07:34:10.092Z",
+              "service": "teka-rdc-api",
+              "checks": {
+                "database": "ok"
+              },
+              "uptime": 1778285.953594605
+            }
+          }
+        },
+        {
+          "url": "https://teka.cd/",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": null
+        },
+        {
+          "url": "https://seller.teka.cd/login",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": "noindex, nofollow"
+        },
+        {
+          "url": "https://admin.teka.cd/login",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    "release_blockers": [
+      "authoritative current PostgreSQL backup/time/location/retention/integrity and isolated restore evidence",
+      "actual running production immutable image digests/health and complete rollback readiness",
+      "docs merge/inclusion decision then exact updated release candidate revalidation",
+      "separate explicit main merge and production deployment authorization"
+    ],
+    "remaining_mobile_limits": [
+      "live store version/build readback",
+      "unique separately approved Android codes",
+      "current production signed AAB/iOS archive/device/export",
+      "existing environment approvals",
+      "TestFlight/Play processing/tester verification",
+      "physical current-feature and installation/open-app handoff",
+      "native Safari print pagination if operationally used"
+    ],
+    "mobile_environment_required_reviewers": {
+      "android-play": 1,
+      "ios-testflight": 1
+    },
+    "no_source_changes_or_implementation": true,
+    "mutation_smoke_run": false,
+    "operator_commands_executed": false,
+    "historical_nine_units": "untouched/restoration-unproven"
   }
 }

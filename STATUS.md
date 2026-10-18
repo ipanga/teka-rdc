@@ -2,27 +2,54 @@
 
 ## Active initiative
 
-**Six local review commits prepared on `codex/order-integrity-release-review`**, based on develop `9e6bd60`.
-[Commit/handoff record](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
-All accepted source/tests/tools preserved byte-for-byte. Codex performed selective
-Git staging and independent review; no new implementation was needed. Local branch,
-staging and six commits are authorized. **No push, PR, merge, deploy, signed upload
-or production write is authorized or performed.** GitHub was not contacted.
+**Documentation PR #840 open; production release Draft #841 open — BLOCKED for production.**
+[Docs #840](https://github.com/ipanga/teka-rdc/pull/840):
+`codex/release-handoff-docs` → develop, only four existing continuity files.
+Initial commit `39d0513d0036150df5d1ed4527ee2cb3da234d41`; a focused documentation
+follow-up records PR numbers/results/operator procedure. Resolve its current hash
+from the PR's branch tip. Its own checks must be read at the current tip before
+any separately authorized merge. Both PRs remain unmerged; auto-merge disabled.
 
-Fresh focused verification: frozen install/shared build/types PASS; API 135 unit/48
-endpoint; web 278/53/105; Flutter 91/67; analyzers unchanged 7/6 infos. Exact high-severity
-CI audit exit 0; JSON exit 1 with six unresolved moderates and two pre-existing
-excepted highs. Six Sentry/OTel findings remain temporarily risk-accepted through
-**November 17, 2026**, not resolved; full informational tree remains vulnerable.
-Affected drivers absent; tracing can inherit sampled parents. No new exception.
+[Draft #841](https://github.com/ipanga/teka-rdc/pull/841): develop → main,
+source `41f684d827b05f656b512d00b8c99186975ed94e`, main baseline
+`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. Documentation #840 is **excluded**
+until merged; any docs merge requires fresh release candidate/check verification.
+Main-only #821 merge adds no unique content; 12-ahead/1-behind topology preserved.
+Actual merge candidate `5a006bbb39deb1d3c0ff9b2973763b4b2e9ee0c5`, no conflict;
+tree equals approved develop. All196 remote file blobs match (56M/140A/0D).
 
-Earlier full API/PG/Node 20 Docker/standalone Sharp/native/browser/PDF evidence
-remains valid because source/dependency bytes did not change during Git preparation.
-Physical store/open-app/native Safari printing, signed mobile distribution and
-exact-candidate remote CI remain outstanding. No schema/env/workflow/signing change.
-Historical nine units remain unproven and untouched. Next: verify clean status and
-six commits; obtain explicit authorization to push the review branch and open its
-PR into develop. Main merge automatically deploys and requires separate approval.
+**Actual Draft checks:** 13/13 required contexts SUCCESS; new
+[CI 39108428751](https://github.com/ipanga/teka-rdc/actions/runs/39108428751) 12/12 and
+[PR validation 39108428679](https://github.com/ipanga/teka-rdc/actions/runs/39108428679)
+5/5 including four Docker builds SUCCESS, checkout SHA independently verified.
+[CodeQL aggregate](https://github.com/ipanga/teka-rdc/runs/117619186111) SUCCESS,
+app57789/exact source; underlying two analyses are earlier scans of identical
+source SHA/tree, not new Draft-specific analysis runs. Recheck on candidate changes.
+Non-blocking lint remains visible; no application/CI correction or Claude inference.
+
+**Operational blockers:** authoritative fresh PostgreSQL backup availability/time,
+location/retention/integrity and last isolated restore evidence; actual running VPS
+image IDs/digests and full rollback pullability. Owner confirms no verified production
+connection; no unrelated alias or encrypted deploy credential was used. All four
+historical rollback manifests match their recorded digests through existing Docker
+authentication; this does not prove layers/running containers. API health/ready/live
+and three anonymous web surfaces returned200; no authenticated/mutation smoke run.
+[Read-only operator procedure and handoff](docs/order-integrity-printing-app-promotion.md#documentation-and-release-pr-handoff--2026-10-18).
+
+Dependabot refreshed: **9 successful / 9 security_update_not_possible / 0 pending**.
+Six moderate Sentry/OTel findings remain **UNRESOLVED / temporarily risk-accepted
+until November 17, 2026**; two existing high exceptions and full-tree warnings
+preserved. No new exception. API→Buyer→Seller→Admin rollout and expectedQuantity
+rollback compatibility remain. Mobile versions/signing/workflows unchanged;
+physical store install/open-app/native Safari pagination and signed distribution
+remain unverified. Historical two orders/nine units remain untouched.
+
+Only documentation branch commits/push and these two PR creations were authorized.
+**No PR merge, protected-branch push, production deployment/write, secret/config
+change, mobile version/signed build/upload or historical stock correction.** Next:
+owner/operator supplies sanitized backup/restore and running-image evidence;
+separate approval for docs merge, then revalidation of updated Draft; eventual
+ready-for-review/main-merge/deployment and any mobile/mutation tests remain separate.
 
 ## Previous initiative — Seller Catalogue Speed-up
 
