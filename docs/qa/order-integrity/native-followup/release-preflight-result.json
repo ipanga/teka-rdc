@@ -334,7 +334,7 @@
     "signed_release_builds_for_current_diff": "not run",
     "production_mobile_store_distribution": "not authorized"
   },
-  "authorization": "Owner authorizes focused four-document commit/push on a temporary branch, documentation PR into develop, Draft develop-to-main PR, read-only preflight and local continuity updates. No PR merge/auto-merge/direct protected-branch push/deploy/production write/mobile version/signed build/upload/historical inventory correction.",
+  "authorization": "Documentation branch commits/push/PR840 into develop and Draft release PR841 develop-to-main plus read-only preflight/local documentation authorized. Neither PR merge/auto-merge/protected-branch push/deploy/prod data or secret/config changes/mobile version/signed build/upload/historical inventory correction authorized.",
   "github": {
     "main_ruleset": 15451167,
     "develop_ruleset": 22732572,
@@ -2935,13 +2935,38 @@
     "implementation_or_claude_inference_needed": false
   },
   "release_pr_preparation": {
-    "checked_at_utc": "2026-10-18T07:35:30.238923+00:00",
-    "assessment": "BLOCKED_FOR_PRODUCTION; AUTHORIZED_PR_PREPARATION",
+    "checked_at_utc": "2026-10-18T07:47:31.722886+00:00",
+    "assessment": "BLOCKED_FOR_PRODUCTION; BOTH_AUTHORIZED_PRS_CREATED; CANDIDATE_CI_SUCCESS",
     "release_head": "41f684d827b05f656b512d00b8c99186975ed94e",
     "main_baseline": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
     "documentation_branch": "codex/release-handoff-docs",
-    "documentation_pr": "pending creation; four-file commit only",
-    "release_pr": "pending Draft creation; source develop/target main",
+    "documentation_pr": {
+      "number": 840,
+      "url": "https://github.com/ipanga/teka-rdc/pull/840",
+      "head_branch": "codex/release-handoff-docs",
+      "base": "develop",
+      "initial_commit": "39d0513d0036150df5d1ed4527ee2cb3da234d41",
+      "followup_commit": "Resolve from current PR branch tip; four docs only; no amend/force-push",
+      "state": "OPEN",
+      "merged": false,
+      "auto_merge": false,
+      "current_head_checks": "Read live PR840 check panel before any separately authorized merge; initial head passed."
+    },
+    "release_pr": {
+      "number": 841,
+      "url": "https://github.com/ipanga/teka-rdc/pull/841",
+      "head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "head_branch": "develop",
+      "base": "main",
+      "base_sha": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+      "draft": true,
+      "state": "OPEN",
+      "merged": false,
+      "auto_merge": false,
+      "potential_merge_commit": "5a006bbb39deb1d3c0ff9b2973763b4b2e9ee0c5",
+      "tree": "ab133a512ed3a56a3250afddecbdc2015b21bfab",
+      "file_blobs_verified": 196
+    },
     "unmerged_docs_in_release": false,
     "divergence": {
       "develop_only": 12,
@@ -3038,12 +3063,15 @@
       "last_verified_restore_test": "unverified",
       "access": "no authorized production connection metadata available; unrelated SSH alias not used",
       "restore_test": "separate approval, disposable isolated PostgreSQL only; never live production",
-      "gate": "BLOCKER"
+      "gate": "BLOCKER",
+      "owner_confirmed_no_verified_access": true,
+      "operator_procedure_prepared": true
     },
     "dependabot": {
       "snapshot": [
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:16Z",
           "databaseId": 39107096292,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3054,6 +3082,7 @@
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:15Z",
           "databaseId": 39107095534,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3064,6 +3093,7 @@
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:15Z",
           "databaseId": 39107094896,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3074,6 +3104,7 @@
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:14Z",
           "databaseId": 39107094073,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3084,6 +3115,7 @@
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:11Z",
           "databaseId": 39107091634,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3094,6 +3126,7 @@
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:11Z",
           "databaseId": 39107091977,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3109,11 +3142,11 @@
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
           "name": "npm_and_yarn in / for joi - Update #1633901648",
           "status": "completed",
-          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107090796",
-          "workflowName": "Dependabot Updates"
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107090796"
         },
         {
           "conclusion": "success",
+          "createdAt": "2026-10-18T07:17:09Z",
           "databaseId": 39107089418,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3123,17 +3156,17 @@
           "workflowName": "Dependabot Updates"
         },
         {
-          "conclusion": "",
+          "conclusion": "success",
           "databaseId": 39107088445,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
           "name": "npm_and_yarn in / for @sentry/nextjs, next, posthog-js, react, @types/react, react-dom, @types/react-dom, recharts, zustand, @eslint/eslintrc, @tailwindcss/postcss, @types/node, @types/react, @types/react-dom, eslint-config-next, tailwindcss, vitest, @nestjs/common, @nestjs/config, @nestjs/core, @nestjs/mapped-types, @nestjs/platform-express, @nestjs/throttler, @prisma/client, @sentry/node, class-validator, cloudinary, compression, helmet, joi, multer, @types/multer, posthog-node, @eslint/js, @nestjs/cli...",
-          "status": "in_progress",
-          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107088445",
-          "workflowName": "Dependabot Updates"
+          "status": "completed",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107088445"
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:06Z",
           "databaseId": 39107023805,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3144,6 +3177,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:04Z",
           "databaseId": 39107022127,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3154,6 +3188,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020882,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3164,6 +3199,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020903,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3174,6 +3210,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107021500,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3184,6 +3221,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020913,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3194,6 +3232,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020919,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3204,6 +3243,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020754,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3214,6 +3254,7 @@
         },
         {
           "conclusion": "failure",
+          "createdAt": "2026-10-18T07:16:03Z",
           "databaseId": 39107020875,
           "event": "dynamic",
           "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
@@ -3224,13 +3265,436 @@
         }
       ],
       "summary": {
-        "completed:success": 8,
-        "in_progress:": 1,
+        "completed:success": 9,
         "completed:failure": 9
-      }
+      },
+      "previously_pending_jobs_completed_successfully": [
+        39107090796,
+        39107088445
+      ],
+      "inspected_failures": [
+        {
+          "id": 39107023805,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql2 - Update #1633901083",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107023805",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql2",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107022127,
+          "name": "npm_and_yarn in /. for brace-expansion - Update #1633901067",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107022127",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "brace-expansion",
+            "latest-resolvable-version": "1.1.18",
+            "lowest-non-vulnerable-version": "1.1.21"
+          }
+        },
+        {
+          "id": 39107020882,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-tedious - Update #1633901048",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020882",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-tedious",
+            "latest-resolvable-version": "0.33.0",
+            "lowest-non-vulnerable-version": "0.40.0"
+          }
+        },
+        {
+          "id": 39107020903,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-pg - Update #1633901049",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020903",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-pg",
+            "latest-resolvable-version": "0.66.0",
+            "lowest-non-vulnerable-version": "0.73.0"
+          }
+        },
+        {
+          "id": 39107021500,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-knex - Update #1633901052",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107021500",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-knex",
+            "latest-resolvable-version": "0.58.0",
+            "lowest-non-vulnerable-version": "0.65.0"
+          }
+        },
+        {
+          "id": 39107020913,
+          "name": "npm_and_yarn in /. for postcss-selector-parser - Update #1633901047",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020913",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "postcss-selector-parser",
+            "latest-resolvable-version": "6.0.10",
+            "lowest-non-vulnerable-version": "7.1.6"
+          }
+        },
+        {
+          "id": 39107020919,
+          "name": "npm_and_yarn in /. for handlebars - Update #1633901036",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020919",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "handlebars",
+            "latest-resolvable-version": "4.7.9",
+            "lowest-non-vulnerable-version": "4.7.10"
+          }
+        },
+        {
+          "id": 39107020754,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mysql - Update #1633901043",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020754",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mysql",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        },
+        {
+          "id": 39107020875,
+          "name": "npm_and_yarn in /. for @opentelemetry/instrumentation-mongoose - Update #1633901046",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39107020875",
+          "details": {
+            "error": "security_update_not_possible",
+            "dependency-name": "@opentelemetry/instrumentation-mongoose",
+            "latest-resolvable-version": "0.60.0",
+            "lowest-non-vulnerable-version": "0.67.0"
+          }
+        }
+      ],
+      "new_exception_or_risk_acceptance": false,
+      "count_correction": "Earlier event=dynamic count included one successful CodeQL run. Canonical Dependabot Updates workflow count is18:9 success/9 failure/0 pending."
     },
     "source_changes": false,
     "additional_implementation_or_claude_inference": false,
-    "next": "Create docs PR and Draft release PR; monitor actual candidate checks; retain production blockers."
+    "next": "Create docs PR and Draft release PR; monitor actual candidate checks; retain production blockers.",
+    "canonical_required_checks": [
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193046",
+        "name": "Web Build (buyer-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193145",
+        "name": "Release Config",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193044",
+        "name": "Web Build (admin-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192974",
+        "name": "Flutter Analysis (seller-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192990",
+        "name": "API Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193074",
+        "name": "Flutter Analysis (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192875",
+        "name": "Web Build (seller-web)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192979",
+        "name": "Flutter Tests (seller-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193039",
+        "name": "Flutter Tests (buyer-mobile)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193059",
+        "name": "Web Tests",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193095",
+        "name": "Dependency Audit",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193034",
+        "name": "Lint & Type Check",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/ipanga/teka-rdc/runs/117619186111",
+        "name": "CodeQL",
+        "state": "SUCCESS"
+      }
+    ],
+    "ci": {
+      "databaseId": 39108428751,
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751",
+      "event": "pull_request",
+      "jobs": [
+        {
+          "name": "Web Build (seller-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192875"
+        },
+        {
+          "name": "Flutter Analysis (seller-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192974"
+        },
+        {
+          "name": "Flutter Tests (seller-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192979"
+        },
+        {
+          "name": "API Tests",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619192990"
+        },
+        {
+          "name": "Lint & Type Check",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193034"
+        },
+        {
+          "name": "Flutter Tests (buyer-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193039"
+        },
+        {
+          "name": "Web Build (admin-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193044"
+        },
+        {
+          "name": "Web Build (buyer-web)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193046"
+        },
+        {
+          "name": "Web Tests",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193059"
+        },
+        {
+          "name": "Flutter Analysis (buyer-mobile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193074"
+        },
+        {
+          "name": "Dependency Audit",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193095"
+        },
+        {
+          "name": "Release Config",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428751/job/117619193145"
+        }
+      ]
+    },
+    "main_pr_validation": {
+      "databaseId": 39108428679,
+      "headSha": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679",
+      "event": "pull_request",
+      "jobs": [
+        {
+          "name": "lint-typecheck-test",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192255"
+        },
+        {
+          "name": "docker-build-check (buyer-web, apps/buyer-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192351"
+        },
+        {
+          "name": "docker-build-check (admin-web, apps/admin-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192370"
+        },
+        {
+          "name": "docker-build-check (seller-web, apps/seller-web/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192377"
+        },
+        {
+          "name": "docker-build-check (api, apps/api/Dockerfile)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/ipanga/teka-rdc/actions/runs/39108428679/job/117619192432"
+        }
+      ]
+    },
+    "codeql": {
+      "aggregate_id": 117619186111,
+      "url": "https://github.com/ipanga/teka-rdc/runs/117619186111",
+      "head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "conclusion": "success",
+      "app_id": 57789,
+      "started_at": "2026-10-18T07:38:31Z",
+      "underlying_analysis_run": 39107008969,
+      "underlying_analysis_head": "41f684d827b05f656b512d00b8c99186975ed94e",
+      "underlying_tree_matches_candidate": true,
+      "new_draft_specific_analysis_run_observed": false,
+      "note": "Fresh required aggregate exact source succeeds; underlying two analyses are earlier shared same-SHA/tree scans, not new Draft-specific runs. Revalidate actual candidate after docs merge/head changes."
+    },
+    "lint": {
+      "non_blocking": true,
+      "api_problems": 2639,
+      "api_errors": 2159,
+      "api_warnings": 480,
+      "unrelated_refactor": false,
+      "clean_lint_claim": false
+    },
+    "failure_classification": {
+      "application_regression": false,
+      "enforced_dependency_security_failure": false,
+      "actions_configuration_failure": false,
+      "runner_failure": false,
+      "baseline_lint": "visible non-blocking debt; no source correction"
+    },
+    "owner_access_reply": "No verified production connection. Do not use unrelated alias/decrypt deployment credentials/edit SSH/connect unverified host. Operator procedure prepared; missing operational evidence blocks release, not PR creation/ordinary CI.",
+    "operator_procedure": "docs/order-integrity-printing-app-promotion.md#read-only-operator-verification-procedure-not-executed-by-codex",
+    "production_health_anonymous": {
+      "checked_at_utc": "2026-10-18T07:34:14.257747+00:00",
+      "anonymous_read_only": true,
+      "results": [
+        {
+          "url": "https://api.teka.cd/api/v1/health/live",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "alive"
+            }
+          }
+        },
+        {
+          "url": "https://api.teka.cd/api/v1/health/ready",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "ready",
+              "checks": {
+                "database": "ok"
+              }
+            }
+          }
+        },
+        {
+          "url": "https://api.teka.cd/api/v1/health",
+          "method": "GET",
+          "status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "robots": null,
+          "health": {
+            "success": true,
+            "data": {
+              "status": "ok",
+              "timestamp": "2026-10-18T07:34:10.092Z",
+              "service": "teka-rdc-api",
+              "checks": {
+                "database": "ok"
+              },
+              "uptime": 1778285.953594605
+            }
+          }
+        },
+        {
+          "url": "https://teka.cd/",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": null
+        },
+        {
+          "url": "https://seller.teka.cd/login",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": "noindex, nofollow"
+        },
+        {
+          "url": "https://admin.teka.cd/login",
+          "method": "HEAD",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "robots": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    "release_blockers": [
+      "authoritative current PostgreSQL backup/time/location/retention/integrity and isolated restore evidence",
+      "actual running production immutable image digests/health and complete rollback readiness",
+      "docs merge/inclusion decision then exact updated release candidate revalidation",
+      "separate explicit main merge and production deployment authorization"
+    ],
+    "remaining_mobile_limits": [
+      "live store version/build readback",
+      "unique separately approved Android codes",
+      "current production signed AAB/iOS archive/device/export",
+      "existing environment approvals",
+      "TestFlight/Play processing/tester verification",
+      "physical current-feature and installation/open-app handoff",
+      "native Safari print pagination if operationally used"
+    ],
+    "mobile_environment_required_reviewers": {
+      "android-play": 1,
+      "ios-testflight": 1
+    },
+    "no_source_changes_or_implementation": true,
+    "mutation_smoke_run": false,
+    "operator_commands_executed": false,
+    "historical_nine_units": "untouched/restoration-unproven"
   }
 }

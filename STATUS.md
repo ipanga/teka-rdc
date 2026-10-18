@@ -2,43 +2,54 @@
 
 ## Active initiative
 
-**Documentation synchronization and Draft production release PR preparation authorized.**
-PR #836 is merged into develop at `41f684d827b05f656b512d00b8c99186975ed94e`;
-post-merge CI 12/12 and CodeQL 2/2 SUCCESS. Main remains
-`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. The owner authorizes a focused
-four-file documentation commit/push on `codex/release-handoff-docs`, its PR into
-develop, and a separate **Draft** develop→main PR. Neither PR may be merged;
-auto-merge, deployment, production writes and mobile versions/builds/uploads remain unauthorized.
+**Documentation PR #840 open; production release Draft #841 open — BLOCKED for production.**
+[Docs #840](https://github.com/ipanga/teka-rdc/pull/840):
+`codex/release-handoff-docs` → develop, only four existing continuity files.
+Initial commit `39d0513d0036150df5d1ed4527ee2cb3da234d41`; a focused documentation
+follow-up records PR numbers/results/operator procedure. Resolve its current hash
+from the PR's branch tip. Its own checks must be read at the current tip before
+any separately authorized merge. Both PRs remain unmerged; auto-merge disabled.
 
-Four pending docs were copied/hashed and screened; no credentials, customer data
-or raw private logs found. Existing source/tests remain unchanged. Documentation
-PR and Draft release PR creation/checks are the next operations; actual numbers
-and results will be recorded in the existing handoff after creation. The Draft
-release candidate is current develop; these docs are excluded until their own PR
-is authorized and merged, followed by release-candidate revalidation.
+[Draft #841](https://github.com/ipanga/teka-rdc/pull/841): develop → main,
+source `41f684d827b05f656b512d00b8c99186975ed94e`, main baseline
+`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. Documentation #840 is **excluded**
+until merged; any docs merge requires fresh release candidate/check verification.
+Main-only #821 merge adds no unique content; 12-ahead/1-behind topology preserved.
+Actual merge candidate `5a006bbb39deb1d3c0ff9b2973763b4b2e9ee0c5`, no conflict;
+tree equals approved develop. All196 remote file blobs match (56M/140A/0D).
 
-History divergence is explained: 12 develop-only commits, one main-only previous
-release merge (#821). Its tree equals its second/develop parent exactly; it adds
-no production-only content. Prospective merge is conflict-free and equals the
-approved tree. No rebase/reset/force-push/back-merge was performed.
+**Actual Draft checks:** 13/13 required contexts SUCCESS; new
+[CI 39108428751](https://github.com/ipanga/teka-rdc/actions/runs/39108428751) 12/12 and
+[PR validation 39108428679](https://github.com/ipanga/teka-rdc/actions/runs/39108428679)
+5/5 including four Docker builds SUCCESS, checkout SHA independently verified.
+[CodeQL aggregate](https://github.com/ipanga/teka-rdc/runs/117619186111) SUCCESS,
+app57789/exact source; underlying two analyses are earlier scans of identical
+source SHA/tree, not new Draft-specific analysis runs. Recheck on candidate changes.
+Non-blocking lint remains visible; no application/CI correction or Claude inference.
 
-**Production readiness remains BLOCKED.** Existing Docker authentication can read
-all four previous-deploy rollback manifests and they match historical digests;
-GitHub package API still returns 403 for missing read:packages. No credentials or
-permissions changed. Actual running VPS digests, fresh PostgreSQL backup metadata,
-retention/integrity and last restore evidence remain unverified. Only an unrelated
-SSH alias is configured; production access metadata has been requested.
+**Operational blockers:** authoritative fresh PostgreSQL backup availability/time,
+location/retention/integrity and last isolated restore evidence; actual running VPS
+image IDs/digests and full rollback pullability. Owner confirms no verified production
+connection; no unrelated alias or encrypted deploy credential was used. All four
+historical rollback manifests match their recorded digests through existing Docker
+authentication; this does not prove layers/running containers. API health/ready/live
+and three anonymous web surfaces returned200; no authenticated/mutation smoke run.
+[Read-only operator procedure and handoff](docs/order-integrity-printing-app-promotion.md#documentation-and-release-pr-handoff--2026-10-18).
 
-Six moderate Sentry/OTel findings remain **unresolved, temporarily risk-accepted
-until November 17, 2026**; two pre-existing high exceptions and full-tree audit
-visibility remain. Enforced production high audit passed on develop, but the
-Draft PR must pass its own 13 required contexts plus main-only validation/four
-Docker jobs. Dependabot maintenance is tracked separately from release checks.
+Dependabot refreshed: **9 successful / 9 security_update_not_possible / 0 pending**.
+Six moderate Sentry/OTel findings remain **UNRESOLVED / temporarily risk-accepted
+until November 17, 2026**; two existing high exceptions and full-tree warnings
+preserved. No new exception. API→Buyer→Seller→Admin rollout and expectedQuantity
+rollback compatibility remain. Mobile versions/signing/workflows unchanged;
+physical store install/open-app/native Safari pagination and signed distribution
+remain unverified. Historical two orders/nine units remain untouched.
 
-API→Buyer→Seller→Admin order and expectedQuantity rollback compatibility remain
-mandatory. Mobile signed/physical/store-handoff and native Safari printing limits
-remain unchanged. Historical two orders/nine restoration-unproven units untouched.
-[Current handoff](docs/order-integrity-printing-app-promotion.md#documentation-synchronization-and-draft-release-preparation--2026-10-18).
+Only documentation branch commits/push and these two PR creations were authorized.
+**No PR merge, protected-branch push, production deployment/write, secret/config
+change, mobile version/signed build/upload or historical stock correction.** Next:
+owner/operator supplies sanitized backup/restore and running-image evidence;
+separate approval for docs merge, then revalidation of updated Draft; eventual
+ready-for-review/main-merge/deployment and any mobile/mutation tests remain separate.
 
 ## Previous initiative — Seller Catalogue Speed-up
 

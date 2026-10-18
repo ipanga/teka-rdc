@@ -2,18 +2,21 @@
 
 ## Current phase — 2026-10-18
 
-**Authorized documentation PR and Draft develop→main release preparation in progress.**
-Verified develop 41f684d8 (PR836; CI12/12 + CodeQL2/2 SUCCESS), main60d70ac.
-Temporary docs branch codex/release-handoff-docs contains only the four pending
-continuity files; focused commit/push/PR into develop authorized, no merge.
-Draft release source remains develop and excludes these docs while unmerged.
-Main-only #821 merge has no unique tree content; prospective merge clean.
-All four rollback manifests now match historical digests via existing Docker
-credentials. GitHub package API403 persists; actual VPS images and backup/restore
-metadata remain unverified release blockers. No permission/secret change.
-Six unresolved moderate risks through Nov17/two high exceptions preserved.
-Actual PR numbers and candidate CI will be recorded after creation. No main merge,
-deploy, production write, mobile version/signed build/upload or stock correction.
+**Documentation PR840 and Draft release PR841 created; PRODUCTION BLOCKED.**
+Only four continuity docs on codex/release-handoff-docs (initial39d0513d + focused
+PR/operator handoff follow-up); no app source changed. Docs PR840 targets develop;
+Draft841 source41f684d8 targets main60d70ac and excludes unmerged docs. Actual
+candidate5a006bbb/treeab133a51 is conflict-free; all196 file blobs match.
+New release CI39108428751 12/12 + PR validation39108428679 5/5 (four Docker builds)
+and all13 required contexts SUCCESS. CodeQL aggregate117619186111 is fresh for
+exact source; analyses are shared same-SHA/tree scans, not new Draft-specific runs.
+Root lint stays non-blocking; no implementation or paid API activity.
+Rollback manifests verified; backup/restore evidence, live VPS digests and full
+pullability remain blockers. Read-only operator procedure prepared; no verified
+production access. Dependabot9 success/9 resolution failures/0 pending.
+Six moderates unresolved/risk-accepted until Nov17; existing two exceptions intact.
+No merge/auto-merge/main push/deploy/production data/secrets/mobile/stock action.
+[Current handoff](docs/order-integrity-printing-app-promotion.md#documentation-and-release-pr-handoff--2026-10-18).
 
 Historical September 10 status snapshot below (retained for context; current facts above and in STATUS.md):
 
@@ -23,6 +26,8 @@ Historical September 10 status snapshot below (retained for context; current fac
 ## Last Updated: 2026-09-10
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
+
+- **Oct 18, 2026 — Docs PR840 and Draft production release PR841 created:** focused four-doc commit39d0513d pushed only to codex/release-handoff-docs; actual Draft source41f684d8/main60d70ac/candidate5a006bbb verified, all196 GitHub blobs match. New CI12/12, main-only validation5/5 including four Docker builds and all13 required contexts SUCCESS; CodeQL aggregate exact source, underlying same-tree scan reused. Owner confirmed no verified production access; read-only operator backup/restore/running-digest procedure added. Four registry manifests verified, full pullability/live images and backup evidence remain blockers. Dependabot9 success/9 resolution failures/0 pending. Six moderate risks and two exceptions unchanged. Both PRs unmerged, auto-merge off; no deployment/mobile/production or stock mutation.
 
 - **Oct 18, 2026 — Documentation synchronization and Draft release preparation authorized:** verified unchanged develop41f684d8/main60d70ac; copied/screened four pending docs, created codex/release-handoff-docs from develop. Main-only #821 merge tree equals its develop parent; no content loss or history rewrite required. Existing Docker credentials verify all four rollback manifests; GitHub API403 persists, actual VPS/backup/restore evidence missing. Separate docs PR into develop and Draft develop→main PR authorized; neither merge/deploy nor mobile/production mutations authorized.
 
