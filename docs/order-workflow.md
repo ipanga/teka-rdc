@@ -26,7 +26,58 @@ SHIPPED (legacy, no longer produced) ─► OUT_FOR_DELIVERY | DELIVERED   (so i
   cart → multiple orders linked by `checkoutGroupId`), `OrderItem` price snapshots, first `OrderStatusLog`,
   COD `Transaction{provider:COD, PENDING}`, cart cleared. Block-on-no-zone — no partial/unpriceable orders.
 - **Stock** is decremented at checkout and **restored on any cancellation** (buyer / seller-reject /
-  admin) and on an **approved return**.
+  admin / forced) and on an **approved or forced return** — exactly once per order. See
+  "Inventory hold" below.
+
+## Inventory hold — taken once, released once (I1, 2026-10)
+
+Single source: `apps/api/src/orders/order-inventory.ts`.
+
+- **Take (checkout).** Every line is a *conditional* decrement inside the order transaction
+  (`quantity >= requested`, product still `ACTIVE`, not deleted), in productId order. A line that
+  does not fit rolls back the whole checkout (« Stock insuffisant pour … »); two buyers can never get
+  the last unit. The pending COD `Transaction` is created **in the same transaction** as its order.
+- **Release.** Only on an order's **first** entry into `CANCELLED` or `RETURNED`, whatever the
+  path. The proof is the audit log: every release ever written (before and after this change) wrote
+  an `OrderStatusLog` into CANCELLED/RETURNED in the same transaction, so an order whose history
+  already has one is never restocked again (`releaseOrderStockHold`). No schema column was needed.
+- **CANCELLED and RETURNED are final.** No path — forced included — leaves them, so a released order
+  can never look like it holds stock again. To undo a wrong cancellation, the buyer re-orders.
+- **Every transition locks the order row first** (`lockOrderForUpdate`, `SELECT … FOR UPDATE`) and
+  re-validates against the locked row; the pre-read each service keeps is only a fast path. Racing
+  cancellations, fulfillment steps (seller confirm/process/ready, admin received/out/delivered) and
+  return reviews therefore have exactly one winner; the losers get the same French 400 a sequential
+  retry would. Notifications and analytics fire only after the winning commit.
+- **Not cancellable:** DELIVERED (use the return flow), RETURNED, CANCELLED, and any order whose
+  payment is `COMPLETED`/`REFUNDED` (a cancelled order must never hide cash — reachable only after a
+  legacy forced rewind). Admin may cancel from every pre-delivery status including
+  OUT_FOR_DELIVERY/SHIPPED (parcel refused at the door).
+- **Legacy rows** are never restocked on a guess: before I1 a forced CANCELLED wrote the log without
+  restocking, forced rewinds could leave terminal states, and cancellations served before the
+  restock code (commit 4058842, 2026-06-29 — a *commit* date, not a deploy date) restored nothing.
+  Such orders are reported, not fixed, by the read-only
+  `apps/api/prisma/reports/inventory-hold-candidates.sql`: it takes **verified** rollout instants as
+  parameters and classifies any normal-looking cancellation without a verified boundary as
+  *unproven*, never as restored; actor/note-based labels are estimates. **Measured once, 2026-10-17**
+  (reviewed aggregate SELECT, verified READ ONLY transaction, Codex): **2 cancelled orders / 9 units
+  restoration-unproven**, with every rollout boundary unknown — a candidate count, **not proof**
+  that stock is missing; no correction was made. Current `Product.quantity` is not evidence of a
+  missing or duplicate restore. Any correction is a separate, authorised decision after a physical
+  count.
+- **Seller stock edits are absolute, guarded by a snapshot.** `PATCH /v1/sellers/products/:id`
+  `quantity` *sets* the number. The write is conditional (inside the edit's transaction, first) on
+  the stored stock still equalling a snapshot: the optional **`expectedQuantity`** the form was
+  loaded with (seller-web and seller-mobile send it), else — installed older clients — the value
+  the server read at the start of the same request. A mismatch is a French **409** (« Le stock de ce
+  produit a changé pendant votre modification (N disponible(s) maintenant)… ») and rolls back the
+  whole edit, characteristics included; both clients then show the current stock and keep the
+  other fields, so saving again is a deliberate absolute reset. `quantity === expectedQuantity`
+  means "stock not edited" and writes no stock, so a price-only save never clobbers a restock.
+  **Limitation:** a client that sends no `expectedQuantity` is protected only within its own
+  request — a sale or cancellation between *opening* that old form and saving is still overwritten
+  (last write wins).
+- **Real-database proof:** `apps/api/test/inventory-concurrency.pg-spec.ts` (opt-in, `pnpm test:pg`,
+  local throwaway PostgreSQL only — the guard refuses any other host).
 
 ## The `deliveredAt` invariant (2026-09-03)
 
@@ -61,6 +112,13 @@ double-book money and stock on an order that already went through the real flow.
 timestamp and does not restart a return window.
 
 > It is reachable from the admin UI: the force-status modal offers « Livrées » among all statuses.
+
+Since I1 (2026-10) the escape hatch can no longer bypass inventory or payment: a forced
+**CANCELLED** *is* the admin cancellation (same eligibility, once-only stock release, unpaid COD →
+FAILED, `cancelledBy`/`cancellationReason` set, `payment_failed` when flipped); a forced
+**RETURNED** is accepted only from DELIVERED and releases the stock once (it still records no
+REFUND — that is the return flow's job); and an order in CANCELLED or RETURNED cannot be forced
+anywhere.
 
 ### Historical rows are left alone
 
@@ -127,10 +185,10 @@ Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.servi
 
 ### Cancellation of an unpaid COD order (D7, 2026-09-04)
 
-Every authoritative cancellation path — buyer cancel (before pickup), seller reject, admin cancel —
-decides up front with `PaymentsService.codPaymentWillFail(order)`, folds `{ paymentStatus: FAILED }`
-into its own cancelling `order.update` (`codPaymentFailureData`) and runs
-`failCodTransactionOnCancellation` in the same transaction: a COD order whose `paymentStatus` is still
+Every authoritative cancellation path — buyer cancel (before pickup), seller reject, admin cancel,
+forced CANCELLED — calls `PaymentsService.failUnpaidCodPayment(orderId, tx)` inside its
+cancellation transaction, on the locked row (since I1; it replaced the pre-read
+`codPaymentWillFail`/`codPaymentFailureData` pair): a COD order whose `paymentStatus` is still
 `PENDING` becomes **`FAILED`** and its COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED`
 (`failureReason: 'order_cancelled'`). The three cancellation transactions run with an explicit 15 s
 timeout (the remote dev DB exceeded Prisma's 5 s default once). `FAILED` here means « the
@@ -189,6 +247,33 @@ value.**
 | seller-mobile | ✓ + home buckets | + **Votre rémunération** | confirm / reject / préparer / **prête pour collecte** |
 
 Seller product lists (web + mobile) show the product **town** (`Product.city`).
+
+## Printable « Bon de livraison » (admin, P1 2026-10)
+
+Admin order detail → **Bon de livraison** opens `/documents/bon-de-livraison/:id` (admin-web), an
+A4 preview printed by the browser (Imprimer → Enregistrer en PDF; no PDF library). It is an
+**operational delivery document, not a tax invoice**: no invoice number, no tax line, no
+registration identifiers — none are verified, none are invented.
+
+- **Access:** the route is outside the dashboard layout (no sidebar/buttons on paper) but gated
+  like it — middleware session redirect + `noindex` + `private, no-store`, page-level ADMIN role
+  check — and its only data source is `GET /v1/admin/orders/:id` (`@Roles('ADMIN')`, `no-store`).
+- **Read-only:** opening or printing writes nothing, allocates no number, never touches the COD
+  payment.
+- **Order data from snapshots:** item title, charged unit price (`unitPriceCDF`), list-price
+  snapshot (`listUnitPriceCDF`, shown « au lieu de » only when higher), line totals, fee, totals
+  and the `deliveryAddress` snapshot (incl. recipient name/phone) — never live catalogue prices or
+  the buyer's current address. Identity labels (buyer account name/phone, seller business name)
+  are the live account values the API serves — no identity snapshot exists. Money via `formatFC`
+  (exact BigInt arithmetic on integer centimes).
+- **Payment block:** COD unpaid → « Montant à encaisser à la livraison » + total; COD collected →
+  « rien à encaisser »; historical non-COD → its own method/status, no cash-due amount.
+- **Not issued** for CANCELLED / RETURNED orders, nor for a live COD order whose payment is
+  FAILED/REFUNDED: a notice replaces the document and no amount is printed.
+- **Print layout:** A4 (14/12/16 mm margins), table header repeated per page, line rows and the
+  totals/payment/signature block never split. One seller per order (a multi-seller cart prints
+  one document per order). Logic: `apps/admin-web/src/lib/delivery-document.ts`; view:
+  `src/components/orders/delivery-document.tsx`; print CSS: `globals.css` `.bdl-*`.
 
 ## Order/product navigation & admin visibility (2026-06-30)
 

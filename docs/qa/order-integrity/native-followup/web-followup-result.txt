@@ -1,0 +1,31 @@
+PASS real HTTP multi-seller checkout, snapshot discount, COD creation, idempotent replay and stock 10→8
+PASS real backend admin role enforcement and address/list-price/charged-price snapshots after live edits
+PASS real authenticated admin order→preview→print action; exact snapshots; no financial, order or audit writes
+PASS real buyer cancellation after confirmation restores only its seller/variant, retry stays 10, seller sees cancellation and delivery note becomes ineligible
+PASS actual signed-in buyer UI: CONFIRMED cancel visible, confirmation/reason/POST succeed, status/payment truthful despite follow-up GET 503, stock restored 8→10, cancel control removed
+PASS actual seller form stale 8→cancel restores10→save409; stock reloaded10, typed price kept, server price/spec/stock rollback intact
+PASS actual seller sees CANCELLED with no stale confirm/reject action; desktop and phone render without overflow
+PASS seller portal private/noindex headers preserved
+PASS chromium iphone-320 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS chromium iphone-390 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS chromium android-360 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS chromium android-430 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS chromium ios-chrome real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS chromium ipad no promotion
+PASS chromium desktop no promotion
+PASS chromium guest no promotion
+PASS chromium actual App Store URL opens/dismisses; signed-in cart/checkout/confirmation excluded
+PASS chromium 31-day expired dismissal shows again
+PASS chromium blocked storage still permits dismissal and client navigation without re-prompt
+PASS webkit iphone-320 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS webkit iphone-390 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS webkit android-360 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS webkit android-430 real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS webkit ios-chrome real BUYER auth, correct store, responsive/icon/44px controls, keyboard dismissal and reload persistence, JSON-LD and no hydration errors
+PASS webkit ipad no promotion
+PASS webkit desktop no promotion
+PASS webkit guest no promotion
+PASS webkit controlled external CTA navigates/dismisses (Apple native handoff unobservable); signed-in cart/checkout/confirmation excluded
+PASS webkit 31-day expired dismissal shows again
+PASS webkit blocked storage still permits dismissal and client navigation without re-prompt
+PASS Teka RDC — QA Testing: real admin order→document, 80 database snapshot lines, exact COD 10.005.000 FC, repeated print table header, no inventory/order/item/transaction/audit writes. Fixture seeded directly; checkout is covered separately.

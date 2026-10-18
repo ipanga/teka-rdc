@@ -1,0 +1,782 @@
+{
+  "date": "2026-10-18",
+  "baseline": {
+    "branch": "develop",
+    "head": "9e6bd60d488de644d4526fdcba08a641d233e964",
+    "remote_develop_matches": true,
+    "last_successful_main_deployment": "60d70aceb199c75370044dd0e7980f22a4ab5ba5",
+    "main_to_develop_committed_delta": "5 commits; documentation only (3 files)"
+  },
+  "production_dependency_audit": {
+    "command": "pnpm audit --prod --audit-level=high --json",
+    "exit_code": 1,
+    "metadata": {
+      "info": 0,
+      "low": 5,
+      "moderate": 13,
+      "high": 11,
+      "critical": 1
+    },
+    "advisories": [
+      {
+        "github_advisory_id": "GHSA-6w3j-5fw6-r9vr",
+        "module_name": "joi",
+        "severity": "low",
+        "title": "joi: Prototype pollution via a `__proto__` language key in custom messages",
+        "url": "https://github.com/advisories/GHSA-6w3j-5fw6-r9vr",
+        "vulnerable_versions": ">=18.0.0 <18.2.5",
+        "patched_versions": ">=18.2.5"
+      },
+      {
+        "github_advisory_id": "GHSA-gg4h-3hg2-grpc",
+        "module_name": "joi",
+        "severity": "low",
+        "title": "joi: object().rename() with a template target can set the validated object's prototype",
+        "url": "https://github.com/advisories/GHSA-gg4h-3hg2-grpc",
+        "vulnerable_versions": ">=18.0.0 <18.2.4",
+        "patched_versions": ">=18.2.4"
+      },
+      {
+        "github_advisory_id": "GHSA-3pph-fpjx-jg34",
+        "module_name": "multer",
+        "severity": "moderate",
+        "title": "multer vulnerable to Denial of Service via orphaned disk writes on aborted uploads",
+        "url": "https://github.com/advisories/GHSA-3pph-fpjx-jg34",
+        "vulnerable_versions": ">=2.2.0 <2.4.0",
+        "patched_versions": ">=2.4.0"
+      },
+      {
+        "github_advisory_id": "GHSA-hrr3-gc8f-f4qj",
+        "module_name": "fast-uri",
+        "severity": "moderate",
+        "title": "fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets",
+        "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+        "vulnerable_versions": ">=3.0.0 <3.1.8",
+        "patched_versions": ">=3.1.8"
+      },
+      {
+        "github_advisory_id": "GHSA-q2hr-2g5m-vwhr",
+        "module_name": "brace-expansion",
+        "severity": "moderate",
+        "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+        "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+        "vulnerable_versions": ">=4.0.0 <5.0.12",
+        "patched_versions": ">=5.0.12"
+      },
+      {
+        "github_advisory_id": "GHSA-qhr7-859c-m2p7",
+        "module_name": "brace-expansion",
+        "severity": "high",
+        "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+        "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+        "vulnerable_versions": ">=4.0.0 <5.0.11",
+        "patched_versions": ">=5.0.11"
+      },
+      {
+        "github_advisory_id": "GHSA-6j4f-fj2g-mc7p",
+        "module_name": "brace-expansion",
+        "severity": "high",
+        "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+        "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+        "vulnerable_versions": ">=4.0.0 <5.0.10",
+        "patched_versions": ">=5.0.10"
+      },
+      {
+        "github_advisory_id": "GHSA-p98j-92pf-mc4p",
+        "module_name": "dompurify",
+        "severity": "low",
+        "title": "DOMPurify: IN_PLACE: node-removing afterSanitize hook leaves detached subtree event handlers armed, causing DOM XSS",
+        "url": "https://github.com/advisories/GHSA-p98j-92pf-mc4p",
+        "vulnerable_versions": ">=3.4.13 <=3.4.15",
+        "patched_versions": ">=3.4.16"
+      },
+      {
+        "github_advisory_id": "GHSA-m9gg-hp2v-232j",
+        "module_name": "@grpc/grpc-js",
+        "severity": "high",
+        "title": "@grpc/grpc-js: In certain configurations, getAuthContext can return unauthorized certificates as though they were authorized",
+        "url": "https://github.com/advisories/GHSA-m9gg-hp2v-232j",
+        "vulnerable_versions": ">=1.14.0 <1.14.5",
+        "patched_versions": ">=1.14.5"
+      },
+      {
+        "github_advisory_id": "GHSA-f596-whhp-79r4",
+        "module_name": "@grpc/grpc-js",
+        "severity": "low",
+        "title": "@grpc/grpc-js: The server transmits some error messages thrown by method handlers to the client in status messages",
+        "url": "https://github.com/advisories/GHSA-f596-whhp-79r4",
+        "vulnerable_versions": ">=1.14.0 <1.14.5",
+        "patched_versions": ">=1.14.5"
+      },
+      {
+        "github_advisory_id": "GHSA-xjh9-v7x6-24jw",
+        "module_name": "@fastify/busboy",
+        "severity": "high",
+        "title": "@fastify/busboy vulnerable to Denial of Service via oversized multipart boundary",
+        "url": "https://github.com/advisories/GHSA-xjh9-v7x6-24jw",
+        "vulnerable_versions": ">=3.1.0 <3.2.1",
+        "patched_versions": ">=3.2.1"
+      },
+      {
+        "github_advisory_id": "GHSA-x8mw-p69m-v3mx",
+        "module_name": "@fastify/busboy",
+        "severity": "high",
+        "title": "@fastify/busboy vulnerable to Denial of Service via prototype-named multipart part header",
+        "url": "https://github.com/advisories/GHSA-x8mw-p69m-v3mx",
+        "vulnerable_versions": ">=1.0.0 <3.2.1",
+        "patched_versions": ">=3.2.1"
+      },
+      {
+        "github_advisory_id": "GHSA-6688-9rhm-gjv2",
+        "module_name": "dompurify",
+        "severity": "low",
+        "title": "DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes",
+        "url": "https://github.com/advisories/GHSA-6688-9rhm-gjv2",
+        "vulnerable_versions": "<=3.4.15",
+        "patched_versions": ">=3.4.16"
+      },
+      {
+        "github_advisory_id": "GHSA-68fv-2mgg-jv7q",
+        "module_name": "source-map-js",
+        "severity": "high",
+        "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+        "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+        "vulnerable_versions": ">=1.0.0 <1.2.2",
+        "patched_versions": ">=1.2.2"
+      },
+      {
+        "github_advisory_id": "GHSA-jqcg-44mw-7w3h",
+        "module_name": "proxy-addr",
+        "severity": "critical",
+        "title": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+        "url": "https://github.com/advisories/GHSA-jqcg-44mw-7w3h",
+        "vulnerable_versions": ">=1.1.0 <2.0.8",
+        "patched_versions": ">=2.0.8"
+      },
+      {
+        "github_advisory_id": "GHSA-wr44-6hxh-3jwq",
+        "module_name": "joi",
+        "severity": "moderate",
+        "title": "joi messages compilation allows prototype replacement through __proto__ error codes",
+        "url": "https://github.com/advisories/GHSA-wr44-6hxh-3jwq",
+        "vulnerable_versions": ">=18.0.0 <18.2.9",
+        "patched_versions": ">=18.2.9"
+      },
+      {
+        "github_advisory_id": "GHSA-vc2v-76pw-4v95",
+        "module_name": "compression",
+        "severity": "high",
+        "title": "compression vulnerable to Denial of Service via memory leak on premature response close",
+        "url": "https://github.com/advisories/GHSA-vc2v-76pw-4v95",
+        "vulnerable_versions": "<1.8.2",
+        "patched_versions": ">=1.8.2"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-pg",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.73.0",
+        "patched_versions": ">=0.73.0"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-mysql2",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.67.0",
+        "patched_versions": ">=0.67.0"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-knex",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.65.0",
+        "patched_versions": ">=0.65.0"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-mysql",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.67.0",
+        "patched_versions": ">=0.67.0"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-mongoose",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.67.0",
+        "patched_versions": ">=0.67.0"
+      },
+      {
+        "github_advisory_id": "GHSA-qqmp-wf37-98f9",
+        "module_name": "@opentelemetry/instrumentation-tedious",
+        "severity": "moderate",
+        "title": "Multiple @opentelemetry/instrumentation-* packages expose database username via unconditional db.user span attribute",
+        "url": "https://github.com/advisories/GHSA-qqmp-wf37-98f9",
+        "vulnerable_versions": "<0.40.0",
+        "patched_versions": ">=0.40.0"
+      },
+      {
+        "github_advisory_id": "GHSA-gxm5-99cw-xjw9",
+        "module_name": "@fastify/busboy",
+        "severity": "moderate",
+        "title": "@fastify/busboy vulnerable to CRLF injection via multipart Content-Disposition filename and name",
+        "url": "https://github.com/advisories/GHSA-gxm5-99cw-xjw9",
+        "vulnerable_versions": "<3.2.2",
+        "patched_versions": ">=3.2.2"
+      },
+      {
+        "github_advisory_id": "GHSA-6h2x-m376-mqjq",
+        "module_name": "joi",
+        "severity": "high",
+        "title": "joi: Quadratic regular-expression backtracking in `Joi.string().isoDate()`",
+        "url": "https://github.com/advisories/GHSA-6h2x-m376-mqjq",
+        "vulnerable_versions": ">=18.0.0 <18.2.6",
+        "patched_versions": ">=18.2.6"
+      },
+      {
+        "github_advisory_id": "GHSA-wq5f-xc86-pv6w",
+        "module_name": "sharp",
+        "severity": "high",
+        "title": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+        "url": "https://github.com/advisories/GHSA-wq5f-xc86-pv6w",
+        "vulnerable_versions": "<0.35.5",
+        "patched_versions": ">=0.35.5"
+      },
+      {
+        "github_advisory_id": "GHSA-4jqv-mc3x-m676",
+        "module_name": "next",
+        "severity": "moderate",
+        "title": "Next.js has cache poisoning of SSG and ISR pages in self-hosted applications",
+        "url": "https://github.com/advisories/GHSA-4jqv-mc3x-m676",
+        "vulnerable_versions": ">=15.0.0 <15.5.27",
+        "patched_versions": ">=15.5.27"
+      },
+      {
+        "github_advisory_id": "GHSA-mcj8-r9mp-w47p",
+        "module_name": "next",
+        "severity": "moderate",
+        "title": "Next.js has cache poisoning in SSG/ISR rendering that leads to cross-user content substitution and persistent denial of service",
+        "url": "https://github.com/advisories/GHSA-mcj8-r9mp-w47p",
+        "vulnerable_versions": ">=15.0.0 <15.5.27",
+        "patched_versions": ">=15.5.27"
+      }
+    ],
+    "pnpm_lock_unchanged": true,
+    "package_dependency_versions_changed_by_initiative": false,
+    "existing_exceptions_unchanged": true,
+    "conclusion": "Release blocker; prepare focused remediation. No install/update/exception change executed.",
+    "historical": "Pre-remediation snapshot, preserved; current results are in security-remediation.json, independentAudit."
+  },
+  "release_config_checks": {
+    "testflight_groups": {
+      "runs": 10,
+      "assertions": 36,
+      "failures": 0
+    },
+    "play_tracks": {
+      "runs": 21,
+      "assertions": 76,
+      "failures": 0
+    },
+    "migration_manifest": {
+      "entries": 16,
+      "result": "pass; unchanged"
+    }
+  },
+  "review": {
+    "deleted_files": 0,
+    "sensitive_filenames_added": [],
+    "secret_scan": "Focused patterns on added diff lines and all untracked text, plus prior visual QA of synthetic artifacts; nine credential-URL candidates manually verified as explicit fake test/documentation literals. No secret material found. Not a guarantee against every possible secret.",
+    "generated_content": "Only reviewed test dev-dependency lock entries and two seller first-resolution SwiftPM pins; 81 intentional QA PNG/PDF artifacts. No compiled application/cache/source-generated output included.",
+    "new_focused_or_skipped_tests": false,
+    "schema_migrations_env_infrastructure_workflow_signing_changes": false
+  },
+  "android_diagnosis": {
+    "retained_system_server_anr_entries": 2,
+    "retained_qa_buyer_data_app_anr_entries": 1,
+    "system_subjects": [
+      "QA buyer ANR dialog focus timeout",
+      "SystemUI ANR dialog focus timeout; critical event history also records Chrome MotionEvent timeout"
+    ],
+    "system_event_cpu_total_percent": [
+      93,
+      82
+    ],
+    "system_event_cpu_some_avg10": [
+      75.32,
+      82.71
+    ],
+    "second_event_emulator_graphics_service_cpu_percent": 73,
+    "buyer_app_stack_capture": "failed to read status response from tombstoned; no usable Teka stack for root-cause attribution",
+    "lastanr_query": "no ANR since boot, contradicted by retained DropBox history; not used as proof of absence",
+    "watchdog_tag": "no matching watchdog entry",
+    "current_exit_history": "Chrome/QA apps show requested force-stops/renderer lifecycle cleanup, no retained crash/ANR exit reason; DropBox is the stronger historical evidence",
+    "classification": "System/emulator scheduling and graphics contention; Chrome and QA buyer affected. Exact upstream root cause and Teka contribution unproven. No demonstrated Teka-specific code defect; no patch applied.",
+    "current_host_swap": "4067.88 MiB used at diagnostic sample, not historical peak",
+    "raw_logs": "Private /private/tmp/teka-release-review; not copied wholesale into repository"
+  },
+  "mobile": {
+    "buyer_version": "0.1.8+11",
+    "seller_version": "0.1.11+13",
+    "android_new_unique_version_codes_required": true,
+    "ios_epoch_build_number_already_automated": true,
+    "both_environment_upload_gates_have_required_reviewers": true,
+    "signed_release_builds_for_current_diff": "not run",
+    "production_mobile_store_distribution": "not authorized"
+  },
+  "authorization": "Local branch/selective staging/six commits explicitly authorized and prepared; no push, PR, merge, deploy, dispatch, upload, secret/signing/infrastructure change or production mutation.",
+  "github": {
+    "main_ruleset": 15451167,
+    "develop_ruleset": 22732572,
+    "effective_rules_verified": true,
+    "required_review_count": 0,
+    "merge_methods": [
+      "merge"
+    ],
+    "bypass_actors": [],
+    "required_contexts": [
+      "Lint & Type Check",
+      "API Tests",
+      "Web Tests",
+      "Dependency Audit",
+      "Release Config",
+      "Web Build (buyer-web)",
+      "Web Build (seller-web)",
+      "Web Build (admin-web)",
+      "Flutter Tests (buyer-mobile)",
+      "Flutter Tests (seller-mobile)",
+      "Flutter Analysis (buyer-mobile)",
+      "Flutter Analysis (seller-mobile)",
+      "CodeQL"
+    ],
+    "codeql_context_risk": "Configured literal CodeQL; observed baseline runs named Analyze (javascript-typescript) / Analyze (actions). Resolve requirement on release PR; no settings change performed.",
+    "main_push_automatically_deploys": true,
+    "deploy_waits_for_ci_workflow": false,
+    "deploy_production_environment_pause": false,
+    "mobile_required_reviewer_count": {
+      "ios-testflight": 1,
+      "android-play": 1
+    },
+    "baseline_ci_url": "https://github.com/ipanga/teka-rdc/actions/runs/36347262037",
+    "last_successful_deploy_url": "https://github.com/ipanga/teka-rdc/actions/runs/36337328372"
+  },
+  "git_inventory": {
+    "counts": {
+      "M": 55,
+      "A": 140
+    },
+    "total": 195,
+    "binary_evidence_files": 81,
+    "binary_evidence_bytes": 17508695,
+    "source_policy": "M/A are cumulative changes relative to develop9e6bd60, including all195 accepted paths. Current uncommitted state is checked separately after the documentation commit."
+  },
+  "security_followup": {
+    "report": "security-remediation.json",
+    "date": "2026-10-18",
+    "classification": "READY FOR COMMIT/PR REVIEW",
+    "reason": "All focused local checks including Node20 API/three web Docker images and standalone/LinuxSharp probes pass; candidate CI and release authorization remain outstanding.",
+    "exact_enforced_audit_exit_code": 0,
+    "six_moderate_residuals": "Explicitly temporarily risk-accepted, unresolved, review deadline2026-11-17; shared GHSA-qqmp-wf37-98f9/CVE-2026-104872; no new exceptions.",
+    "codeql_context_issue": "Resolved: separate aggregate SUCCESS on PR824, https://github.com/ipanga/teka-rdc/runs/108698421845; future PR still needs its own checks.",
+    "scope": "No schema/env/workflow/signing/production change; expectedQuantity compatibility and historical nine-unit hold preserved.",
+    "docker": [
+      {
+        "app": "api",
+        "image": "teka-rdc-security-api:20261018",
+        "exit_code": 0,
+        "seconds": 117.1,
+        "production_build_executed_in_original_Dockerfile": true
+      },
+      {
+        "app": "buyer-web",
+        "image": "teka-rdc-security-buyer-web:20261018",
+        "exit_code": 0,
+        "seconds": 162.3,
+        "production_build_executed_in_original_Dockerfile": true,
+        "reused_existing_context_and_cache": true,
+        "minimum_freeGiB": 16.58
+      },
+      {
+        "app": "seller-web",
+        "image": "teka-rdc-security-seller-web:20261018",
+        "exit_code": 0,
+        "seconds": 182.3,
+        "production_build_executed_in_original_Dockerfile": true,
+        "reused_existing_context_and_cache": true,
+        "minimum_freeGiB": 17.01
+      },
+      {
+        "app": "admin-web",
+        "image": "teka-rdc-security-admin-web:20261018",
+        "exit_code": 0,
+        "seconds": 192.4,
+        "production_build_executed_in_original_Dockerfile": true,
+        "reused_existing_context_and_cache": true,
+        "minimum_freeGiB": 18.0
+      }
+    ],
+    "docker_web_runtime": [
+      {
+        "app": "buyer-web",
+        "exit_code": 0,
+        "node": "v20.20.2",
+        "next": "15.5.27",
+        "sharp": "0.35.5",
+        "vips": "8.18.7",
+        "platform": "linux",
+        "arch": "arm64",
+        "nativePngRoundtrip": true,
+        "svgToWebp": true,
+        "standaloneRootStatus": 200,
+        "robotsStatus": 200,
+        "privateRobotsPreserved": null,
+        "affectedDriversAbsent": {
+          "pg": true,
+          "mysql2": true,
+          "knex": true,
+          "mysql": true,
+          "mongoose": true,
+          "tedious": true
+        },
+        "network": "none; loopback HTTP only",
+        "serverStartedFromOriginalImage": true
+      },
+      {
+        "app": "seller-web",
+        "exit_code": 0,
+        "node": "v20.20.2",
+        "next": "15.5.27",
+        "sharp": "0.35.5",
+        "vips": "8.18.7",
+        "platform": "linux",
+        "arch": "arm64",
+        "nativePngRoundtrip": true,
+        "svgToWebp": true,
+        "standaloneRootStatus": 200,
+        "loginStatus": 200,
+        "robotsStatus": 200,
+        "privateRobotsPreserved": true,
+        "affectedDriversAbsent": {
+          "pg": true,
+          "mysql2": true,
+          "knex": true,
+          "mysql": true,
+          "mongoose": true,
+          "tedious": true
+        },
+        "network": "none; loopback HTTP only",
+        "serverStartedFromOriginalImage": true
+      },
+      {
+        "app": "admin-web",
+        "exit_code": 0,
+        "node": "v20.20.2",
+        "next": "15.5.27",
+        "sharp": "0.35.5",
+        "vips": "8.18.7",
+        "platform": "linux",
+        "arch": "arm64",
+        "nativePngRoundtrip": true,
+        "svgToWebp": true,
+        "standaloneRootStatus": 200,
+        "loginStatus": 200,
+        "robotsStatus": 200,
+        "privateRobotsPreserved": true,
+        "affectedDriversAbsent": {
+          "pg": true,
+          "mysql2": true,
+          "knex": true,
+          "mysql": true,
+          "mongoose": true,
+          "tedious": true
+        },
+        "network": "none; loopback HTTP only",
+        "serverStartedFromOriginalImage": true
+      }
+    ]
+  },
+  "local_review_handoff": {
+    "date": "2026-10-18",
+    "branch": "codex/order-integrity-release-review",
+    "base": "9e6bd60d488de644d4526fdcba08a641d233e964",
+    "baselineTracking": "Local develop and cached origin/develop agree; GitHub not contacted. Local main remains its pre-existing older ref.",
+    "commits": [
+      {
+        "number": 1,
+        "hash": "6151b4fa969c6034082e95ed5a6467b51ce33e04",
+        "subject": "fix(security): remediate production dependency vulnerabilities"
+      },
+      {
+        "number": 2,
+        "hash": "f7f0a09ee8bf8d22117134e2483456b22d6256d9",
+        "subject": "fix(orders): enforce inventory integrity and safe cancellation"
+      },
+      {
+        "number": 3,
+        "hash": "f788bb37a77f6dfd429671e65891adac2be96835",
+        "subject": "feat(admin): add protected printable delivery documents"
+      },
+      {
+        "number": 4,
+        "hash": "c9b8d88c8b475f42a9bee0a575993d8bd97b3346",
+        "subject": "feat(buyer): add mobile application promotion"
+      },
+      {
+        "number": 5,
+        "hash": "0409da050047b3791a3a75a8db6877d3e5521e5a",
+        "subject": "test(mobile): add isolated native QA integration coverage"
+      },
+      {
+        "number": 6,
+        "revision": "codex/order-integrity-release-review",
+        "hashResolution": "git rev-parse codex/order-integrity-release-review",
+        "subject": "docs(qa): document verification and release readiness",
+        "note": "This documentation commit is the branch tip. A commit cannot embed its own content-derived hash; exact six hashes are recoverable from Git and reported in the final handoff."
+      }
+    ],
+    "uniquePaths": 195,
+    "modifiedRelativeToBase": 55,
+    "addedRelativeToBase": 140,
+    "deleted": 0,
+    "binaryQaArtifacts": 81,
+    "amendedCommits": 0,
+    "applicationBytesPreserved": true,
+    "checks": {
+      "run": "2026-10-18 local-commit verification",
+      "hostNode": "v22.22.2",
+      "checks": [
+        {
+          "name": "frozen-install",
+          "command": [
+            "pnpm",
+            "install",
+            "--frozen-lockfile"
+          ],
+          "exit_code": 0,
+          "seconds": 1.4
+        },
+        {
+          "name": "shared-build",
+          "command": [
+            "pnpm",
+            "--filter",
+            "@teka/shared",
+            "build"
+          ],
+          "exit_code": 0,
+          "seconds": 2.0
+        },
+        {
+          "name": "workspace-typecheck",
+          "command": [
+            "pnpm",
+            "type-check"
+          ],
+          "exit_code": 0,
+          "seconds": 5.4
+        },
+        {
+          "name": "api-focused-unit",
+          "command": [
+            "pnpm",
+            "--filter",
+            "api",
+            "exec",
+            "jest",
+            "--runInBand",
+            "--runTestsByPath",
+            "src/orders/order-inventory.lifecycle.spec.ts",
+            "src/orders/order-inventory.spec.ts",
+            "src/orders/orders.service.spec.ts",
+            "src/orders/seller-orders.service.spec.ts",
+            "src/products/products.service.spec.ts",
+            "src/admin/admin-orders.service.spec.ts",
+            "src/payments/payments.service.spec.ts",
+            "src/returns/returns.service.spec.ts"
+          ],
+          "exit_code": 0,
+          "seconds": 2.3
+        },
+        {
+          "name": "api-focused-endpoints",
+          "command": [
+            "pnpm",
+            "--filter",
+            "api",
+            "exec",
+            "jest",
+            "--config",
+            "test/jest-e2e.json",
+            "--runInBand",
+            "--runTestsByPath",
+            "test/proxy-trust.e2e-spec.ts",
+            "test/admin-order-document.e2e-spec.ts",
+            "test/isolated-db-guard.e2e-spec.ts"
+          ],
+          "exit_code": 0,
+          "seconds": 2.3
+        },
+        {
+          "name": "buyer-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "buyer-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 3.5
+        },
+        {
+          "name": "seller-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "seller-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 0.9
+        },
+        {
+          "name": "admin-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "admin-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 0.9
+        },
+        {
+          "name": "buyer-flutter",
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=2",
+            "test/orders",
+            "test/cart",
+            "test/checkout",
+            "test/network/dio_error_messages_test.dart",
+            "test/core/network/dio_error_messages_test.dart"
+          ],
+          "exit_code": 0,
+          "seconds": 7.6
+        },
+        {
+          "name": "seller-flutter",
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=2",
+            "test/features/orders",
+            "test/features/products/product_form_test.dart",
+            "test/core/network/dio_error_messages_test.dart"
+          ],
+          "exit_code": 0,
+          "seconds": 7.3
+        },
+        {
+          "name": "buyer-mobile-analyze",
+          "command": [
+            "flutter",
+            "analyze",
+            "--no-pub",
+            "--no-fatal-infos",
+            "lib",
+            "test",
+            "integration_test",
+            "test_driver"
+          ],
+          "exit_code": 0,
+          "seconds": 4.7
+        },
+        {
+          "name": "seller-mobile-analyze",
+          "command": [
+            "flutter",
+            "analyze",
+            "--no-pub",
+            "--no-fatal-infos",
+            "lib",
+            "test",
+            "integration_test",
+            "test_driver"
+          ],
+          "exit_code": 0,
+          "seconds": 6.3
+        },
+        {
+          "name": "exact-ci-audit",
+          "command": [
+            "pnpm",
+            "audit",
+            "--prod",
+            "--audit-level=high"
+          ],
+          "exit_code": 0,
+          "seconds": 4.1
+        },
+        {
+          "name": "production-audit-json",
+          "command": [
+            "pnpm",
+            "audit",
+            "--prod",
+            "--audit-level=high",
+            "--json"
+          ],
+          "exit_code": 1,
+          "seconds": 3.1
+        }
+      ],
+      "counts": {
+        "api_unit": 135,
+        "api_endpoints": 48,
+        "buyer_flutter": 91,
+        "seller_flutter": 67,
+        "buyer-web": 278,
+        "seller-web": 53,
+        "admin-web": 105
+      },
+      "analyzer_infos": {
+        "buyer": 7,
+        "seller": 6
+      },
+      "exact_ci_audit": {
+        "command": "pnpm audit --prod --audit-level=high",
+        "exit_code": 0,
+        "output": "8 vulnerabilities found:6 moderate;2 high(2 ignored)"
+      },
+      "production_json_audit": {
+        "exit_code": 1,
+        "metadata": {
+          "info": 0,
+          "low": 0,
+          "moderate": 6,
+          "high": 2,
+          "critical": 0
+        },
+        "unexcepted_advisory_records": 6
+      },
+      "retained_prior_validation": "All tested application/dependency/QA-tool bytes unchanged. Existing Node20 API/three web Docker builds, web standalone/Sharp, PostgreSQL17, full API1335/322 and native simulator results retained; no expensive rerun."
+    },
+    "authorization": "Owner authorizes local branch, selective staging and exactly six local commits. No push/PR/merge/deploy/upload/production-data or infrastructure operation.",
+    "nextSafeAction": "Verify git status/log after interruption. Stop before remote operations; obtain explicit authorization to push this review branch and open a PR into develop. Candidate GitHub checks/review must pass before separately authorized merges. Main merge automatically deploys and requires separate release authorization.",
+    "securityResiduals": "Six moderate Sentry/OTel package records remain temporarily risk-accepted, unresolved until2026-11-17; shared GHSA-qqmp-wf37-98f9/CVE-2026-104872. Two existing high audit exceptions unchanged.",
+    "limits": "Existing physical store handoff/native Safari printing/signed mobile distribution and live Sentry telemetry limits remain. Historical nine units untouched."
+  }
+}

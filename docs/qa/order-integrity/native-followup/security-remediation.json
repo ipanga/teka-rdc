@@ -1795,9 +1795,10 @@
       "Release-window backup/immutable-image/rollback verification; live Sentry telemetry not inspected."
     ],
     "productionReleaseAuthorized": false,
-    "gitActionsAuthorized": false,
-    "commitsOrRemoteChangesPerformed": false,
-    "historicalNineUnitsTouched": false
+    "gitActionsAuthorized": "Local branch, selective staging and six commits only; no remote/release operations.",
+    "historicalNineUnitsTouched": false,
+    "localCommitsPrepared": 6,
+    "remoteChangesPerformed": false
   },
   "finalDiffReview": {
     "baseline": "9e6bd60d488de644d4526fdcba08a641d233e964",
@@ -1883,6 +1884,281 @@
     "audit_exceptions_unchanged": true,
     "freeGiB": 25.75,
     "credential_candidate_review": "All10 URL-pattern candidates manually reviewed: disposable PostgreSQL examples, safety-guard rejection fixtures, and local CI URL in tracker. No provider token, JWT or private-key candidate. No actual secret found.",
-    "independentFinalAssertionsPassed": true
+    "independentFinalAssertionsPassed": true,
+    "phase": "Historical pre-local-commit working-tree snapshot; final local handoff is recorded separately."
+  },
+  "localReviewHandoff": {
+    "date": "2026-10-18",
+    "branch": "codex/order-integrity-release-review",
+    "base": "9e6bd60d488de644d4526fdcba08a641d233e964",
+    "baselineTracking": "Local develop and cached origin/develop agree; GitHub not contacted. Local main remains its pre-existing older ref.",
+    "commits": [
+      {
+        "number": 1,
+        "hash": "6151b4fa969c6034082e95ed5a6467b51ce33e04",
+        "subject": "fix(security): remediate production dependency vulnerabilities"
+      },
+      {
+        "number": 2,
+        "hash": "f7f0a09ee8bf8d22117134e2483456b22d6256d9",
+        "subject": "fix(orders): enforce inventory integrity and safe cancellation"
+      },
+      {
+        "number": 3,
+        "hash": "f788bb37a77f6dfd429671e65891adac2be96835",
+        "subject": "feat(admin): add protected printable delivery documents"
+      },
+      {
+        "number": 4,
+        "hash": "c9b8d88c8b475f42a9bee0a575993d8bd97b3346",
+        "subject": "feat(buyer): add mobile application promotion"
+      },
+      {
+        "number": 5,
+        "hash": "0409da050047b3791a3a75a8db6877d3e5521e5a",
+        "subject": "test(mobile): add isolated native QA integration coverage"
+      },
+      {
+        "number": 6,
+        "revision": "codex/order-integrity-release-review",
+        "hashResolution": "git rev-parse codex/order-integrity-release-review",
+        "subject": "docs(qa): document verification and release readiness",
+        "note": "This documentation commit is the branch tip. A commit cannot embed its own content-derived hash; exact six hashes are recoverable from Git and reported in the final handoff."
+      }
+    ],
+    "uniquePaths": 195,
+    "modifiedRelativeToBase": 55,
+    "addedRelativeToBase": 140,
+    "deleted": 0,
+    "binaryQaArtifacts": 81,
+    "amendedCommits": 0,
+    "applicationBytesPreserved": true,
+    "checks": {
+      "run": "2026-10-18 local-commit verification",
+      "hostNode": "v22.22.2",
+      "checks": [
+        {
+          "name": "frozen-install",
+          "command": [
+            "pnpm",
+            "install",
+            "--frozen-lockfile"
+          ],
+          "exit_code": 0,
+          "seconds": 1.4
+        },
+        {
+          "name": "shared-build",
+          "command": [
+            "pnpm",
+            "--filter",
+            "@teka/shared",
+            "build"
+          ],
+          "exit_code": 0,
+          "seconds": 2.0
+        },
+        {
+          "name": "workspace-typecheck",
+          "command": [
+            "pnpm",
+            "type-check"
+          ],
+          "exit_code": 0,
+          "seconds": 5.4
+        },
+        {
+          "name": "api-focused-unit",
+          "command": [
+            "pnpm",
+            "--filter",
+            "api",
+            "exec",
+            "jest",
+            "--runInBand",
+            "--runTestsByPath",
+            "src/orders/order-inventory.lifecycle.spec.ts",
+            "src/orders/order-inventory.spec.ts",
+            "src/orders/orders.service.spec.ts",
+            "src/orders/seller-orders.service.spec.ts",
+            "src/products/products.service.spec.ts",
+            "src/admin/admin-orders.service.spec.ts",
+            "src/payments/payments.service.spec.ts",
+            "src/returns/returns.service.spec.ts"
+          ],
+          "exit_code": 0,
+          "seconds": 2.3
+        },
+        {
+          "name": "api-focused-endpoints",
+          "command": [
+            "pnpm",
+            "--filter",
+            "api",
+            "exec",
+            "jest",
+            "--config",
+            "test/jest-e2e.json",
+            "--runInBand",
+            "--runTestsByPath",
+            "test/proxy-trust.e2e-spec.ts",
+            "test/admin-order-document.e2e-spec.ts",
+            "test/isolated-db-guard.e2e-spec.ts"
+          ],
+          "exit_code": 0,
+          "seconds": 2.3
+        },
+        {
+          "name": "buyer-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "buyer-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 3.5
+        },
+        {
+          "name": "seller-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "seller-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 0.9
+        },
+        {
+          "name": "admin-web-tests",
+          "command": [
+            "pnpm",
+            "--filter",
+            "admin-web",
+            "test"
+          ],
+          "exit_code": 0,
+          "seconds": 0.9
+        },
+        {
+          "name": "buyer-flutter",
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=2",
+            "test/orders",
+            "test/cart",
+            "test/checkout",
+            "test/network/dio_error_messages_test.dart",
+            "test/core/network/dio_error_messages_test.dart"
+          ],
+          "exit_code": 0,
+          "seconds": 7.6
+        },
+        {
+          "name": "seller-flutter",
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=2",
+            "test/features/orders",
+            "test/features/products/product_form_test.dart",
+            "test/core/network/dio_error_messages_test.dart"
+          ],
+          "exit_code": 0,
+          "seconds": 7.3
+        },
+        {
+          "name": "buyer-mobile-analyze",
+          "command": [
+            "flutter",
+            "analyze",
+            "--no-pub",
+            "--no-fatal-infos",
+            "lib",
+            "test",
+            "integration_test",
+            "test_driver"
+          ],
+          "exit_code": 0,
+          "seconds": 4.7
+        },
+        {
+          "name": "seller-mobile-analyze",
+          "command": [
+            "flutter",
+            "analyze",
+            "--no-pub",
+            "--no-fatal-infos",
+            "lib",
+            "test",
+            "integration_test",
+            "test_driver"
+          ],
+          "exit_code": 0,
+          "seconds": 6.3
+        },
+        {
+          "name": "exact-ci-audit",
+          "command": [
+            "pnpm",
+            "audit",
+            "--prod",
+            "--audit-level=high"
+          ],
+          "exit_code": 0,
+          "seconds": 4.1
+        },
+        {
+          "name": "production-audit-json",
+          "command": [
+            "pnpm",
+            "audit",
+            "--prod",
+            "--audit-level=high",
+            "--json"
+          ],
+          "exit_code": 1,
+          "seconds": 3.1
+        }
+      ],
+      "counts": {
+        "api_unit": 135,
+        "api_endpoints": 48,
+        "buyer_flutter": 91,
+        "seller_flutter": 67,
+        "buyer-web": 278,
+        "seller-web": 53,
+        "admin-web": 105
+      },
+      "analyzer_infos": {
+        "buyer": 7,
+        "seller": 6
+      },
+      "exact_ci_audit": {
+        "command": "pnpm audit --prod --audit-level=high",
+        "exit_code": 0,
+        "output": "8 vulnerabilities found:6 moderate;2 high(2 ignored)"
+      },
+      "production_json_audit": {
+        "exit_code": 1,
+        "metadata": {
+          "info": 0,
+          "low": 0,
+          "moderate": 6,
+          "high": 2,
+          "critical": 0
+        },
+        "unexcepted_advisory_records": 6
+      },
+      "retained_prior_validation": "All tested application/dependency/QA-tool bytes unchanged. Existing Node20 API/three web Docker builds, web standalone/Sharp, PostgreSQL17, full API1335/322 and native simulator results retained; no expensive rerun."
+    },
+    "authorization": "Owner authorizes local branch, selective staging and exactly six local commits. No push/PR/merge/deploy/upload/production-data or infrastructure operation.",
+    "nextSafeAction": "Verify git status/log after interruption. Stop before remote operations; obtain explicit authorization to push this review branch and open a PR into develop. Candidate GitHub checks/review must pass before separately authorized merges. Main merge automatically deploys and requires separate release authorization.",
+    "securityResiduals": "Six moderate Sentry/OTel package records remain temporarily risk-accepted, unresolved until2026-11-17; shared GHSA-qqmp-wf37-98f9/CVE-2026-104872. Two existing high audit exceptions unchanged.",
+    "limits": "Existing physical store handoff/native Safari printing/signed mobile distribution and live Sentry telemetry limits remain. Historical nine units untouched."
   }
 }
