@@ -25,13 +25,17 @@ interface OrderItem {
   productImage?: string | null;
 }
 
+/** `deliveryAddress` as served by the API: the order's checkout snapshot. */
 interface OrderAddress {
   id: string;
   label?: string | null;
-  town: string;
+  province?: string | null;
+  town?: string | null;
   neighborhood?: string | null;
   avenue?: string | null;
-  details?: string | null;
+  reference?: string | null;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
 }
 
 interface OrderBuyer {
@@ -82,7 +86,8 @@ interface OrderDetail {
   returnedAt?: string | null;
   createdAt: string;
   items: OrderItem[];
-  address?: OrderAddress | null;
+  deliveryAddress?: OrderAddress | null;
+  buyerNote?: string | null;
   buyer?: OrderBuyer | null;
   seller?: OrderSeller | null;
   statusLogs: OrderStatusLog[];
@@ -304,7 +309,7 @@ export default function OrderDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
             Détail de la commande — {order.orderNumber}
@@ -319,7 +324,20 @@ export default function OrderDetailPage() {
             })}
           </p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <OrderStatusBadge status={order.status} />
+          {/* Opens the printable A4 « Bon de livraison » (read-only preview;
+              the browser prints or saves it as PDF). */}
+          <Link
+            href={`/documents/bon-de-livraison/${order.id}`}
+            target="_blank"
+            rel="noopener"
+            className="admin-button-secondary"
+            aria-label={`Bon de livraison de la commande ${order.orderNumber} (s’ouvre dans un nouvel onglet)`}
+          >
+            Bon de livraison
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -551,16 +569,29 @@ export default function OrderDetailPage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Adresse de livraison
             </h2>
-            {order.address ? (
-              <div className="text-sm text-foreground space-y-0.5">
-                {order.address.label && (
-                  <p className="font-medium">{order.address.label}</p>
+            {/* The API serves the checkout SNAPSHOT under `deliveryAddress`
+                (resolveDeliveryAddress) — this card used to read a
+                non-existent `address` field and always showed « - ». */}
+            {order.deliveryAddress ? (
+              <div className="text-sm text-foreground space-y-0.5 break-words">
+                {order.deliveryAddress.recipientName && (
+                  <p className="font-medium">{order.deliveryAddress.recipientName}</p>
                 )}
-                <p>{order.address.town}</p>
-                {order.address.neighborhood && <p>{order.address.neighborhood}</p>}
-                {order.address.avenue && <p>{order.address.avenue}</p>}
-                {order.address.details && (
-                  <p className="text-muted-foreground">{order.address.details}</p>
+                {order.deliveryAddress.recipientPhone && (
+                  <p>{order.deliveryAddress.recipientPhone}</p>
+                )}
+                {order.deliveryAddress.avenue && <p>{order.deliveryAddress.avenue}</p>}
+                <p>
+                  {[order.deliveryAddress.neighborhood, order.deliveryAddress.town]
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+                {order.deliveryAddress.province && <p>{order.deliveryAddress.province}</p>}
+                {order.deliveryAddress.reference && (
+                  <p className="text-muted-foreground">Repère : {order.deliveryAddress.reference}</p>
+                )}
+                {order.deliveryAddress.label && (
+                  <p className="text-xs text-muted-foreground">{order.deliveryAddress.label}</p>
                 )}
               </div>
             ) : (

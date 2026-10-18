@@ -160,6 +160,10 @@ export class AdminOrdersService {
             quantity: true,
             unitPriceCDF: true,
             unitPriceUSD: true,
+            // Pre-discount price SNAPSHOT (null = no discount at purchase) —
+            // the printable delivery document shows it next to the charged
+            // price; never the live catalogue price.
+            listUnitPriceCDF: true,
             totalCDF: true,
             totalUSD: true,
             product: { select: { categoryId: true } },

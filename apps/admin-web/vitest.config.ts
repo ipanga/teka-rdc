@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
+  // React 19 automatic JSX runtime (as Next compiles it), so pure components
+  // can be server-rendered in tests (react-dom/server) without a DOM.
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
