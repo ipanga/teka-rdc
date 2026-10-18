@@ -499,6 +499,7 @@ class _BottomBar extends StatelessWidget {
       child = OrderActionButtons(
         status: order.status,
         busy: busy,
+        canReject: order.canSellerReject,
         onConfirm: onConfirm,
         onReject: onReject,
         onProcess: onProcess,

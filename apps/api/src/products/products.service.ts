@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -511,6 +512,7 @@ export class ProductsService {
     'discountPriceCDF',
     'discountPriceUSD',
     'quantity',
+    'expectedQuantity',
   ]);
 
   /**
@@ -650,7 +652,47 @@ export class ProductsService {
       categoryChanged,
     );
 
+    // Stock is an ABSOLUTE edit ("I have N"), while checkout and cancellations
+    // move it by deltas meanwhile. Write it only if it still equals the
+    // snapshot the edit was based on: the form's `expectedQuantity` when the
+    // client sends one, else (installed clients) the value read at the top of
+    // this request. `quantity === expectedQuantity` = stock left untouched in
+    // the form (e.g. a price-only edit) → nothing written, so it can't clobber
+    // a restock that happened while the form was open.
+    const stockSnapshot = dto.expectedQuantity ?? product.quantity;
+    const writeStock =
+      dto.quantity !== undefined &&
+      !(
+        dto.expectedQuantity !== undefined &&
+        dto.quantity === dto.expectedQuantity
+      );
+
     const updatedProduct = await this.prisma.$transaction(async (tx) => {
+      // First write of the transaction, conditional on the stored stock: a
+      // concurrent sale/cancellation either committed before (no row matches
+      // → 409) or waits for this row lock and then applies its delta on top.
+      // Throwing rolls back the whole edit, specifications included.
+      if (writeStock) {
+        const written = await tx.product.updateMany({
+          where: {
+            id: productId,
+            sellerId,
+            deletedAt: null,
+            quantity: stockSnapshot,
+          },
+          data: { quantity: dto.quantity },
+        });
+        if (written.count === 0) {
+          const current = await tx.product.findUnique({
+            where: { id: productId },
+            select: { quantity: true },
+          });
+          throw new ConflictException(
+            `Le stock de ce produit a changé pendant votre modification (${current?.quantity ?? 0} disponible(s) maintenant), suite à une commande ou une annulation. Vérifiez la quantité puis enregistrez à nouveau.`,
+          );
+        }
+      }
+
       for (const { id, attributeId } of specPlan.repoint) {
         await tx.productSpecification.update({ where: { id }, data: { attributeId } });
       }
@@ -681,7 +723,7 @@ export class ProductsService {
           // null clears the promo; a value sets it; undefined leaves it.
           ...(dto.discountPriceCDF !== undefined && { discountPriceCDF }),
           ...(dto.discountPriceUSD !== undefined && { discountPriceUSD }),
-          ...(dto.quantity !== undefined && { quantity: dto.quantity }),
+          // quantity: written (conditionally) at the top of this transaction.
           ...(dto.condition !== undefined && {
             // Deprecated field: defaults to NEW when the client omits it.
         condition: (dto.condition as ProductCondition) ?? ProductCondition.NEW,

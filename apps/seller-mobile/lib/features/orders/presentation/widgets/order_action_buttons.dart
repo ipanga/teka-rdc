@@ -17,10 +17,14 @@ class OrderActionButtons extends StatelessWidget {
   final VoidCallback? onProcess;
   final VoidCallback? onReadyForPickup;
 
+  /// False hides « Refuser » (e.g. a paid order — the API would refuse it).
+  final bool canReject;
+
   const OrderActionButtons({
     super.key,
     required this.status,
     this.busy = false,
+    this.canReject = true,
     this.onConfirm,
     this.onReject,
     this.onProcess,
@@ -47,7 +51,7 @@ class OrderActionButtons extends StatelessWidget {
     };
     final primary = _BusyButton(
         label: label, busy: busy, onPressed: busy ? null : onPrimary);
-    if (status != OrderStatus.pending) {
+    if (status != OrderStatus.pending || !canReject) {
       return SizedBox(width: double.infinity, child: primary);
     }
     final reject = OutlinedButton(

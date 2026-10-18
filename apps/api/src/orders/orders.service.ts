@@ -11,8 +11,13 @@ import { OrderNotificationService } from '../notifications/order-notification.se
 import { PostHogService } from '../analytics/posthog.service';
 import { PaymentsService } from '../payments/payments.service';
 import { OrderQueryDto } from './dto/order-query.dto';
-import { OrderStatus, PaymentMethod } from '@prisma/client';
+import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { BUYER_CANCELLABLE_STATUSES } from './order-workflow.constants';
+import {
+  isPaymentBlockingCancellation,
+  lockOrderForUpdate,
+  releaseOrderStockHold,
+} from './order-inventory';
 
 @Injectable()
 export class OrdersService {
@@ -188,13 +193,18 @@ export class OrdersService {
   }
 
   /**
-   * Cancels a buyer's order. Only PENDING orders can be cancelled by the buyer.
+   * Eligibility of a buyer cancellation, shared by the fast pre-check and the
+   * authoritative re-check on the locked row (so a lost race reports the same
+   * precise French error a sequential retry would).
    */
-  async cancelOrder(userId: string, orderId: string, reason?: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId, deletedAt: null },
-    });
-
+  private assertBuyerCanCancel(
+    order: {
+      buyerId: string;
+      status: OrderStatus;
+      paymentStatus: PaymentStatus;
+    } | null,
+    userId: string,
+  ): asserts order {
     if (!order) {
       throw new NotFoundException('Commande non trouvée');
     }
@@ -212,46 +222,58 @@ export class OrdersService {
       );
     }
 
-    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
-    const updatedOrder = await this.prisma.$transaction(async (tx) => {
-      // Create status log
+    if (isPaymentBlockingCancellation(order.paymentStatus)) {
+      throw new BadRequestException(
+        'Cette commande a déjà été encaissée et ne peut pas être annulée. Contactez le support.',
+      );
+    }
+  }
+
+  /**
+   * Cancels a buyer's order while it is PENDING / CONFIRMED / PROCESSING and
+   * unpaid. The decision is re-made on the locked row, so concurrent
+   * cancellations (buyer retry, seller reject, admin) and fulfillment writes
+   * cannot both win; the stock hold is released at most once
+   * (`releaseOrderStockHold`).
+   */
+  async cancelOrder(userId: string, orderId: string, reason?: string) {
+    // Fast path only — the authoritative check runs on the locked row below.
+    const preRead = await this.prisma.order.findUnique({
+      where: { id: orderId, deletedAt: null },
+    });
+    this.assertBuyerCanCancel(preRead, userId);
+
+    const note = reason || "Annulée par l'acheteur";
+    const { updatedOrder, paymentFailed } = await this.prisma.$transaction(async (tx) => {
+      const order = await lockOrderForUpdate(tx, orderId);
+      this.assertBuyerCanCancel(order, userId);
+
+      // Restore stock held since checkout — before this transition's own log.
+      await releaseOrderStockHold(tx, orderId);
+
       await tx.orderStatusLog.create({
         data: {
           orderId,
           fromStatus: order.status,
           toStatus: OrderStatus.CANCELLED,
           changedBy: userId,
-          note: reason || "Annulée par l'acheteur",
+          note,
         },
       });
 
-      // Restore stock held since checkout (decremented at order creation).
-      const heldItems = await tx.orderItem.findMany({
-        where: { orderId },
-        select: { productId: true, quantity: true },
-      });
-      for (const it of heldItems) {
-        await tx.product.update({
-          where: { id: it.productId },
-          data: { quantity: { increment: it.quantity } },
-        });
-      }
+      // D7: an unpaid COD order that is cancelled will never be paid — the
+      // order payment and its COD transaction fail in the same transaction.
+      const paymentFailed = await this.paymentsService.failUnpaidCodPayment(
+        orderId,
+        tx,
+      );
 
-      // D7: an unpaid COD order that is cancelled will never be paid — its
-      // COD transaction fails in the same transaction (no-op otherwise); the
-      // order's paymentStatus flips inside the update below.
-      if (paymentFailed) {
-        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
-      }
-
-      // Update order
-      return tx.order.update({
+      const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
           status: OrderStatus.CANCELLED,
-          cancellationReason: reason || "Annulée par l'acheteur",
+          cancellationReason: note,
           cancelledBy: userId,
-          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: {
@@ -270,11 +292,12 @@ export class OrdersService {
           },
         },
       });
+      return { updatedOrder, paymentFailed };
     }, { timeout: 15_000 });
 
     // Fire-and-forget: notify buyer and seller of cancellation
     this.notificationService
-      .notifyOrderCancelled(updatedOrder, reason || "Annulée par l'acheteur")
+      .notifyOrderCancelled(updatedOrder, note)
       .catch((err) =>
         this.logger.error("Échec de notification d'annulation", err),
       );
@@ -283,7 +306,7 @@ export class OrdersService {
     // fires exactly when the payment was flipped PENDING → FAILED (D7).
     this.analytics.capture(userId, 'order_cancelled', {
       orderId,
-      sellerId: order.sellerId,
+      sellerId: updatedOrder.sellerId,
       actor: 'buyer',
     });
     if (paymentFailed) {

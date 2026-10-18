@@ -6,8 +6,14 @@ import { AdminOrdersService } from './admin-orders.service';
 // notification/analytics. Mock them all; $transaction runs the callback inline.
 function makeService(order: Record<string, unknown> | null) {
   const tx = {
-    orderStatusLog: { create: jest.fn().mockResolvedValue({}) },
+    // Row lock + re-read inside the transaction (lockOrderForUpdate).
+    $queryRaw: jest.fn().mockResolvedValue(order ? [{ id: 'o1' }] : []),
+    orderStatusLog: {
+      create: jest.fn().mockResolvedValue({}),
+      count: jest.fn().mockResolvedValue(0),
+    },
     order: {
+      findUnique: jest.fn().mockResolvedValue(order),
       update: jest.fn().mockResolvedValue({
         id: 'o1',
         buyerId: 'b1',
@@ -33,6 +39,7 @@ function makeService(order: Record<string, unknown> | null) {
   };
   const paymentsService = {
     completeCodTransaction: jest.fn().mockResolvedValue({}),
+    failUnpaidCodPayment: jest.fn().mockResolvedValue(false),
   };
   const notificationService = {
     notifyOrderReceivedAtTeka: jest.fn().mockResolvedValue(undefined),
@@ -184,16 +191,32 @@ describe('AdminOrdersService.forceStatusChange — returnedAt invariant', () => 
   });
 
   // Forcing a status is a repair tool, not a replay of the return flow: no
-  // restock, no earning reversal beyond the documented leaving-DELIVERED one.
+  // REFUND record, no return-request change. It does put the goods back once
+  // (I1) — RETURNED is a stock-releasing status whatever the path — and only
+  // a delivered order can be forced there.
   it('stamping the date does not turn it into approveReturn()', async () => {
-    const { service, tx } = makeService({
+    const made = makeService({
+      ...orderAt(OrderStatus.DELIVERED),
+      returnedAt: null,
+    });
+    const tx = made.tx as typeof made.tx & { transaction?: unknown };
+
+    await made.service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1');
+
+    expect(tx.product.update).toHaveBeenCalledTimes(1); // once-only release
+    expect(tx.transaction).toBeUndefined(); // no REFUND could have been written
+    expect(made.paymentsService.failUnpaidCodPayment).not.toHaveBeenCalled();
+  });
+
+  it('refuses to force RETURNED on an order that was never delivered', async () => {
+    const { service, prisma } = makeService({
       ...orderAt(OrderStatus.PROCESSING),
       returnedAt: null,
     });
-
-    await service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1');
-
-    expect(tx.product.update).not.toHaveBeenCalled();
+    await expect(
+      service.forceStatusChange('o1', OrderStatus.RETURNED, 'admin1'),
+    ).rejects.toThrow('Seule une commande livrée');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
 
@@ -220,10 +243,11 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
   // A DELIVERED → X → DELIVERED round trip must not reset the clock: the
   // original timestamp is the accurate one, and overwriting it would silently
   // restart the buyer's 2-day return window and shift payout eligibility.
+  // (X can no longer be RETURNED/CANCELLED — those are final since I1.)
   it('preserves an existing deliveredAt instead of overwriting it', async () => {
     const original = new Date('2026-06-15T09:00:00Z');
     const { service, tx } = makeService({
-      ...orderAt(OrderStatus.RETURNED),
+      ...orderAt(OrderStatus.OUT_FOR_DELIVERY),
       deliveredAt: original,
     });
 
@@ -248,7 +272,10 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
       });
       await service.forceStatusChange('o1', status, 'admin1');
       const data = (tx.order.update as jest.Mock).mock.calls[0][0].data;
-      expect(data).toEqual({ status });
+      expect(data.status).toBe(status);
+      expect(data.deliveredAt).toBeUndefined();
+      // A forced CANCELLED is the admin cancellation: it also records who/why.
+      if (status !== OrderStatus.CANCELLED) expect(data).toEqual({ status });
     }
   });
 
@@ -333,16 +360,16 @@ describe('AdminOrdersService.markDelivered — the normal path is unchanged', ()
 });
 
 describe('AdminOrdersService.forceStatusChange — leaving DELIVERED reverses the earning (D6)', () => {
-  it('DELIVERED → CANCELLED reverses the earning inside the same transaction, reason ORDER_STATUS_FORCED', async () => {
+  it('DELIVERED → OUT_FOR_DELIVERY (rewind) reverses the earning inside the same transaction, reason ORDER_STATUS_FORCED', async () => {
     const { service, tx, earningsService } = makeService({
       ...orderAt(OrderStatus.DELIVERED),
       deliveredAt: new Date('2026-09-01T10:00:00Z'),
     });
     await service.forceStatusChange(
       'o1',
-      OrderStatus.CANCELLED,
+      OrderStatus.OUT_FOR_DELIVERY,
       'admin1',
-      'fraude',
+      'erreur de saisie',
     );
     expect(earningsService.reverseEarning).toHaveBeenCalledWith(
       'o1',
@@ -350,6 +377,21 @@ describe('AdminOrdersService.forceStatusChange — leaving DELIVERED reverses th
       'ORDER_STATUS_FORCED',
     );
     expect(earningsService.createEarning).not.toHaveBeenCalled();
+    expect(tx.product.update).not.toHaveBeenCalled(); // a rewind moves no stock
+  });
+
+  // I1: a delivered (cash collected) order is never "cancelled" — that would
+  // restock goods the buyer holds and hide the cash. The return flow exists.
+  it('DELIVERED → CANCELLED is refused before any write', async () => {
+    const { service, prisma, earningsService } = makeService({
+      ...orderAt(OrderStatus.DELIVERED),
+      paymentStatus: PaymentStatus.COMPLETED,
+    });
+    await expect(
+      service.forceStatusChange('o1', OrderStatus.CANCELLED, 'admin1', 'fraude'),
+    ).rejects.toThrow('déjà livrée');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(earningsService.reverseEarning).not.toHaveBeenCalled();
   });
 
   it('forcing between non-delivered statuses touches no earning', async () => {
@@ -378,10 +420,7 @@ describe('AdminOrdersService.markDelivered — financial side effects are transa
 describe('AdminOrdersService.adminCancelOrder — D7', () => {
   function withCancel(order: Record<string, unknown>, flip = true) {
     const made = makeService(order);
-    const ps = made.paymentsService as Record<string, unknown>;
-    ps.codPaymentWillFail = jest.fn().mockReturnValue(flip);
-    ps.codPaymentFailureData = jest.fn().mockReturnValue(flip ? { paymentStatus: PaymentStatus.FAILED } : {});
-    ps.failCodTransactionOnCancellation = jest.fn().mockResolvedValue(1);
+    made.paymentsService.failUnpaidCodPayment.mockResolvedValue(flip);
     const analytics = { capture: jest.fn() };
     (made.service as unknown as { analytics: unknown }).analytics = analytics;
     return { ...made, analytics };
@@ -390,9 +429,10 @@ describe('AdminOrdersService.adminCancelOrder — D7', () => {
   it('unpaid COD cancelled by admin → payment flipped in the transaction, payment_failed once (actor admin)', async () => {
     const m = withCancel({ ...orderAt(OrderStatus.CONFIRMED), paymentStatus: PaymentStatus.PENDING, buyerId: 'b1' });
     await m.service.adminCancelOrder('o1', 'admin1', 'Rupture');
-    expect((m.paymentsService as Record<string, jest.Mock>).failCodTransactionOnCancellation).toHaveBeenCalledWith('o1', m.tx);
-    expect(m.tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, paymentStatus: PaymentStatus.FAILED });
+    expect(m.paymentsService.failUnpaidCodPayment).toHaveBeenCalledWith('o1', m.tx);
+    expect(m.tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, cancellationReason: 'Rupture', cancelledBy: 'admin1' });
     expect(m.tx.orderStatusLog.create).toHaveBeenCalledTimes(1);
+    expect(m.tx.product.update).toHaveBeenCalledTimes(1); // stock released once
     expect(m.analytics.capture).toHaveBeenCalledTimes(1);
     expect(m.analytics.capture.mock.calls[0][1]).toBe('payment_failed');
     expect(m.analytics.capture.mock.calls[0][2]).toMatchObject({ actor: 'admin', method: 'COD' });
@@ -408,5 +448,54 @@ describe('AdminOrdersService.adminCancelOrder — D7', () => {
     const m = withCancel({ ...orderAt(OrderStatus.CANCELLED), paymentStatus: PaymentStatus.FAILED });
     await expect(m.service.adminCancelOrder('o1', 'admin1', 'x')).rejects.toThrow(BadRequestException);
     expect(m.analytics.capture).not.toHaveBeenCalled();
+  });
+
+  it('RETURNED, or a paid pre-delivery order (legacy rewind), cannot be cancelled → 400, nothing written', async () => {
+    for (const order of [
+      { ...orderAt(OrderStatus.RETURNED), paymentStatus: PaymentStatus.COMPLETED },
+      { ...orderAt(OrderStatus.OUT_FOR_DELIVERY), paymentStatus: PaymentStatus.COMPLETED },
+      { ...orderAt(OrderStatus.PENDING), paymentStatus: PaymentStatus.REFUNDED },
+    ]) {
+      const m = withCancel(order, false);
+      await expect(m.service.adminCancelOrder('o1', 'admin1', 'x')).rejects.toThrow(BadRequestException);
+      expect(m.prisma.$transaction).not.toHaveBeenCalled();
+    }
+  });
+
+  it('re-validated on the locked row: an order delivered meanwhile is not cancelled, nothing written', async () => {
+    const m = withCancel({ ...orderAt(OrderStatus.OUT_FOR_DELIVERY), paymentStatus: PaymentStatus.PENDING, buyerId: 'b1' });
+    m.tx.order.findUnique.mockResolvedValue({ ...orderAt(OrderStatus.DELIVERED), paymentStatus: PaymentStatus.COMPLETED });
+    await expect(m.service.adminCancelOrder('o1', 'admin1', 'x')).rejects.toThrow('déjà livrée');
+    expect(m.tx.product.update).not.toHaveBeenCalled();
+    expect(m.tx.order.update).not.toHaveBeenCalled();
+    expect(m.paymentsService.failUnpaidCodPayment).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminOrdersService Teka transitions — cannot overwrite a cancellation', () => {
+  it('markDelivered whose pre-read said OUT_FOR_DELIVERY fails when the locked row is CANCELLED: no earning, no payment, no unitsSold', async () => {
+    const { service, tx, earningsService, paymentsService } = makeService(
+      orderAt(OrderStatus.OUT_FOR_DELIVERY),
+    );
+    tx.order.findUnique.mockResolvedValue(orderAt(OrderStatus.CANCELLED));
+    await expect(service.markDelivered('o1', 'admin1')).rejects.toThrow(
+      'Transition de statut invalide',
+    );
+    expect(tx.order.update).not.toHaveBeenCalled();
+    expect(tx.product.update).not.toHaveBeenCalled();
+    expect(earningsService.createEarning).not.toHaveBeenCalled();
+    expect(paymentsService.completeCodTransaction).not.toHaveBeenCalled();
+  });
+
+  it('markReceivedAtTeka on a stale pre-read fails against the locked CANCELLED row', async () => {
+    const { service, tx, notificationService } = makeService(
+      orderAt(OrderStatus.READY_FOR_TEKA_PICKUP),
+    );
+    tx.order.findUnique.mockResolvedValue(orderAt(OrderStatus.CANCELLED));
+    await expect(service.markReceivedAtTeka('o1', 'admin1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(tx.orderStatusLog.create).not.toHaveBeenCalled();
+    expect(notificationService.notifyOrderReceivedAtTeka).not.toHaveBeenCalled();
   });
 });

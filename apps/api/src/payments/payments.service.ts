@@ -26,14 +26,21 @@ export class PaymentsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Create a COD transaction record for an order.
+   * Create a COD transaction record for an order. Called by checkout INSIDE
+   * the order-creation transaction, so an order can never exist (and be
+   * cancelled) before its COD transaction does.
+   *
+   * The reference carries the full order id: `externalReference` is UNIQUE,
+   * and the former 8-character prefix could collide — harmless while this ran
+   * fire-and-forget after checkout (the row was silently lost), fatal inside it.
    */
   async createCodTransaction(
     orderId: string,
     amountCDF: bigint,
     amountUSD: bigint | null,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
   ) {
-    return this.prisma.transaction.create({
+    return db.transaction.create({
       data: {
         orderId,
         type: TransactionType.PAYMENT,
@@ -42,7 +49,7 @@ export class PaymentsService {
         amountUSD,
         currency: 'CDF',
         status: PaymentStatus.PENDING,
-        externalReference: `COD-${orderId.slice(0, 8)}`,
+        externalReference: `COD-${orderId}`,
       },
     });
   }
@@ -71,34 +78,6 @@ export class PaymentsService {
   }
 
   /**
-   * D7 — does cancelling this order mean its payment will never happen?
-   * True for a COD order whose `paymentStatus` is still PENDING. The caller
-   * folds `{ paymentStatus: FAILED }` into its own `order.update` (one round
-   * trip, same transaction) and then calls `failCodTransactionOnCancellation`.
-   * A payment already COMPLETED / REFUNDED / FAILED, or a non-COD order, is
-   * never touched — and no refund is created, because no money moved.
-   */
-  codPaymentWillFail(order: {
-    paymentMethod: PaymentMethod;
-    paymentStatus: PaymentStatus;
-  }): boolean {
-    return (
-      order.paymentMethod === PaymentMethod.COD &&
-      order.paymentStatus === PaymentStatus.PENDING
-    );
-  }
-
-  /** Data to merge into the cancelling `order.update` (empty when nothing changes). */
-  codPaymentFailureData(order: {
-    paymentMethod: PaymentMethod;
-    paymentStatus: PaymentStatus;
-  }): { paymentStatus?: PaymentStatus } {
-    return this.codPaymentWillFail(order)
-      ? { paymentStatus: PaymentStatus.FAILED }
-      : {};
-  }
-
-  /**
    * The order's COD PAYMENT transaction PENDING/PROCESSING → FAILED
    * (`failureReason: 'order_cancelled'`), inside the caller's cancellation
    * transaction. Conditional on the current status → idempotent.
@@ -120,6 +99,34 @@ export class PaymentsService {
       },
     });
     return res.count;
+  }
+
+  /**
+   * D7 — a cancelled unpaid COD order will never be paid. Inside the
+   * cancellation transaction, flip the order's payment PENDING → FAILED
+   * **conditionally on its current row** (COD + PENDING) and, only when that
+   * flip happened, fail the COD transaction. Returns whether the flip happened
+   * — the caller emits `payment_failed` exactly then. A payment already
+   * COMPLETED / REFUNDED / FAILED, or a non-COD order, is never touched, and
+   * no refund is created because no money moved. Decided from the row, not a
+   * pre-transaction read, so a retry or a concurrent cancellation can never
+   * flip twice.
+   */
+  async failUnpaidCodPayment(
+    orderId: string,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    const flipped = await db.order.updateMany({
+      where: {
+        id: orderId,
+        paymentMethod: PaymentMethod.COD,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+      data: { paymentStatus: PaymentStatus.FAILED },
+    });
+    if (flipped.count === 0) return false;
+    await this.failCodTransactionOnCancellation(orderId, db);
+    return true;
   }
 
   /**

@@ -104,46 +104,33 @@ export class CheckoutService {
       async (tx) => {
         const createdOrders = [];
 
+        // Take every line's stock FIRST, atomically: one conditional
+        // decrement per product (`quantity >= requested` AND still ACTIVE).
+        // Two concurrent checkouts can no longer both pass a read-then-write
+        // availability check — the second blocks on the row lock, re-reads
+        // the decremented quantity and matches 0 rows. Product order is
+        // sorted so concurrent multi-product checkouts (and stock releases,
+        // which use the same order) never deadlock. Any failure rolls the
+        // whole checkout back, including decrements already taken.
+        const lines = cartSummary.sellerGroups
+          .flatMap((group) => group.items)
+          .sort((a, b) =>
+            a.product.id < b.product.id
+              ? -1
+              : a.product.id > b.product.id
+                ? 1
+                : 0,
+          );
+        for (const item of lines) {
+          await this.takeStock(
+            tx,
+            item.product.id,
+            item.product.title,
+            item.quantity,
+          );
+        }
+
         for (const group of cartSummary.sellerGroups) {
-          // Re-validate each product within the transaction for consistency
-          for (const item of group.items) {
-            const product = await tx.product.findUnique({
-              where: { id: item.product.id },
-              select: {
-                id: true,
-                status: true,
-                quantity: true,
-                deletedAt: true,
-                priceCDF: true,
-                priceUSD: true,
-                title: true,
-                images: {
-                  select: { thumbnailUrl: true },
-                  orderBy: { displayOrder: 'asc' },
-                  take: 1,
-                },
-              },
-            });
-
-            if (
-              !product ||
-              product.deletedAt !== null ||
-              product.status !== ProductStatus.ACTIVE
-            ) {
-              const name = item.product.title || 'Produit';
-              throw new BadRequestException(
-                `Le produit "${name}" n'est plus disponible`,
-              );
-            }
-
-            if (item.quantity > product.quantity) {
-              const name = product.title || 'Produit';
-              throw new BadRequestException(
-                `Stock insuffisant pour "${name}". Disponible : ${product.quantity}, demandé : ${item.quantity}`,
-              );
-            }
-          }
-
           // Delivery fee — SINGLE source of truth, shared with quote() so the
           // previewed fee always equals the charged fee. If no active zone
           // covers the route we BLOCK the order rather than undercharge.
@@ -217,12 +204,6 @@ export class CheckoutService {
               productTitle: product.title,
               productImage: product.images[0]?.thumbnailUrl ?? null,
             });
-
-            // Decrement product stock atomically
-            await tx.product.update({
-              where: { id: product.id },
-              data: { quantity: { decrement: item.quantity } },
-            });
           }
 
           // Calculate totals
@@ -288,6 +269,18 @@ export class CheckoutService {
             },
           });
 
+          // COD-only since 2026-05-26 (PR B2): the pending COD transaction is
+          // created WITH the order (it used to be fire-and-forget afterwards,
+          // so a cancellation landing in between found no transaction to fail
+          // and a PENDING payment record outlived its cancelled order).
+          // Completed by AdminOrdersService.markDelivered on delivery.
+          await this.paymentsService.createCodTransaction(
+            order.id,
+            order.totalCDF,
+            order.totalUSD,
+            tx,
+          );
+
           createdOrders.push(order);
         }
 
@@ -315,18 +308,6 @@ export class CheckoutService {
     ).catch((err) =>
       this.logger.error('Échec des notifications de commande passée', err),
     );
-
-    // COD-only since 2026-05-26 (PR B2). Create pending COD transaction
-    // records — marked COMPLETED by SellerOrdersService on delivery.
-    for (const order of orders) {
-      this.paymentsService
-        .createCodTransaction(order.id, order.totalCDF, order.totalUSD)
-        .catch((err) =>
-          this.logger.error(
-            `COD transaction creation failed for ${order.orderNumber}: ${err}`,
-          ),
-        );
-    }
 
     // Server-owned ecommerce events (Event Ownership Matrix): one
     // `order_created` per seller-order, plus `payment_attempted` for the
@@ -462,6 +443,48 @@ export class CheckoutService {
       townMismatch: sellerQuotes.some((q) => q.townMismatch),
       sellerQuotes,
     };
+  }
+
+  /**
+   * Takes `requested` units of a product's stock, atomically, or throws the
+   * buyer-facing French error. The decrement is conditional on the row as it
+   * is when the lock is acquired, so stock can never go below zero and two
+   * checkouts can never sell the same last unit.
+   */
+  private async takeStock(
+    tx: TxClient,
+    productId: string,
+    cartTitle: string | undefined,
+    requested: number,
+  ): Promise<void> {
+    const taken = await tx.product.updateMany({
+      where: {
+        id: productId,
+        deletedAt: null,
+        status: ProductStatus.ACTIVE,
+        quantity: { gte: requested },
+      },
+      data: { quantity: { decrement: requested } },
+    });
+    if (taken.count === 1) return;
+
+    // Explain the refusal from the row as it is now.
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: { status: true, quantity: true, deletedAt: true, title: true },
+    });
+    if (
+      !product ||
+      product.deletedAt !== null ||
+      product.status !== ProductStatus.ACTIVE
+    ) {
+      throw new BadRequestException(
+        `Le produit "${cartTitle || 'Produit'}" n'est plus disponible`,
+      );
+    }
+    throw new BadRequestException(
+      `Stock insuffisant pour "${product.title || 'Produit'}". Disponible : ${product.quantity}, demandé : ${requested}`,
+    );
   }
 
   /** Case- and whitespace-insensitive town key for mismatch comparison. */

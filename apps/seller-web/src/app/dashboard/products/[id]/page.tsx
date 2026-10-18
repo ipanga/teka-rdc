@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { isStockConflict, stockEditFields } from '@/lib/stock-edit';
 import { ProductStatusBadge } from '@/components/product/product-status-badge';
 import { ImageUploader } from '@/components/product/image-uploader';
 import DynamicAttributesForm from '@/components/products/dynamic-attributes-form';
@@ -129,6 +130,18 @@ export default function ProductDetailPage() {
     loadProduct();
   }, [loadProduct]);
 
+  /** Re-reads only the stock (snapshot + field) after a 409 stock conflict. */
+  const refreshStockSnapshot = async () => {
+    try {
+      const res = await apiFetch<{ product: Product } & Product>(`/v1/sellers/products/${productId}`);
+      const fresh = res.data.product || res.data;
+      setProduct((prev) => (prev ? { ...prev, quantity: fresh.quantity } : fresh));
+      setQuantity(String(fresh.quantity ?? 0));
+    } catch {
+      // Keep the error already shown; a manual reload still works.
+    }
+  };
+
   useEffect(() => {
     async function loadCategories() {
       try {
@@ -202,7 +215,7 @@ export default function ProductDetailPage() {
             description: description.trim() || undefined,
             categoryId,
             priceCDF: String(Math.round(Number(priceCDF) * 100)),
-            quantity: Number(quantity),
+            ...stockEditFields(Number(quantity), product?.quantity),
             condition,
             // null clears the brand; a value sets it.
             brandId: brandId || null,
@@ -210,7 +223,7 @@ export default function ProductDetailPage() {
           }
         : {
             priceCDF: String(Math.round(Number(priceCDF) * 100)),
-            quantity: Number(quantity),
+            ...stockEditFields(Number(quantity), product?.quantity),
           };
 
       if (priceUSD && Number(priceUSD) > 0) {
@@ -231,6 +244,12 @@ export default function ProductDetailPage() {
       setSuccessMessage("Produit mis à jour avec succès");
       loadProduct();
     } catch (err) {
+      if (isStockConflict(err)) {
+        // The stock moved (order / cancellation) since the form was loaded.
+        // Show the API's explanation and the CURRENT stock; keep every other
+        // field as typed. Saving again is then a deliberate decision.
+        await refreshStockSnapshot();
+      }
       if (err instanceof ApiError) {
         setError(err.message);
         if (err.errors) {

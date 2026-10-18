@@ -282,6 +282,15 @@ class SellerOrderModel {
     this.financials,
   });
 
+  /// Whether to OFFER « Refuser ». Mirrors the API (`canSellerRejectOrder`
+  /// in `@teka/shared`): a new order whose cash was neither collected nor
+  /// refunded. The API re-checks it on the locked order row.
+  bool get canSellerReject {
+    const paid = {'COMPLETED', 'REFUNDED'};
+    return status == OrderStatus.pending &&
+        !paid.contains((paymentStatus ?? '').toUpperCase());
+  }
+
   int get totalCDFDisplay {
     final centimes = int.tryParse(totalCDF) ?? 0;
     return centimes ~/ 100;

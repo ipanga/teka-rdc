@@ -1,6 +1,12 @@
 'use client';
 
-import { formatFC, formatUSD } from '@teka/shared';
+import {
+  adminForceStatusTargets,
+  canAdminCancelOrder,
+  formatFC,
+  formatUSD,
+  mergeOrderMutation,
+} from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -103,6 +109,18 @@ const ALL_STATUSES = [
   'RETURNED',
 ];
 
+const FORCE_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  PROCESSING: 'En préparation',
+  READY_FOR_TEKA_PICKUP: 'Prête pour collecte',
+  RECEIVED_AT_TEKA: 'Reçue par Teka',
+  OUT_FOR_DELIVERY: 'En livraison',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+  RETURNED: 'Retournée',
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
@@ -130,17 +148,23 @@ export default function OrderDetailPage() {
     setTimeout(() => setFeedback(null), 3000);
   };
 
-  const fetchOrder = useCallback(async () => {
-    setIsLoading(true);
+  // silent: re-read after an action — keeps the page (and its feedback) on
+  // screen; a failed re-read leaves the current view untouched.
+  const fetchOrder = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true);
     try {
       const res = await apiFetch<OrderDetail>(`/v1/admin/orders/${orderId}`);
       setOrder(res.data);
     } catch {
       // Error handled by apiFetch
     } finally {
-      setIsLoading(false);
+      if (!opts?.silent) setIsLoading(false);
     }
   }, [orderId]);
+
+  /** Shows a successful mutation's authoritative status/payment/timeline now. */
+  const applyMutation = (data: unknown) =>
+    setOrder((prev) => (prev ? mergeOrderMutation(prev, data) : prev));
 
   useEffect(() => {
     fetchOrder();
@@ -154,20 +178,24 @@ export default function OrderDetailPage() {
 
     setIsSubmittingStatus(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/status`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({
           status: newStatus,
           note: statusNote.trim() || undefined,
         }),
       });
+      applyMutation(res.data);
       showFeedback('success', "Statut mis à jour");
       setShowStatusModal(false);
       setNewStatus('');
       setStatusNote('');
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      // The API explains refusals in French (e.g. a cancelled order can no
+      // longer change status) — show that, and reload the real state.
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingStatus(false);
     }
@@ -180,13 +208,15 @@ export default function OrderDetailPage() {
     if (!order) return;
     setIsSubmittingManaged(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/${action}`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/${action}`, {
         method: 'PATCH',
       });
+      applyMutation(res.data);
       showFeedback('success', successLabel);
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingManaged(false);
     }
@@ -197,18 +227,20 @@ export default function OrderDetailPage() {
 
     setIsSubmittingCancel(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/cancel`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/cancel`, {
         method: 'POST',
         body: JSON.stringify({
           reason: cancelReason.trim() || undefined,
         }),
       });
+      applyMutation(res.data);
       showFeedback('success', "Commande annulée");
       setShowCancelModal(false);
       setCancelReason('');
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -241,6 +273,9 @@ export default function OrderDetailPage() {
   }
 
   const isTerminal = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'RETURNED';
+  // Same rules as the API (which re-checks them): which actions to offer.
+  const forceTargets = adminForceStatusTargets(order, ALL_STATUSES);
+  const canCancel = canAdminCancelOrder(order);
 
   return (
     <div className="p-8">
@@ -625,25 +660,33 @@ export default function OrderDetailPage() {
                       : "Confirmer la livraison + l'encaissement"}
                   </button>
                 )}
-                <button
-                  onClick={() => {
-                    setNewStatus(order.status);
-                    setStatusNote('');
-                    setShowStatusModal(true);
-                  }}
-                  className="w-full px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
-                >
-                  Changer le statut (manuel)
-                </button>
-                <button
-                  onClick={() => {
-                    setCancelReason('');
-                    setShowCancelModal(true);
-                  }}
-                  className="w-full px-4 py-2 text-sm font-medium text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors"
-                >
-                  Annuler la commande
-                </button>
+                {forceTargets.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setNewStatus('');
+                      setStatusNote('');
+                      setShowStatusModal(true);
+                    }}
+                    className="w-full px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+                  >
+                    Changer le statut (manuel)
+                  </button>
+                )}
+                {canCancel ? (
+                  <button
+                    onClick={() => {
+                      setCancelReason('');
+                      setShowCancelModal(true);
+                    }}
+                    className="w-full px-4 py-2 text-sm font-medium text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors"
+                  >
+                    Annuler la commande
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Annulation impossible : le paiement de cette commande est déjà encaissé ou remboursé.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -676,14 +719,15 @@ export default function OrderDetailPage() {
                   onChange={(e) => setNewStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  {ALL_STATUSES.map((s) => (
+                  <option value="" disabled>
+                    Choisir un statut
+                  </option>
+                  {/* Only targets the API can apply (no revival of a
+                      cancelled/returned order, no return of an undelivered
+                      one, no cancellation of a paid one). */}
+                  {forceTargets.map((s) => (
                     <option key={s} value={s}>
-                      {s === 'PENDING' ? 'En attente' :
-                        s === 'CONFIRMED' ? 'Confirmées' :
-                        s === 'PROCESSING' ? 'En préparation' :
-                        s === 'SHIPPED' ? 'Expédiées' :
-                        s === 'DELIVERED' ? 'Livrées' :
-                        s === 'CANCELLED' ? 'Annulées' : 'Retournées'}
+                      {FORCE_STATUS_LABELS[s] ?? s}
                     </option>
                   ))}
                 </select>

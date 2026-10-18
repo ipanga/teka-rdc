@@ -13,6 +13,8 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import { formatCDF } from '@/lib/format';
 import { Badge, Button, Card, Container } from '@/components/ui';
 import type { Order, PaymentStatus } from '@/lib/types';
+import { canBuyerCancelOrder } from '@teka/shared';
+import { cancelBuyerOrder } from '@/lib/order-actions';
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -37,6 +39,7 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [returnReason, setReturnReason] = useState('');
@@ -55,23 +58,19 @@ export default function OrderDetailPage() {
   }, [orderId]);
 
   async function handleCancel() {
-    if (isCancelling) return;
+    if (isCancelling || !order) return;
     setIsCancelling(true);
-
-    try {
-      await apiFetch(`/v1/orders/${orderId}/cancel`, {
-        method: 'POST',
-        body: JSON.stringify({ reason: cancelReason.trim() || undefined }),
-      });
+    setCancelError('');
+    // Server's answer first, then a best-effort full re-read (lib/order-actions).
+    const outcome = await cancelBuyerOrder(orderId, cancelReason, order);
+    setOrder(outcome.order);
+    if (outcome.cancelled) {
       setCancelSuccess(true);
       setShowCancelDialog(false);
-      const res = await apiFetch<Order>(`/v1/orders/${orderId}`);
-      setOrder(res.data);
-    } catch {
-      // silent
-    } finally {
-      setIsCancelling(false);
+    } else {
+      setCancelError(outcome.error ?? '');
     }
+    setIsCancelling(false);
   }
 
   async function handleRequestReturn() {
@@ -149,7 +148,9 @@ export default function OrderDetailPage() {
   const sellerName =
     order.seller?.sellerProfile?.businessName ||
     `${order.seller.firstName} ${order.seller.lastName}`;
-  const canCancel = order.status === 'PENDING';
+  // Same rule as the API (PENDING / CONFIRMED / PROCESSING, unpaid); the API
+  // re-checks it, this only decides whether to offer the button.
+  const canCancel = canBuyerCancelOrder(order);
 
   // Buyer may request a return within 2 days of delivery.
   const RETURN_WINDOW_DAYS = 2;
@@ -444,6 +445,12 @@ export default function OrderDetailPage() {
                   className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none mb-4"
                 />
 
+                {cancelError && (
+                  <p role="alert" className="mb-4 text-sm text-destructive">
+                    {cancelError}
+                  </p>
+                )}
+
                 <div className="flex gap-3 justify-end">
                   <Button
                     variant="outline"
@@ -451,6 +458,7 @@ export default function OrderDetailPage() {
                     onClick={() => {
                       setShowCancelDialog(false);
                       setCancelReason('');
+                      setCancelError('');
                     }}
                   >
                     {"Retour"}

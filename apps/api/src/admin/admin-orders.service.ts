@@ -7,7 +7,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveDeliveryAddress } from '../orders/delivery-address.util';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
-import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+  Order,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from '@prisma/client';
 import {
   CommissionNotConfiguredError,
   EarningsService,
@@ -17,6 +22,14 @@ import { PaymentsService } from '../payments/payments.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
 import { canTransition } from '../orders/order-workflow.constants';
+import {
+  ADMIN_CANCELLABLE_STATUSES,
+  isPaymentBlockingCancellation,
+  isStockReleasedStatus,
+  lockOrderForUpdate,
+  releaseOrderStockHold,
+  Tx,
+} from '../orders/order-inventory';
 
 // Relations returned on every admin order-transition response (list/detail
 // rows the admin-web table + detail page already read).
@@ -267,6 +280,16 @@ export class AdminOrdersService {
    * not already set**, which preserves the original, more accurate timestamp
    * across a DELIVERED -> X -> DELIVERED round trip and never resets a return
    * window that has already started.
+   *
+   * Inventory/payment invariants are NOT bypassable (2026-10, I1):
+   *  - forced CANCELLED is the admin cancellation (same eligibility, same
+   *    once-only stock release, same COD failure) — it used to skip both,
+   *    leaving the stock held and the COD payment pending forever;
+   *  - forced RETURNED is only accepted from DELIVERED and releases the hold
+   *    once, like an approved return (no REFUND record — that stays the return
+   *    flow's job);
+   *  - CANCELLED and RETURNED are final: their stock was released, so the
+   *    order can't be revived into a state that looks like it still holds it.
    */
   async forceStatusChange(
     orderId: string,
@@ -274,19 +297,50 @@ export class AdminOrdersService {
     adminId: string,
     note?: string,
   ) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId, deletedAt: null },
-    });
+    // Fast path only — re-validated on the locked row inside the transaction.
+    this.validateForcedChange(await this.loadOrder(orderId), status);
 
-    if (!order) {
-      throw new NotFoundException('Commande non trouvée');
-    }
+    const logNote = note || `Changement forcé par l'administrateur`;
+    const { updated, paymentFailed } = await this.prisma.$transaction(
+      async (tx) => {
+        const order = await lockOrderForUpdate(tx, orderId);
+        if (!order) {
+          throw new NotFoundException('Commande non trouvée');
+        }
+        this.validateForcedChange(order, status);
 
-    if (order.status === status) {
-      throw new BadRequestException(
-        `La commande est déjà en statut "${status}"`,
-      );
+        if (status === OrderStatus.CANCELLED) {
+          return this.cancelLockedOrder(tx, order, adminId, logNote, logNote);
+        }
+        return {
+          updated: await this.forceLockedOrder(
+            tx,
+            order,
+            status,
+            adminId,
+            logNote,
+          ),
+          paymentFailed: false,
+        };
+      },
+      { timeout: 15_000 },
+    );
+
+    if (paymentFailed) {
+      this.capturePaymentFailed(updated.buyerId, orderId);
     }
+    return updated;
+  }
+
+  /** Non-cancelling forced change, on an order already locked + validated. */
+  private async forceLockedOrder(
+    tx: Tx,
+    order: Order,
+    status: OrderStatus,
+    adminId: string,
+    note: string,
+  ) {
+    const orderId = order.id;
 
     // Keep the row self-consistent: a DELIVERED order must carry a delivery
     // date, and a RETURNED one a return date — `returnedAt` is documented in
@@ -307,70 +361,72 @@ export class AdminOrdersService {
       data.returnedAt = new Date();
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.orderStatusLog.create({
-        data: {
-          orderId,
-          fromStatus: order.status,
-          toStatus: status,
-          changedBy: adminId,
-          note: note || `Changement forcé par l'administrateur`,
-        },
-      });
+    // A forced RETURNED (only ever from DELIVERED) puts the goods back like an
+    // approved return: release the hold once — before this move's own log.
+    if (status === OrderStatus.RETURNED) {
+      await releaseOrderStockHold(tx, orderId);
+    }
 
-      // Leaving DELIVERED (forced cancel / rewind) means the sale no longer
-      // stands: reverse its earning auditably (D6). Kept as the ONLY financial
-      // side effect of this repair tool — forcing INTO DELIVERED still creates
-      // nothing (documented: use markDelivered for a real delivery).
-      if (order.status === OrderStatus.DELIVERED) {
-        await this.earningsService.reverseEarning(
-          orderId,
-          tx,
-          'ORDER_STATUS_FORCED',
-        );
-      }
+    await tx.orderStatusLog.create({
+      data: {
+        orderId,
+        fromStatus: order.status,
+        toStatus: status,
+        changedBy: adminId,
+        note,
+      },
+    });
 
-      return tx.order.update({
-        where: { id: orderId },
-        data,
-        include: {
-          items: true,
-          buyer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              phone: true,
-            },
-          },
-          seller: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              sellerProfile: {
-                select: { businessName: true },
-              },
-            },
-          },
-          statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
-        },
-      });
+    // Leaving DELIVERED (forced return / rewind) means the sale no longer
+    // stands: reverse its earning auditably (D6). Kept as the ONLY financial
+    // side effect of this repair tool — forcing INTO DELIVERED still creates
+    // nothing (documented: use markDelivered for a real delivery).
+    if (order.status === OrderStatus.DELIVERED) {
+      await this.earningsService.reverseEarning(
+        orderId,
+        tx,
+        'ORDER_STATUS_FORCED',
+      );
+    }
+
+    return tx.order.update({
+      where: { id: orderId },
+      data,
+      include: ADMIN_TRANSITION_INCLUDE,
     });
   }
 
   /**
-   * Admin cancels an order with a reason.
+   * What `forceStatusChange` refuses. CANCELLED / RETURNED are final (their
+   * stock hold is gone); a forced CANCELLED obeys the admin-cancel rules; a
+   * forced RETURNED needs a delivered order.
    */
-  async adminCancelOrder(orderId: string, adminId: string, reason: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId, deletedAt: null },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Commande non trouvée');
+  private validateForcedChange(order: Order, status: OrderStatus): void {
+    if (order.status === status) {
+      throw new BadRequestException(
+        `La commande est déjà en statut "${status}"`,
+      );
     }
+    if (isStockReleasedStatus(order.status)) {
+      throw new BadRequestException(
+        'Une commande annulée ou retournée ne peut plus changer de statut : son stock a déjà été libéré. Le client doit passer une nouvelle commande.',
+      );
+    }
+    if (status === OrderStatus.CANCELLED) {
+      this.validateAdminCancel(order);
+    }
+    if (
+      status === OrderStatus.RETURNED &&
+      order.status !== OrderStatus.DELIVERED
+    ) {
+      throw new BadRequestException(
+        "Seule une commande livrée peut être marquée retournée. Pour une commande non livrée, utilisez l'annulation.",
+      );
+    }
+  }
 
+  /** Admin cancellation rules (dedicated cancel AND forced CANCELLED). */
+  private validateAdminCancel(order: Order): void {
     if (order.status === OrderStatus.CANCELLED) {
       throw new BadRequestException('Cette commande est déjà annulée');
     }
@@ -381,76 +437,106 @@ export class AdminOrdersService {
       );
     }
 
-    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.orderStatusLog.create({
-        data: {
-          orderId,
-          fromStatus: order.status,
-          toStatus: OrderStatus.CANCELLED,
-          changedBy: adminId,
-          note: `Annulée par l'administrateur : ${reason}`,
-        },
-      });
+    if (order.status === OrderStatus.RETURNED) {
+      throw new BadRequestException(
+        "Impossible d'annuler une commande déjà retournée.",
+      );
+    }
 
-      // D7: unpaid COD → the COD transaction fails in the same transaction;
-      // the order's paymentStatus flips inside the update below.
-      if (paymentFailed) {
-        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
-      }
+    if (isPaymentBlockingCancellation(order.paymentStatus)) {
+      throw new BadRequestException(
+        "Impossible d'annuler une commande déjà encaissée ou remboursée.",
+      );
+    }
 
-      // Restore stock held since checkout.
-      const heldItems = await tx.orderItem.findMany({
-        where: { orderId },
-        select: { productId: true, quantity: true },
-      });
-      for (const it of heldItems) {
-        await tx.product.update({
-          where: { id: it.productId },
-          data: { quantity: { increment: it.quantity } },
-        });
-      }
+    if (!ADMIN_CANCELLABLE_STATUSES.includes(order.status)) {
+      throw new BadRequestException(
+        `Transition de statut invalide : "${order.status}" → "${OrderStatus.CANCELLED}".`,
+      );
+    }
+  }
 
-      return tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: OrderStatus.CANCELLED,
-          cancellationReason: reason,
-          cancelledBy: adminId,
-          ...this.paymentsService.codPaymentFailureData(order),
-        },
-        include: {
-          items: true,
-          buyer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              phone: true,
-            },
-          },
-          seller: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              sellerProfile: {
-                select: { businessName: true },
-              },
-            },
-          },
-          statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
-        },
-      });
-    }, { timeout: 15_000 });
+  /**
+   * The admin cancellation itself, on an order already locked + validated:
+   * once-only stock release, audit log, conditional COD failure, status.
+   */
+  private async cancelLockedOrder(
+    tx: Tx,
+    order: Order,
+    adminId: string,
+    reason: string,
+    note: string,
+  ) {
+    // Restore stock held since checkout — before this transition's own log.
+    await releaseOrderStockHold(tx, order.id);
+
+    await tx.orderStatusLog.create({
+      data: {
+        orderId: order.id,
+        fromStatus: order.status,
+        toStatus: OrderStatus.CANCELLED,
+        changedBy: adminId,
+        note,
+      },
+    });
+
+    // D7: unpaid COD → the order payment and its COD transaction fail in the
+    // same transaction, decided on the locked row.
+    const paymentFailed = await this.paymentsService.failUnpaidCodPayment(
+      order.id,
+      tx,
+    );
+
+    const updated = await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatus.CANCELLED,
+        cancellationReason: reason,
+        cancelledBy: adminId,
+      },
+      include: ADMIN_TRANSITION_INCLUDE,
+    });
+    return { updated, paymentFailed };
+  }
+
+  private capturePaymentFailed(buyerId: string, orderId: string): void {
+    this.analytics.capture(buyerId, 'payment_failed', {
+      orderId,
+      method: PaymentMethod.COD,
+      reason: 'order_cancelled',
+      actor: 'admin',
+    });
+  }
+
+  /**
+   * Admin cancels an order with a reason. Allowed before delivery (incl. a
+   * parcel refused at the door) and only while unpaid; re-validated on the
+   * locked row so it cannot race a delivery or another cancellation.
+   */
+  async adminCancelOrder(orderId: string, adminId: string, reason: string) {
+    // Fast path only — re-validated on the locked row inside the transaction.
+    this.validateAdminCancel(await this.loadOrder(orderId));
+
+    const { updated, paymentFailed } = await this.prisma.$transaction(
+      async (tx) => {
+        const order = await lockOrderForUpdate(tx, orderId);
+        if (!order) {
+          throw new NotFoundException('Commande non trouvée');
+        }
+        this.validateAdminCancel(order);
+        return this.cancelLockedOrder(
+          tx,
+          order,
+          adminId,
+          reason,
+          `Annulée par l'administrateur : ${reason}`,
+        );
+      },
+      { timeout: 15_000 },
+    );
 
     if (paymentFailed) {
-      this.analytics.capture(updated.buyerId, 'payment_failed', {
-        orderId,
-        method: PaymentMethod.COD,
-        reason: 'order_cancelled',
-        actor: 'admin',
-      });
+      this.capturePaymentFailed(updated.buyerId, orderId);
     }
     return updated;
   }
@@ -513,10 +599,18 @@ export class AdminOrdersService {
    *  - completes the COD transaction + creates the seller earning.
    */
   async markDelivered(orderId: string, adminId: string) {
-    const order = await this.loadOrder(orderId);
-    this.assertTransition(order.status, OrderStatus.DELIVERED);
+    // Fast path only — re-validated on the locked row inside the transaction,
+    // so a delivery can never overwrite a cancellation that just committed.
+    const preRead = await this.loadOrder(orderId);
+    this.assertTransition(preRead.status, OrderStatus.DELIVERED);
 
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const order = await this.lockAndAssert(
+        tx,
+        orderId,
+        OrderStatus.DELIVERED,
+      );
+
       await tx.orderStatusLog.create({
         data: {
           orderId,
@@ -545,7 +639,11 @@ export class AdminOrdersService {
         include: ADMIN_TRANSITION_INCLUDE,
       });
 
-      for (const item of result.items) {
+      // productId order — the lock order checkout and stock release use.
+      const lines = [...result.items].sort((a, b) =>
+        a.productId < b.productId ? -1 : a.productId > b.productId ? 1 : 0,
+      );
+      for (const item of lines) {
         await tx.product.update({
           where: { id: item.productId },
           data: { unitsSold: { increment: item.quantity } },
@@ -582,7 +680,7 @@ export class AdminOrdersService {
       sellerId: updatedOrder.sellerId,
       status: OrderStatus.DELIVERED,
     });
-    if (order.paymentMethod === PaymentMethod.COD) {
+    if (updatedOrder.paymentMethod === PaymentMethod.COD) {
       this.analytics.capture(updatedOrder.buyerId, 'payment_completed', {
         orderId,
         method: PaymentMethod.COD,
@@ -671,6 +769,22 @@ export class AdminOrdersService {
     }
   }
 
+  /**
+   * Locks the order row and re-asserts `current -> to` on what is now the
+   * committed state — the authoritative check (the caller's pre-read is only
+   * a fast path). A transition that lost a race to a cancellation therefore
+   * fails with the usual "Transition de statut invalide" instead of
+   * resurrecting the cancelled order.
+   */
+  private async lockAndAssert(tx: Tx, orderId: string, to: OrderStatus) {
+    const order = await lockOrderForUpdate(tx, orderId);
+    if (!order) {
+      throw new NotFoundException('Commande non trouvée');
+    }
+    this.assertTransition(order.status, to);
+    return order;
+  }
+
   /** Validated simple transition + audit log, returns the order with relations. */
   private async applyTransition(
     orderId: string,
@@ -678,10 +792,11 @@ export class AdminOrdersService {
     to: OrderStatus,
     note: string,
   ) {
-    const order = await this.loadOrder(orderId);
-    this.assertTransition(order.status, to);
+    const preRead = await this.loadOrder(orderId);
+    this.assertTransition(preRead.status, to);
 
     return this.prisma.$transaction(async (tx) => {
+      const order = await this.lockAndAssert(tx, orderId, to);
       await tx.orderStatusLog.create({
         data: {
           orderId,

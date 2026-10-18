@@ -2,27 +2,41 @@ import { PaymentMethod, PaymentStatus } from '@prisma/client';
 import { PaymentsService } from './payments.service';
 
 const service = new PaymentsService({} as never);
-const cod = (paymentStatus: PaymentStatus, paymentMethod: PaymentMethod = PaymentMethod.COD) => ({
-  paymentMethod,
-  paymentStatus,
-});
+
+function dbWith(flippedOrders: number) {
+  return {
+    order: { updateMany: jest.fn().mockResolvedValue({ count: flippedOrders }) },
+    transaction: { updateMany: jest.fn().mockResolvedValue({ count: 1 }), create: jest.fn().mockResolvedValue({}) },
+  };
+}
 
 describe('PaymentsService — D7 (unpaid COD cancelled → payment FAILED)', () => {
-  it('an unpaid COD order will fail: the cancelling update gets { paymentStatus: FAILED }', () => {
-    expect(service.codPaymentWillFail(cod(PaymentStatus.PENDING))).toBe(true);
-    expect(service.codPaymentFailureData(cod(PaymentStatus.PENDING))).toEqual({ paymentStatus: PaymentStatus.FAILED });
+  it('failUnpaidCodPayment flips only a COD order still PENDING (conditional on the row), then fails its COD transaction', async () => {
+    const db = dbWith(1);
+    await expect(service.failUnpaidCodPayment('o1', db as never)).resolves.toBe(true);
+    expect(db.order.updateMany).toHaveBeenCalledWith({
+      where: { id: 'o1', paymentMethod: PaymentMethod.COD, paymentStatus: PaymentStatus.PENDING },
+      data: { paymentStatus: PaymentStatus.FAILED },
+    });
+    expect(db.transaction.updateMany).toHaveBeenCalledTimes(1);
   });
 
-  it('a payment already COMPLETED, REFUNDED or FAILED is never touched (no refund, no flip)', () => {
-    for (const st of [PaymentStatus.COMPLETED, PaymentStatus.REFUNDED, PaymentStatus.FAILED]) {
-      expect(service.codPaymentWillFail(cod(st))).toBe(false);
-      expect(service.codPaymentFailureData(cod(st))).toEqual({});
-    }
+  it('a payment already COMPLETED / REFUNDED / FAILED, or non-COD, matches no row → nothing else touched, no event', async () => {
+    const db = dbWith(0);
+    await expect(service.failUnpaidCodPayment('o1', db as never)).resolves.toBe(false);
+    expect(db.transaction.updateMany).not.toHaveBeenCalled();
   });
 
-  it('non-COD orders are out of scope', () => {
-    expect(service.codPaymentWillFail(cod(PaymentStatus.PENDING, PaymentMethod.MOBILE_MONEY))).toBe(false);
-    expect(service.codPaymentFailureData(cod(PaymentStatus.PENDING, PaymentMethod.MOBILE_MONEY))).toEqual({});
+  it('createCodTransaction writes through the caller’s transaction with a collision-free reference', async () => {
+    const db = dbWith(0);
+    await service.createCodTransaction('5f1c2e3a-0000-4000-8000-000000000001', 1500000n, null, db as never);
+    expect(db.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        orderId: '5f1c2e3a-0000-4000-8000-000000000001',
+        status: PaymentStatus.PENDING,
+        externalReference: 'COD-5f1c2e3a-0000-4000-8000-000000000001',
+      }),
+    });
   });
 
   it('failCodTransactionOnCancellation: the COD PAYMENT transaction PENDING/PROCESSING → FAILED (order_cancelled), conditional → idempotent', async () => {
