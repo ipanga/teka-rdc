@@ -2,27 +2,43 @@
 
 ## Active initiative
 
-**Six local review commits prepared on `codex/order-integrity-release-review`**, based on develop `9e6bd60`.
-[Commit/handoff record](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
-All accepted source/tests/tools preserved byte-for-byte. Codex performed selective
-Git staging and independent review; no new implementation was needed. Local branch,
-staging and six commits are authorized. **No push, PR, merge, deploy, signed upload
-or production write is authorized or performed.** GitHub was not contacted.
+**Documentation synchronization and Draft production release PR preparation authorized.**
+PR #836 is merged into develop at `41f684d827b05f656b512d00b8c99186975ed94e`;
+post-merge CI 12/12 and CodeQL 2/2 SUCCESS. Main remains
+`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. The owner authorizes a focused
+four-file documentation commit/push on `codex/release-handoff-docs`, its PR into
+develop, and a separate **Draft** develop→main PR. Neither PR may be merged;
+auto-merge, deployment, production writes and mobile versions/builds/uploads remain unauthorized.
 
-Fresh focused verification: frozen install/shared build/types PASS; API 135 unit/48
-endpoint; web 278/53/105; Flutter 91/67; analyzers unchanged 7/6 infos. Exact high-severity
-CI audit exit 0; JSON exit 1 with six unresolved moderates and two pre-existing
-excepted highs. Six Sentry/OTel findings remain temporarily risk-accepted through
-**November 17, 2026**, not resolved; full informational tree remains vulnerable.
-Affected drivers absent; tracing can inherit sampled parents. No new exception.
+Four pending docs were copied/hashed and screened; no credentials, customer data
+or raw private logs found. Existing source/tests remain unchanged. Documentation
+PR and Draft release PR creation/checks are the next operations; actual numbers
+and results will be recorded in the existing handoff after creation. The Draft
+release candidate is current develop; these docs are excluded until their own PR
+is authorized and merged, followed by release-candidate revalidation.
 
-Earlier full API/PG/Node 20 Docker/standalone Sharp/native/browser/PDF evidence
-remains valid because source/dependency bytes did not change during Git preparation.
-Physical store/open-app/native Safari printing, signed mobile distribution and
-exact-candidate remote CI remain outstanding. No schema/env/workflow/signing change.
-Historical nine units remain unproven and untouched. Next: verify clean status and
-six commits; obtain explicit authorization to push the review branch and open its
-PR into develop. Main merge automatically deploys and requires separate approval.
+History divergence is explained: 12 develop-only commits, one main-only previous
+release merge (#821). Its tree equals its second/develop parent exactly; it adds
+no production-only content. Prospective merge is conflict-free and equals the
+approved tree. No rebase/reset/force-push/back-merge was performed.
+
+**Production readiness remains BLOCKED.** Existing Docker authentication can read
+all four previous-deploy rollback manifests and they match historical digests;
+GitHub package API still returns 403 for missing read:packages. No credentials or
+permissions changed. Actual running VPS digests, fresh PostgreSQL backup metadata,
+retention/integrity and last restore evidence remain unverified. Only an unrelated
+SSH alias is configured; production access metadata has been requested.
+
+Six moderate Sentry/OTel findings remain **unresolved, temporarily risk-accepted
+until November 17, 2026**; two pre-existing high exceptions and full-tree audit
+visibility remain. Enforced production high audit passed on develop, but the
+Draft PR must pass its own 13 required contexts plus main-only validation/four
+Docker jobs. Dependabot maintenance is tracked separately from release checks.
+
+API→Buyer→Seller→Admin order and expectedQuantity rollback compatibility remain
+mandatory. Mobile signed/physical/store-handoff and native Safari printing limits
+remain unchanged. Historical two orders/nine restoration-unproven units untouched.
+[Current handoff](docs/order-integrity-printing-app-promotion.md#documentation-synchronization-and-draft-release-preparation--2026-10-18).
 
 ## Previous initiative — Seller Catalogue Speed-up
 

@@ -2,13 +2,18 @@
 
 ## Current phase — 2026-10-18
 
-**Six local review commits prepared**, branch `codex/order-integrity-release-review`,
-base develop `9e6bd60`. Accepted source preserved; focused frozen-install/type/API/
-web/Flutter/audit checks pass, with six moderate unresolved risk acceptances due
-November 17, 2026 and two unchanged prior exceptions. Documentation commit records
-five literal hashes and resolves its own sixth hash from the review-branch tip.
-No remote/release/production action authorized or performed. See
-[local handoff](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
+**Authorized documentation PR and Draft develop→main release preparation in progress.**
+Verified develop 41f684d8 (PR836; CI12/12 + CodeQL2/2 SUCCESS), main60d70ac.
+Temporary docs branch codex/release-handoff-docs contains only the four pending
+continuity files; focused commit/push/PR into develop authorized, no merge.
+Draft release source remains develop and excludes these docs while unmerged.
+Main-only #821 merge has no unique tree content; prospective merge clean.
+All four rollback manifests now match historical digests via existing Docker
+credentials. GitHub package API403 persists; actual VPS images and backup/restore
+metadata remain unverified release blockers. No permission/secret change.
+Six unresolved moderate risks through Nov17/two high exceptions preserved.
+Actual PR numbers and candidate CI will be recorded after creation. No main merge,
+deploy, production write, mobile version/signed build/upload or stock correction.
 
 Historical September 10 status snapshot below (retained for context; current facts above and in STATUS.md):
 
@@ -18,6 +23,12 @@ Historical September 10 status snapshot below (retained for context; current fac
 ## Last Updated: 2026-09-10
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
+
+- **Oct 18, 2026 — Documentation synchronization and Draft release preparation authorized:** verified unchanged develop41f684d8/main60d70ac; copied/screened four pending docs, created codex/release-handoff-docs from develop. Main-only #821 merge tree equals its develop parent; no content loss or history rewrite required. Existing Docker credentials verify all four rollback manifests; GitHub API403 persists, actual VPS/backup/restore evidence missing. Separate docs PR into develop and Draft develop→main PR authorized; neither merge/deploy nor mobile/production mutations authorized.
+
+- **Oct 18, 2026 — Authorized PR #836 merge into develop:** merge commit 41f684d827b05f656b512d00b8c99186975ed94e, parents 9e6bd60/33993416; all 13 required PR checks reverified before merge, no protection bypass. New CI 39107009104 (12/12) and CodeQL 39107008969 (2/2) SUCCESS. Four dirty docs byte-preserved through local develop synchronization, then updated locally; review branch retained. Read-only production assessment and historical rollback digests recorded; fresh backup/current image evidence and future release-PR CI remain gates. Six moderate risks unresolved through Nov 17; no main PR/merge/deploy, mobile distribution, production write or nine-unit stock correction.
+
+- **Oct 18, 2026 — PR #836 opened into develop; all checks green:** pushed only the accepted six commits at 33993416; all 195 GitHub file blobs match. All 13 required contexts + two extra CodeQL analyses SUCCESS (CI 39105213864, CodeQL 39105212841, aggregate 117609554971); mergeable/clean, auto-merge disabled. No failure/corrective commit/rerun. Six Sentry moderates remain unresolved through Nov 17, existing full-tree warnings visible. READY TO MERGE INTO DEVELOP, awaiting explicit approval; no merge/main/mobile/production action. Four local continuity docs remain uncommitted by authorization boundary.
 
 - **Oct 18, 2026 — Local six-commit review preparation:** created `codex/order-integrity-release-review` from develop `9e6bd60`; selectively separated security, integrity, printing, promotion, native QA and documentation. All 195 accepted paths preserved; fresh focused API 135/48, web 278/53/105, Flutter 91/67, types/frozen install and exact CI audit pass. Six moderate residuals remain unresolved through Nov 17; no new exceptions. No push/PR/merge/deploy/upload/production data action. Exact history and next authorization boundary in the existing tracker.
 
