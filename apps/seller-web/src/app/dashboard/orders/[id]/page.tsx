@@ -1,6 +1,6 @@
 'use client';
 
-import { formatFC } from '@teka/shared';
+import { canSellerRejectOrder, formatFC, mergeOrderMutation } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -79,13 +79,18 @@ export default function OrderDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
-  const loadOrder = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
+  // keepError: silent refresh after an action — keeps the current view and any
+  // message shown; a failed re-read then changes nothing.
+  const loadOrder = useCallback(async (opts?: { keepError?: boolean }) => {
+    if (!opts?.keepError) {
+      setIsLoading(true);
+      setError('');
+    }
     try {
       const res = await apiFetch<OrderDetail>(`/v1/sellers/orders/${orderId}`);
       setOrder(res.data);
     } catch (err) {
+      if (opts?.keepError) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -103,15 +108,23 @@ export default function OrderDetailPage() {
   const handleAction = async (action: string, body?: object) => {
     setActionLoading(true);
     try {
-      await apiFetch(`/v1/sellers/orders/${orderId}/${action}`, {
+      const res = await apiFetch<unknown>(`/v1/sellers/orders/${orderId}/${action}`, {
         method: 'PATCH',
         body: body ? JSON.stringify(body) : undefined,
       });
-      loadOrder();
+      // Show the server's answer now (status/payment/timeline), keep the
+      // rest; the silent re-read below then refreshes the full detail.
+      setOrder((prev) => (prev ? mergeOrderMutation(prev, res.data) : prev));
+      loadOrder({ keepError: true });
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
+      // The API's French reason (e.g. the buyer cancelled meanwhile), then the
+      // order as the server now has it, so stale buttons disappear.
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "L'action n'a pas pu être effectuée. Vérifiez votre connexion et réessayez.",
+      );
+      loadOrder({ keepError: true });
     } finally {
       setActionLoading(false);
     }
@@ -172,16 +185,18 @@ export default function OrderDetailPage() {
             >
               {actionLoading ? '...' : 'Confirmer'}
             </button>
-            <button
-              onClick={() => {
-                setShowRejectModal(true);
-                setRejectReason('');
-              }}
-              disabled={actionLoading}
-              className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
-            >
-              Rejeter
-            </button>
+            {canSellerRejectOrder(order) && (
+              <button
+                onClick={() => {
+                  setShowRejectModal(true);
+                  setRejectReason('');
+                }}
+                disabled={actionLoading}
+                className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
+              >
+                Rejeter
+              </button>
+            )}
           </div>
         );
       case 'CONFIRMED':

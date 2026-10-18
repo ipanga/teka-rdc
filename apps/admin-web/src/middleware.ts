@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildPortalCsp, generateNonce } from '@/lib/security-headers';
 
-const protectedRoutes = ['/dashboard'];
+// /documents = printable order documents (P1), outside the dashboard layout.
+const protectedRoutes = ['/dashboard', '/documents'];
 const robotsHeader = 'noindex, nofollow, noarchive';
 
 /**

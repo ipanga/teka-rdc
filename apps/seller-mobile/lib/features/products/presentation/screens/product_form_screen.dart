@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,6 +118,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   bool get _isEditing => widget.product != null;
 
+  /// Stock the edit form is based on, sent as `expectedQuantity`: the API
+  /// refuses (409) an absolute stock edit made on a stale number instead of
+  /// overwriting a sale or cancellation restock. Refreshed after a conflict.
+  int? _stockSnapshot;
+
   /// Set while the form still shows values taken from a similar product.
   ProductFormPrefill? _prefill;
   int _prefilledSpecCount = 0;
@@ -139,6 +145,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             : '');
     _quantityController =
         TextEditingController(text: p?.quantity.toString() ?? '');
+    _stockSnapshot = p?.quantity;
     _selectedCategoryId = p?.categoryId;
     _brandId = p?.brandId;
 
@@ -698,6 +705,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     return '−$pct % · Vous économisez ${formatFcNumber(p - d)} FC';
   }
 
+  static bool _isStockConflict(Object e) =>
+      e is DioException && e.response?.statusCode == 409;
+
+  Future<void> _refreshStockSnapshot() async {
+    try {
+      final fresh = await ref
+          .read(productsRepositoryProvider)
+          .getProduct(widget.product!.id);
+      if (!mounted) return;
+      setState(() {
+        _stockSnapshot = fresh.quantity;
+        _quantityController.text = fresh.quantity.toString();
+      });
+    } catch (_) {
+      // The conflict message is still shown; reopening the form also works.
+    }
+  }
+
   Future<void> _handleSave() async {
     if (_isSaving) return;
     setState(() => _submitted = true);
@@ -751,6 +776,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'quantity': int.parse(_quantityController.text.trim()),
         'condition': productConditionToApi(_condition),
       };
+      // Unchanged field ⇒ quantity == expectedQuantity ⇒ the API writes no stock.
+      if (_isEditing && _stockSnapshot != null) {
+        data['expectedQuantity'] = _stockSnapshot;
+      }
       if (priceUSDCentimes != null) {
         data['priceUSD'] = priceUSDCentimes;
       }
@@ -795,9 +824,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         context.go('/products/${result.id}');
       }
     } catch (e) {
+      if (_isEditing && _isStockConflict(e)) {
+        // Stock moved (order / cancellation) while the form was open: show
+        // the current stock; every other field keeps what the seller typed.
+        await _refreshStockSnapshot();
+      }
       if (mounted) {
         // The API's French reason (intermediate category, inactive category,
-        // promo ≥ price…) rather than a generic line; the form keeps its state.
+        // promo ≥ price, stock changed…) rather than a generic line; the form
+        // keeps its state.
         showAppSnackbar(context,
             message: friendlyErrorMessage(e), tone: AppSnackbarTone.error);
       }

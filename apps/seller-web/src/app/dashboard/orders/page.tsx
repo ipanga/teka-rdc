@@ -1,6 +1,6 @@
 'use client';
 
-import { formatFC } from '@teka/shared';
+import { canSellerRejectOrder, formatFC, mergeOrderMutation } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -129,15 +129,24 @@ export default function OrdersListPage() {
   const handleAction = async (orderId: string, action: string, body?: object) => {
     setActionLoadingId(orderId);
     try {
-      await apiFetch(`/v1/sellers/orders/${orderId}/${action}`, {
+      const res = await apiFetch<unknown>(`/v1/sellers/orders/${orderId}/${action}`, {
         method: 'PATCH',
         body: body ? JSON.stringify(body) : undefined,
       });
+      // The server's new status on that row right away; the reload follows.
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? mergeOrderMutation(o, res.data) : o)),
+      );
       loadOrders();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
+      // Re-read the list first (the order may have been cancelled meanwhile),
+      // then show the API's French reason — the reload clears messages.
+      await loadOrders();
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "L'action n'a pas pu être effectuée. Vérifiez votre connexion et réessayez.",
+      );
     } finally {
       setActionLoadingId(null);
     }
@@ -225,16 +234,18 @@ export default function OrdersListPage() {
             >
               {isLoading ? '...' : 'Confirmer'}
             </button>
-            <button
-              onClick={() => {
-                setRejectingOrderId(order.id);
-                setRejectReason('');
-              }}
-              disabled={isLoading}
-              className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
-            >
-              Rejeter
-            </button>
+            {canSellerRejectOrder(order) && (
+              <button
+                onClick={() => {
+                  setRejectingOrderId(order.id);
+                  setRejectReason('');
+                }}
+                disabled={isLoading}
+                className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
+              >
+                Rejeter
+              </button>
+            )}
           </>
         );
       case 'CONFIRMED':

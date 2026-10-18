@@ -1,6 +1,30 @@
-# Status — 2026-09-27
+# Status — 2026-10-18
 
 ## Active initiative
+
+**Six local review commits prepared on `codex/order-integrity-release-review`**, based on develop `9e6bd60`.
+[Commit/handoff record](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
+All accepted source/tests/tools preserved byte-for-byte. Codex performed selective
+Git staging and independent review; no new implementation was needed. Local branch,
+staging and six commits are authorized. **No push, PR, merge, deploy, signed upload
+or production write is authorized or performed.** GitHub was not contacted.
+
+Fresh focused verification: frozen install/shared build/types PASS; API 135 unit/48
+endpoint; web 278/53/105; Flutter 91/67; analyzers unchanged 7/6 infos. Exact high-severity
+CI audit exit 0; JSON exit 1 with six unresolved moderates and two pre-existing
+excepted highs. Six Sentry/OTel findings remain temporarily risk-accepted through
+**November 17, 2026**, not resolved; full informational tree remains vulnerable.
+Affected drivers absent; tracing can inherit sampled parents. No new exception.
+
+Earlier full API/PG/Node 20 Docker/standalone Sharp/native/browser/PDF evidence
+remains valid because source/dependency bytes did not change during Git preparation.
+Physical store/open-app/native Safari printing, signed mobile distribution and
+exact-candidate remote CI remain outstanding. No schema/env/workflow/signing change.
+Historical nine units remain unproven and untouched. Next: verify clean status and
+six commits; obtain explicit authorization to push the review branch and open its
+PR into develop. Main merge automatically deploys and requires separate approval.
+
+## Previous initiative — Seller Catalogue Speed-up
 
 **Seller Catalogue Speed-up — RELEASED (2026-09-27); PHASE CLOSED.** Physical iPhone validation by the owner: 2 real products cropped and published on Seller 0.1.11. Remaining P2 manual checks: iPhone photo reuse, and one Android phone crop + publish. Tracker: `docs/seller-catalogue-speedup.md`. No implementation work is in flight.
 

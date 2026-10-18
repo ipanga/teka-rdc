@@ -842,9 +842,22 @@ run against production immediately after the deploy job finishes.
 - [ ] CodeQL — `Analyze (javascript-typescript)` and `Analyze (actions)`
 - [ ] PRs to `main` additionally run `pr-validation.yml` (`docker-build-check` ×4)
 
-> Branch protection is **not enforced** on this repository (private repo on the free plan;
-> `scripts/ruleset-main.json` is committed but unapplied), so these are verified by reading the PR's
-> checks, not by GitHub blocking the merge. The pre-push hook is the only automatic guard on `main`.
+> Read-only GitHub verification on **2026-10-18** reports active, effective repository rulesets
+> for both `main` and `develop`: PR required, merge commits only, no force push/deletion, and
+> required CI contexts with no bypass actors. The classic branch-protection endpoint returns
+> 404 because the protection is provided by rulesets; that does not establish an unprotected branch.
+> Re-check the live rules and PR results before every release. `CodeQL` is the separate aggregate
+> code-scanning PR result, alongside default-setup `Analyze (javascript-typescript)` and
+> `Analyze (actions)` jobs. Read-only verification on PR824 confirmed all three successful,
+> including [the aggregate](https://github.com/ipanga/teka-rdc/runs/108698421845).
+> A commit-only check listing can omit the PR aggregate; no check rename/bypass is needed.
+> Source: [Protect main](https://github.com/ipanga/teka-rdc/rules/15451167),
+> [Protect develop](https://github.com/ipanga/teka-rdc/rules/22732572).
+>
+> **A merge/push to `main` automatically triggers `deploy.yml`**, independently of the CI workflow;
+> there is no separate production-environment approval in that workflow. Obtain explicit production
+> deployment authorization before merging, after the reviewed PR head has passed all required checks.
+> Mobile release workflows remain separately dispatched and approval-gated.
 
 ### MANUAL — before and around the merge
 

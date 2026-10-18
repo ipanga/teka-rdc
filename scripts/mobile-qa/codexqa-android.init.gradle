@@ -1,0 +1,133 @@
+// Gradle INIT SCRIPT — local, opt-in Android QA packages for the native
+// integration harness. Applied ONLY when passed explicitly
+// (`./gradlew -I scripts/mobile-qa/codexqa-android.init.gradle …`, normally via
+// scripts/mobile-qa/build_android_qa_apk.dart). Nothing in the tracked build
+// (build.gradle.kts, manifests, flavors, signing) changes.
+//
+// Effect, on the `development` + `debug` variant only:
+//   buyer  com.tootiye.teka       → applicationId com.tootiye.teka.codexqa.dev,       label « Teka QA »
+//   seller com.tootiye.tekaseller → applicationId com.tootiye.tekaseller.codexqa.dev, label « Teka Vendeur QA »
+// so the QA APK installs NEXT TO the existing .dev apps (different package,
+// own data directory) instead of replacing them. Namespace (R class, code
+// package) is unchanged; signing is the build's debug key (release tasks are
+// refused, so key.properties is never used).
+//
+// Also, for that variant only:
+//   * process*GoogleServices tasks are disabled AND the variant's task output
+//     is re-pointed to a fresh empty directory, so no Firebase configuration
+//     resource (google_app_id, …) is packaged — not even stale output of an
+//     earlier normal .dev build. google-services.json is neither read nor
+//     replaced. Without google_app_id, the Firebase SDK's FirebaseInitProvider
+//     (a native manifest provider) cannot initialise a default app; the test
+//     launchers never initialise Firebase from Dart either (push controller
+//     unbound). build_android_qa_apk.dart verifies the APK and refuses it if
+//     any such resource is present.
+//   * buyer App Links host placeholder → codexqa.invalid, so the QA app never
+//     claims dev.teka.cd links (the teka:// fallback scheme stays declared).
+//
+// FAIL-CLOSED (checked before any project is configured):
+//   * -PtekaQaPackage=codexqa must be set;
+//   * the only requested task may be assembleDevelopmentDebug;
+//   * the Flutter dart-defines must contain FLAVOR=development,
+//     TEKA_QA_ENABLED=true and an API_BASE_URL on 10.0.2.2 / 127.0.0.1 /
+//     localhost. Values are never printed.
+
+import org.gradle.api.GradleException
+
+// Included builds (e.g. Flutter's own Gradle plugin build) share the script:
+// guard and configure the main build only.
+if (gradle.parent != null) return
+
+def QA_BY_NAMESPACE = [
+    'com.tootiye.teka'      : [id: 'com.tootiye.teka.codexqa.dev', label: 'Teka QA', appLinks: true],
+    'com.tootiye.tekaseller': [id: 'com.tootiye.tekaseller.codexqa.dev', label: 'Teka Vendeur QA', appLinks: false],
+]
+def ALLOWED_TASKS = ['assembleDevelopmentDebug', ':app:assembleDevelopmentDebug'] as Set
+def ALLOWED_HOSTS = ['10.0.2.2', '127.0.0.1', 'localhost'] as Set
+
+def refuse = { String why ->
+    throw new GradleException("[codexqa] Build QA refusé : ${why}")
+}
+
+gradle.rootProject { root ->
+    if (root.findProperty('tekaQaPackage') != 'codexqa') {
+        refuse('-PtekaQaPackage=codexqa requis (activation explicite).')
+    }
+    def tasks = gradle.startParameter.taskNames
+    if (tasks.isEmpty() || !tasks.every { ALLOWED_TASKS.contains(it) }) {
+        refuse('seule la tâche assembleDevelopmentDebug est autorisée.')
+    }
+    def defines = [:]
+    (root.findProperty('dart-defines') ?: '').toString().split(',').findAll { it }.each { item ->
+        def kv
+        try {
+            kv = new String(item.decodeBase64(), 'UTF-8')
+        } catch (ignored) {
+            refuse('dart-defines illisibles.')
+        }
+        def i = kv.indexOf('=')
+        if (i > 0) defines[kv.substring(0, i)] = kv.substring(i + 1)
+    }
+    if (defines['FLAVOR'] != 'development') refuse('FLAVOR=development requis.')
+    if (defines['TEKA_QA_ENABLED'] != 'true') refuse('TEKA_QA_ENABLED=true requis.')
+    def host = null
+    try {
+        host = new URI((defines['API_BASE_URL'] ?: '').toString()).host
+    } catch (ignored) {
+        host = null
+    }
+    if (!ALLOWED_HOSTS.contains(host)) {
+        refuse('API_BASE_URL doit viser 10.0.2.2, 127.0.0.1 ou localhost.')
+    }
+}
+
+gradle.allprojects { p ->
+    if (p.path != ':app') return
+
+    // Not a Firebase client: skip google-services generation (no json read).
+    p.tasks.configureEach { t ->
+        if (t.name ==~ /process\w*GoogleServices/) t.enabled = false
+    }
+
+    // Disabling the task is NOT enough: AGP wires the task's outputDirectory
+    // (build/generated/res/process<Variant>GoogleServices — populated by an
+    // earlier NORMAL .dev build) into the variant's res sources, and the
+    // merge reads whatever is already there. Re-point that output to a fresh,
+    // task-owned EMPTY directory that no normal build ever writes. The stale
+    // directory is not read, modified or deleted.
+    //
+    // Ordering: registered in projectsEvaluated, i.e. after every
+    // androidComponents callback — including the google-services plugin's
+    // `addGeneratedSourceDirectory` wiring, which sets the property in its
+    // own configure action — so this action runs LAST when the task is
+    // realised. The merge task reads the property lazily at execution, so it
+    // sees the empty directory.
+    gradle.projectsEvaluated {
+        p.tasks.matching { it.name == 'processDevelopmentDebugGoogleServices' }.configureEach { t ->
+            def empty = p.layout.buildDirectory
+                .dir("generated/codexqa/empty-google-services-res/${t.name}").get().asFile
+            empty.mkdirs() // creates an empty directory only
+            t.outputDirectory.set(empty)
+            p.logger.lifecycle("[codexqa] ${t.name} : sortie redirigée vers un répertoire vide (tâche désactivée)")
+        }
+    }
+
+    p.plugins.withId('com.android.application') {
+        def components = p.extensions.getByName('androidComponents')
+        components.onVariants(components.selector().all()) { v ->
+            if (v.flavorName != 'development' || v.buildType != 'debug') return
+            def namespace = p.extensions.getByName('android').namespace
+            def qa = QA_BY_NAMESPACE[namespace]
+            if (qa == null) refuse('namespace Android inattendu.')
+            v.applicationId.set(qa.id)
+            // ResValue is resolved at runtime from AGP (no compile-time import).
+            def resValue = v.getClass().classLoader
+                .loadClass('com.android.build.api.variant.ResValue')
+                .getConstructor(String, String)
+                .newInstance(qa.label, 'codexqa QA package')
+            v.resValues.put(v.makeResValueKey('string', 'app_name'), resValue)
+            if (qa.appLinks) v.manifestPlaceholders.put('appLinkHost', 'codexqa.invalid')
+            p.logger.lifecycle("[codexqa] ${v.name} → ${qa.id} « ${qa.label} »")
+        }
+    }
+}

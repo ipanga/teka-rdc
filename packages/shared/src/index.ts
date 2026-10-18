@@ -34,6 +34,8 @@ export * from './validators/product.validator';
 export * from './types/cart';
 export * from './types/order';
 export * from './constants/order';
+export * from './constants/order-eligibility';
+export * from './utils/order-mutation';
 export * from './constants/delivery';
 export * from './validators/cart.validator';
 export * from './validators/order.validator';

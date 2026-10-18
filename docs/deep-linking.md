@@ -158,3 +158,23 @@ SHA-256 in `assetlinks.json`; iOS requires the Associated Domains capability on 
 3. Ensure the target go_router route exists (id/slug-friendly).
 4. If it should open the app from a notification, it already works (the parser backs `NotificationRouter`'s
    `url`). No manifest/AASA change unless you narrow the claimed paths.
+
+## Web → app promotion (buyer-web, M1 2026-10)
+
+`AppPromoBanner` (`apps/buyer-web/src/components/layout/app-promo-banner.tsx`, rules in `src/lib/app-promo.ts`)
+suggests the app to **signed-in BUYERs on phones only** (UA names an iPhone — not iPod — or an Android phone **and**
+the primary pointer is coarse **and** the screen's short side is < 600 px). Guests, sellers and admins never see it;
+iPad/iPadOS, Android tablets and desktops are excluded by that heuristic, which spoofed UAs, "desktop site" modes,
+foldables or unusual screens can still defeat (accepted limitation). It is in-flow just above the footer (mounted by
+`<Footer>`), renders nothing on the server, and
+is suppressed on `/connexion`, `/reclamer-compte`, `/panier`, `/paiement` (incl. success / payment-pending).
+Close or store tap → hidden 30 days (`localStorage` `teka_app_promo_dismissed_at`; in-memory for the visit when
+storage is blocked). Links: the verified App Store / Google Play listings. No analytics.
+
+Deliberately **not** used: Apple's Smart App Banner — adding `apple-itunes-app` to the existing root metadata would
+show it unconditionally (guests, iPad, auth/checkout paths), conflicting with these rules, and it covers Safari only;
+one shared custom prompt applies the same auth/route rules to every iOS browser and Android (a session-aware
+server-rendered meta is possible but would duplicate the rules and still miss iOS Chrome/Android). Nor any custom
+URL scheme. The copy never promises
+« ouvrir l'application »: installation cannot be detected from the web; opening an installed app stays the job of the
+App Links / Universal Links above (a same-domain navigation in Safari does not trigger them).

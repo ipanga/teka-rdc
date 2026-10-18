@@ -80,6 +80,36 @@ function getCookie(name: string): string | null {
   return decodeURIComponent(match.slice(name.length + 1)) || null;
 }
 
+// localStorage is an optional cache of the town. It can be missing or throw
+// on ANY access — including merely reading `window.localStorage` (Safari
+// private mode, blocked site data, embedded webviews: SecurityError). The
+// homepage calls initFromStorage() on mount, so an unguarded access crashed it
+// into the error boundary. These never throw; the in-memory store + cookie +
+// profile keep working without storage.
+function storageGet(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storageSet(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // blocked / quota — the selection still lives in memory + cookie
+  }
+}
+
+function storageRemove(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // blocked — nothing to remove that we could read anyway
+  }
+}
+
 /** Persist the selected town to the user profile when authenticated. */
 function persistTownToProfile(cityId: string | null) {
   if (!useAuthStore.getState().user) return; // guests: cookie + localStorage only
@@ -96,8 +126,8 @@ export const useCityStore = create<CityState>((set, get) => {
   // (the value already came from the server — no need to PATCH it back).
   const applyCity = (city: City, persistProfile: boolean) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, city.id);
-      localStorage.setItem(STORAGE_CITY_KEY, JSON.stringify(city));
+      storageSet(STORAGE_KEY, city.id);
+      storageSet(STORAGE_CITY_KEY, JSON.stringify(city));
       setCookie(COOKIE_CITY, city.id, COOKIE_MAX_AGE);
       // Choosing a town counts as being prompted.
       setCookie(COOKIE_PROMPTED, '1', COOKIE_MAX_AGE);
@@ -116,8 +146,8 @@ export const useCityStore = create<CityState>((set, get) => {
 
     clearCity: () => {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STORAGE_CITY_KEY);
+        storageRemove(STORAGE_KEY);
+        storageRemove(STORAGE_CITY_KEY);
         deleteCookie(COOKIE_CITY);
       }
       persistTownToProfile(null);
@@ -155,7 +185,7 @@ export const useCityStore = create<CityState>((set, get) => {
 
     initFromStorage: () => {
       if (typeof window === 'undefined') return;
-      const stored = localStorage.getItem(STORAGE_CITY_KEY);
+      const stored = storageGet(STORAGE_CITY_KEY);
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as unknown;
@@ -176,13 +206,13 @@ export const useCityStore = create<CityState>((set, get) => {
             setCookie(COOKIE_CITY, city.id, COOKIE_MAX_AGE);
             set({ selectedCity: city });
           } else {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(STORAGE_CITY_KEY);
+            storageRemove(STORAGE_KEY);
+            storageRemove(STORAGE_CITY_KEY);
           }
         } catch {
           // Invalid JSON, clear it
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem(STORAGE_CITY_KEY);
+          storageRemove(STORAGE_KEY);
+          storageRemove(STORAGE_CITY_KEY);
         }
       }
     },
