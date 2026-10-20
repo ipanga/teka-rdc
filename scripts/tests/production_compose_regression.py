@@ -23,8 +23,10 @@ import subprocess
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PASSWORD = 'p@ss:w/rd$x"\'%'
-DB_URL = ('postgresql://congofoot_user_teka_rdc:' + PASSWORD.replace('%', '%25').replace('@', '%40')
+# Public, hard-coded test fixture (not a credential): exercises URL/libpq escaping
+# of special characters in the userinfo field of a synthetic DB URL.
+SYNTHETIC_FIXTURE_USERINFO = 'p@ss:w/rd$x"\'%'
+DB_URL = ('postgresql://congofoot_user_teka_rdc:' + SYNTHETIC_FIXTURE_USERINFO.replace('%', '%25').replace('@', '%40')
           .replace(':', '%3A').replace('/', '%2F').replace('"', '%22').replace("'", '%27')
           + '@10.77.0.3:5433/teka_prod?sslmode=require&sslaccept=strict&sslcert=%2Frun%2Fteka-db-ca%2Fca.crt')
 CA_BYTES = b'-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n'
@@ -81,8 +83,11 @@ def compose_tests(tmp):
         if os.path.exists(runtime):
             os.chmod(runtime, 0o600)
         escaped = {k: v.replace('$', '$$') for k, v in e.items()}
-        open(runtime, 'w').write(json.dumps({'services': {'api': {'environment': escaped}}}))
-        os.chmod(runtime, 0o600)
+        # Create 0600 before any bytes are written (mode applies only on creation;
+        # an existing file was restored to 0600 above).
+        fd = os.open(runtime, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            f.write(json.dumps({'services': {'api': {'environment': escaped}}}))
 
     pc.TRUST_ROOT, pc.PROJECT_DIR, pc.CONF_DIR, pc.RUNTIME, pc.CA = tmp, proj, conf, runtime, ca
     pc.CA_SHA256 = hashlib.sha256(CA_BYTES).hexdigest()
@@ -224,13 +229,13 @@ def node_tests(tmp):
     env_part, _, args_part = res['out'].partition('ARGS\n')
     child = dict(line.split('=', 1) for line in env_part.splitlines() if '=' in line)
     check('psql exit 0 propagated', res['ok'] == 0)
-    check('special password preserved via PGPASSWORD', child.get('PGPASSWORD') == PASSWORD)
+    check('special password preserved via PGPASSWORD', child.get('PGPASSWORD') == SYNTHETIC_FIXTURE_USERINFO)
     check('libpq target + verify-full set', child.get('PGHOST') == '10.77.0.3' and child.get('PGPORT') == '5433'
           and child.get('PGDATABASE') == 'teka_prod' and child.get('PGUSER') == 'congofoot_user_teka_rdc'
           and child.get('PGSSLMODE') == 'verify-full')
     check('ambient PGHOSTADDR/PGSERVICE/PGOPTIONS + DATABASE_URL dropped',
           not {'PGHOSTADDR', 'PGSERVICE', 'PGOPTIONS', 'DATABASE_URL'} & set(child))
-    check('no credentials in psql argv', PASSWORD not in args_part and 'postgresql://' not in args_part
+    check('no credentials in psql argv', SYNTHETIC_FIXTURE_USERINFO not in args_part and 'postgresql://' not in args_part
           and args_part.splitlines()[0] == '-X')
     check('TLS downgrade / routing arg / bad migration name rejected without spawn',
           res['downgrade'] == 2 and res['routing'] == 2 and res['badName'] == 2 and not res['spawnedAfterRejects'])
@@ -239,7 +244,7 @@ def node_tests(tmp):
     check('runner ON_ERROR_STOP=1 is the last psql arg', args_part.splitlines()[-2:] == ['-v', 'ON_ERROR_STOP=1'])
     check('-c query stdout kept, stdin SQL stdout suppressed',
           res['stdinSql'] == 0 and 'ROW-query' in r.stdout and 'ROW-stdin' not in r.stdout)
-    check('no secrets on runner stderr', PASSWORD not in r.stderr and 'postgresql://' not in r.stderr)
+    check('no secrets on runner stderr', SYNTHETIC_FIXTURE_USERINFO not in r.stderr and 'postgresql://' not in r.stderr)
 
 
 if __name__ == '__main__':
