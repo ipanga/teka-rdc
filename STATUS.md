@@ -1,6 +1,51 @@
-# Status — 2026-10-18
+# Status — 2026-10-21
 
 ## Active initiative
+
+**Durable PostgreSQL/TLS integration published for review — PR #842.**
+[PR #842](https://github.com/ipanga/teka-rdc/pull/842) targets `develop` from
+`codex/durable-postgres-tls`, based directly on
+`41f684d827b05f656b512d00b8c99186975ed94e`. It contains only the reviewed durable
+runtime/TLS, deployment/SQL guards, focused tests and scoped activation handoff.
+PR #840 remains a separate documentation PR; draft release PR #841 is untouched.
+The original checkout and unrelated local infrastructure/history remain preserved.
+
+Implementation commit `17f8b646c67beeb3f4bdf7cb3658910ec6b66973` passed all
+**15 GitHub checks, including all 13 required contexts**, Release Config and
+both CodeQL analyses. Codex inspected the actual Release Config regression and
+Dependency Audit steps. [CI run](https://github.com/ipanga/teka-rdc/actions/runs/39507233275),
+[CodeQL run](https://github.com/ipanga/teka-rdc/actions/runs/39507228913).
+The high-severity production audit gate passed; the informational full-tree
+report and six unresolved Sentry/OpenTelemetry moderate findings are not erased
+by a green gate. The accepted review deadline remains2026-11-17.
+The final documentation-only commit is subject to the same required checks;
+[latest publication-head results](https://github.com/ipanga/teka-rdc/pull/842/checks)
+are authoritative for that commit. No checks were weakened or manually bypassed.
+
+No merge, deployment or operational hold release is authorized. Normal deploy,
+SQL migration, seed/backfill and PR #841 holds remain. Next: obtain separate merge
+approval, promote the guarded integration through an approved release to `main`,
+then explicitly authorize resumption of the relevant workflows. This publication
+has not contacted production or changed runtime, database, backups or credentials.
+
+Durable production activation is independently verified PASS: only the API was
+recreated using its existing immutable image, with the complete environment
+preserved, strict Hetzner TLS, pinned canonical read-only CA and public HTTP200.
+The saved receipt completed2026-10-20 22:07:16UTC (2026-10-21 00:07:16 local),
+SHA256 `dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`.
+Hetzner `16/teka-prod`, `teka_prod`,10.77.0.3:5433 is the sole authority;
+Alwaysdata is stale and must never be selected as rollback. Original NO-GO,
+protected runtime/CA, backups and Hetzner-only configuration rollback remain intact.
+
+This PR changes only deployment/runtime wiring, strict libpq SQL execution,
+focused tests and this handoff. It executes no production operations. All normal
+deployment, SQL migration, seed/backfill and PR #841 holds persist. No merge or
+hold release is authorized. Six moderate Sentry/OpenTelemetry findings remain
+unresolved and temporarily accepted through2026-11-17; existing QA/device
+limitations, collation warning and unproven nine-unit stock issue are unchanged.
+[Activation evidence, metadata updates and rollback](docs/deployment.md#post-p2-durable-database-integration--2026-10-20).
+
+## Prior project history (superseded by the current handoff)
 
 **Six local review commits prepared on `codex/order-integrity-release-review`**, based on develop `9e6bd60`.
 [Commit/handoff record](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
