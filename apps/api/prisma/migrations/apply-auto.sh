@@ -3,8 +3,9 @@
 #
 # Runs INSIDE the api container (deploy.yml invokes it via a one-off
 # `docker compose run --rm --no-deps api sh prisma/migrations/apply-auto.sh`
-# from the freshly-pulled new image, BEFORE the rolling swap). node, psql and
-# DATABASE_URL (from env_file: .env.production) are all present here.
+# from the freshly-pulled new image, BEFORE the rolling swap). node, psql,
+# DATABASE_URL and the PG TLS env/CA (host canonical api runtime, see
+# docker-compose.db-tls.yml) are all present here.
 #
 # For each file listed in prisma/migrations/manual/auto-apply.list it:
 #   - skips the file if already recorded in the `_manual_migrations` table,
@@ -26,21 +27,13 @@ if [ ! -f "$MANIFEST" ]; then
   exit 0
 fi
 
-# Parse DATABASE_URL with Node (JS URL decodes an @ in the password correctly;
-# libpq does not) and export the unambiguous PG* vars psql reads. Same proven
-# approach as apply-migration.yml — here in a standalone script the node body
-# is single-quoted so its JSON.stringify double-quotes need no escaping.
-eval "$(node -e '
-  const u = new URL(process.env.DATABASE_URL);
-  console.log("export PGHOST=" + JSON.stringify(u.hostname));
-  console.log("export PGPORT=" + JSON.stringify(u.port || "5432"));
-  console.log("export PGUSER=" + JSON.stringify(decodeURIComponent(u.username)));
-  console.log("export PGPASSWORD=" + JSON.stringify(decodeURIComponent(u.password)));
-  console.log("export PGDATABASE=" + JSON.stringify(u.pathname.slice(1).replace(/\?.*/, "")));
-')"
+# Every psql call goes through the shared runner: it validates DATABASE_URL
+# (approved target + strict TLS + pinned CA) and hands psql only libpq env
+# vars — no eval, no credentials in argv, psql errors suppressed.
+PSQL="node prisma/migrations/production-psql.cjs"
 
 # Audit + once-only bookkeeping table.
-psql -v ON_ERROR_STOP=1 -q -c \
+$PSQL -v ON_ERROR_STOP=1 -q -c \
   "CREATE TABLE IF NOT EXISTS _manual_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());"
 
 applied_count=0
@@ -58,7 +51,7 @@ while IFS= read -r raw || [ -n "$raw" ]; do
   fi
 
   # Skip if already applied (recorded). psql -tAqc → bare "1" or empty.
-  already=$(psql -tAqc "SELECT 1 FROM _manual_migrations WHERE filename = '$file'")
+  already=$($PSQL -tAqc"SELECT 1 FROM _manual_migrations WHERE filename = '$file'")
   if [ "$already" = "1" ]; then
     echo "  ✓ already applied, skipping: $file"
     skipped_count=$((skipped_count + 1))
@@ -66,10 +59,10 @@ while IFS= read -r raw || [ -n "$raw" ]; do
   fi
 
   echo "  ▶ applying: $file"
-  psql -v ON_ERROR_STOP=1 -q -f "$path"
+  $PSQL -v ON_ERROR_STOP=1 -q -f "$path"
   # Record only after the file succeeded. Non-atomic with the file on purpose:
   # if this INSERT somehow fails, the idempotent file simply re-runs next deploy.
-  psql -v ON_ERROR_STOP=1 -q -c \
+  $PSQL -v ON_ERROR_STOP=1 -q -c \
     "INSERT INTO _manual_migrations (filename) VALUES ('$file') ON CONFLICT (filename) DO NOTHING;"
   echo "  ✓ applied: $file"
   applied_count=$((applied_count + 1))

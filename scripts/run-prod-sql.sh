@@ -1,48 +1,36 @@
 #!/usr/bin/env bash
-# Run an arbitrary SQL file against the prod DB.
+# Run SQL against the prod DB through the running api container.
 #
-# The DATABASE_URL in .env.production has a literal `@` in the password,
-# which Prisma accepts but libpq (psql/pg_dump) rejects unless the password
-# is URL-encoded. This wrapper reads .env.production, percent-encodes the
-# password, and pipes the SQL into a one-shot postgres:16-alpine container.
+# Goes through scripts/production-compose.py (validated runtime/CA/target) and
+# the shared runner apps/api/prisma/migrations/production-psql.cjs, passed as
+# `node -e <public code>` so it also works on api images that predate the file.
+# The runner reads DATABASE_URL inside the container, verifies the approved
+# target + strict TLS + CA pin and gives psql only libpq env vars: no
+# credentials in argv, no eval, no extra container. psql errors are suppressed
+# (they can echo customer rows); the exit status is preserved.
 #
-# Usage (run from /home/deploy/teka-rdc on the VPS):
-#   bash scripts/run-prod-sql.sh /path/to/file.sql
-#
-# Reads .env.production from the current working directory.
+# Usage (on the app host; files synced by the deploy workflow):
+#   bash scripts/run-prod-sql.sh /path/to/file.sql     # SQL via stdin, ON_ERROR_STOP
+#   bash scripts/run-prod-sql.sh --migration <file.sql>
+#       applies prisma/migrations/manual/<file.sql> bundled in the running api
+#       image and records it in _manual_migrations (apply-migration ledger).
 
 set -euo pipefail
 
-SQL_FILE="${1:-}"
-if [[ -z "$SQL_FILE" || ! -f "$SQL_FILE" ]]; then
-  echo "Usage: $0 <sql-file>" >&2
+if [[ "${1:-}" == "--migration" && $# -eq 2 ]]; then
+  ARGS=(--migration "$2")
+  exec </dev/null
+elif [[ $# -eq 1 && -f "$1" ]]; then
+  ARGS=(-v ON_ERROR_STOP=1)
+  exec <"$1"   # open before cd so relative paths keep working
+else
+  echo "Usage: $0 <sql-file> | --migration <file.sql>" >&2
   exit 1
 fi
 
-if [[ ! -f .env.production ]]; then
-  echo "ERROR: .env.production not found in $(pwd)" >&2
-  exit 1
-fi
+cd "$(dirname "$0")/.."
+RUNNER="apps/api/prisma/migrations/production-psql.cjs"
+[[ -f "$RUNNER" ]] || { echo "ERROR: $RUNNER not found" >&2; exit 1; }
+CODE="$(cat "$RUNNER")"
 
-DB_ENC=$(python3 - <<'PY'
-import re, urllib.parse
-t = open('.env.production').read()
-m = re.search(r'^DATABASE_URL=(.+)$', t, re.M)
-if not m:
-    raise SystemExit("DATABASE_URL not found in .env.production")
-u = m.group(1).strip().strip('"').strip("'")
-i = u.find('://') + 3
-rest = u[i:]
-at = rest.rfind('@')
-userinfo, host = rest[:at], rest[at+1:]
-colon = userinfo.find(':')
-user, pwd = userinfo[:colon], userinfo[colon+1:]
-print(u[:i] + user + ':' + urllib.parse.quote(pwd, safe='') + '@' + host, end='')
-PY
-)
-
-exec docker run --rm -i \
-  -e DATABASE_URL="$DB_ENC" \
-  postgres:16-alpine \
-  sh -c 'psql "$DATABASE_URL"' \
-  < "$SQL_FILE"
+exec python3 scripts/production-compose.py exec -T api node -e "$CODE" -- "${ARGS[@]}"

@@ -154,16 +154,18 @@ jobs:
       # `.env.production` (Orange creds removed by the operator) — api
       # crash-looped on config validation.
       #
-      # Scope: compose file only for now. Other VPS-mounted config files
-      # (nginx/nginx.prod.conf, certbot data, .env.production itself) are
-      # still operator-managed.
-      - name: Sync docker-compose.prod.yml to VPS
+      # Scope: public repo files only — compose base + DB-TLS layer, the
+      # validated Compose helper, the host SQL wrapper and the shared psql
+      # runner (paths preserved under the target). Other VPS config (nginx,
+      # certbot data, .env.production, the canonical api runtime + CA under
+      # /home/deploy/.config/teka-rdc/) stays operator-managed.
+      - name: Sync production compose files and helpers to VPS
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.prod.yml
+          source: docker-compose.prod.yml,docker-compose.db-tls.yml,scripts/production-compose.py,scripts/run-prod-sql.sh,apps/api/prisma/migrations/production-psql.cjs
           target: /home/deploy/teka-rdc/
 
       - name: SSH rolling deploy
@@ -185,34 +187,20 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" \
               | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Export SENTRY_RELEASE so docker-compose.prod.yml's
-            # `${SENTRY_RELEASE:-}` interpolation on all 4 services
-            # (api + 3 webs) picks up the deploy SHA. Sentry's UI then
-            # groups errors per-release (Releases tab) so we can see
-            # when a regression first appeared.
+            # Export SENTRY_RELEASE so the 3 web services' `${SENTRY_RELEASE:-}`
+            # interpolation picks up the deploy SHA (Sentry Releases tab).
+            # The api's whole environment comes from the host canonical
+            # runtime. Its release is stamped through --set-release below;
+            # PostHog/review secrets remain private protected runtime edits.
             export SENTRY_RELEASE="${{ github.sha }}"
             export SENTRY_ENVIRONMENT="production"
 
-            # Server-side PostHog key (runtime secret, not a build-arg). The
-            # api service in docker-compose.prod.yml reads `${POSTHOG_API_KEY:-}`
-            # from this exported value. Same publishable phc_ project key as
-            # the web NEXT_PUBLIC_POSTHOG_KEY_* build-args.
-            export POSTHOG_API_KEY="${{ secrets.POSTHOG_API_KEY }}"
-
-            # App-store review login toggle + allowlisted account. Read from
-            # GitHub Secrets so the flag flips without touching the VPS
-            # .env.production. Unset secrets render empty → the api's
-            # ${APP_REVIEW_LOGIN_ENABLED:-false} / empty-phone defaults keep the
-            # scoped login OFF. Set the secret to `true` for a review window.
-            export APP_REVIEW_LOGIN_ENABLED="${{ secrets.APP_REVIEW_LOGIN_ENABLED }}"
-            export APP_REVIEW_BUYER_PHONE_E164="${{ secrets.APP_REVIEW_BUYER_PHONE_E164 }}"
-            export APP_REVIEW_BUYER_OTP="${{ secrets.APP_REVIEW_BUYER_OTP }}"
-
-            # `--env-file .env.production` handles yaml interpolation for every
-            # compose invocation below. We do NOT shell-source the file:
-            # `.env.production` is compose-format (unquoted values with spaces
-            # are legal) and blows up under `sh -c . file` sourcing.
-            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+            # Every Compose/rollout call goes through the validated helper:
+            # fixed `--env-file .env.production -f docker-compose.prod.yml`,
+            # project teka-rdc, and the api runtime/DB target/TLS/CA checked
+            # before each operation (fail closed, no secrets printed).
+            COMPOSE="python3 scripts/production-compose.py"
+            $COMPOSE --check
             $COMPOSE pull
 
             # ------------------------------------------------------------------
@@ -263,6 +251,20 @@ jobs:
             docker rollout --help >/dev/null
 
             # ------------------------------------------------------------------
+            # Stamp the api's SENTRY_RELEASE (ONLY that key) in the protected
+            # canonical runtime right before the api swap. The helper keeps a
+            # 0600 backup of the previous runtime under ~/.config/teka-rdc/,
+            # replaces atomically and restores on failed validation.
+            # FAILURE PROCEDURE: if the rollout below fails, keep the deployment
+            # and SQL holds in place and reconcile SENTRY_RELEASE with the image
+            # that is still serving (use the saved protected previous runtime /
+            # printed previous release, via `--set-release <old-sha>`) BEFORE any
+            # manual recreation. Never restore a DB URL/config from an old
+            # environment file.
+            # ------------------------------------------------------------------
+            $COMPOSE --set-release "${{ github.sha }}"
+
+            # ------------------------------------------------------------------
             # Zero-downtime rolling updates. Order matters:
             #   1. api first — web apps depend on it via the private network.
             #   2. buyer-web, seller-web, admin-web afterwards (independent).
@@ -281,7 +283,9 @@ jobs:
                 echo "  no running container for $svc — starting fresh"
                 $COMPOSE up -d --no-deps "$svc"
               else
-                docker rollout -f docker-compose.prod.yml -t 180 --wait 10 "$svc"
+                # = docker rollout --env-file .env.production
+                #   -f docker-compose.prod.yml -t 180 --wait 10 "$svc"
+                $COMPOSE --rollout "$svc"
               fi
             done
 

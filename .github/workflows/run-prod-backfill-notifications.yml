@@ -62,7 +62,10 @@ jobs:
 
             cd /home/deploy/teka-rdc
 
-            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+            # Validated wrapper (fixed files/project; api runtime, DB target/TLS
+            # and CA checked before every call). Fail closed up front.
+            COMPOSE="python3 scripts/production-compose.py"
+            $COMPOSE --check
 
             # Resolve tsx robustly — same three-way fallback as run-prod-seed.yml
             # (pnpm's symlink chain can be broken by the multi-stage COPY).
