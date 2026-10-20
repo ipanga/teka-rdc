@@ -227,8 +227,8 @@ jobs:
   release-config:
     name: Release Config
     runs-on: ubuntu-latest
-    # This job only reads the checkout and runs a Ruby script — no token use at
-    # all. Scoped explicitly (the other jobs in this file predate the
+    # This job only reads the checkout and runs local Ruby/shell/Python checks
+    # (runner-provided python3, node and docker compose) — no token use at all. Scoped explicitly (the other jobs in this file predate the
     # convention and are left alone).
     permissions:
       contents: read
@@ -260,3 +260,10 @@ jobs:
       - name: Auto-apply migration manifest
         working-directory: apps/api
         run: sh prisma/migrations/check-manifest.sh
+      # Production DB wiring: helper validation (runtime, parents, live api
+      # inspect stubbed), effective `compose config` (no daemon, no
+      # containers) and the psql runner arg/stdout guards with a stub psql.
+      - name: Production Compose / psql regression
+        run: |
+          python3 -B scripts/tests/production_compose_regression.py
+          python3 -B scripts/tests/production_metadata_regression.py
