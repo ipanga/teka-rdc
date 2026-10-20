@@ -1,5 +1,52 @@
 # Teka RDC — Development Progress
 
+## Isolated durable main integration — 2026-10-21
+
+**Isolated main integration PR #843 — REVIEW ONLY / RELEASE BLOCKED.**
+[PR #843](https://github.com/ipanga/teka-rdc/pull/843) targets `main` from
+`codex/durable-postgres-tls-main`, based directly on
+`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. Scope:13 integration/CI/test files
+and three existing handoff documents. No PR #841 application/dependency/mobile
+changes, SQL migration contents or historical QA artifact transplant.
+
+PR #842 merged into `develop` with merge commit
+`e58cc99895ba9ed30083ae2d54664393745564b1`, parents41f684d8/aa202347, after
+all15 final-head checks/all13 required contexts passed. Post-merge push
+[CI39508791377](https://github.com/ipanga/teka-rdc/actions/runs/39508791377)
+passed12/12. The two CodeQL analyses succeeded, but the aggregate failed with
+[alert27](https://github.com/ipanga/teka-rdc/security/code-scanning/27),
+`py/clear-text-storage-sensitive-data`, on the hard-coded synthetic fixture.
+It is classified as test code, not a demonstrated production secret exposure.
+Opus5.5/Max made a test-only correction in PR843: explicit synthetic fixture
+naming, unchanged bytes/assertions, and0600 creation before writing. Codex
+reviewed it and the affected existing29-check regression passed. No alert
+suppression/dismissal or CI-policy change. The original develop SHA/alert is
+preserved; backport/merge of any correction needs separate authorization.
+
+Initial main CI confirms the production dependency audit is a release blocker:
+unchanged main package/lock files report **1 critical,11 high (2 existing
+ignores),13 moderate,5 low**. The critical includes proxy-addr
+GHSA-jqcg-44mw-7w3h. The full-tree report counts46 findings (3 critical,
+15 high including2 ignores,21 moderate,7 low); it is informational, not a clean
+bill of health. No new exceptions or dependency changes. Existing accepted
+six-moderate develop residuals do not accept these main critical/high findings.
+[Initial main CI](https://github.com/ipanga/teka-rdc/actions/runs/39509129103).
+Final-head checks and main-only build validation are reported in
+[PR843 checks](https://github.com/ipanga/teka-rdc/pull/843/checks); do not merge
+until the enforced audit and all required checks pass. A separately approved
+security-only remediation is needed; do not import the full #841 release.
+
+Hetzner remains authoritative; durable activation, protected runtime/CA,
+credentials, production services and accepted backup/PITR/P2 evidence are
+untouched. PR840's unique chronology/tracker is preserved separately; reconcile
+its overlapping STATUS/PROGRESS/QA history without overwriting newer P2 facts.
+PR841 stays Draft, unmerged and without auto-merge. All operational holds remain.
+Production deploy.yml is still active on main pushes and runs apply-auto:
+future main merge requires an explicit deployment/SQL hold plan first.
+[Compatibility and proposed release/rollback procedure](docs/deployment.md#isolated-main-integration--review-and-ci-only).
+
+## Prior project history (preserved)
+
 ## Current Phase: Production at `main` `9a89249`; `develop` `3b099db`. MS1-MS7 COMPLETE and merged (#727, #728, #729, docs #730). Branch protection APPLIED to both branches with 13 required checks. Nothing deployed, no version bumped, no store build created. Only blocker: the highest Google Play versionCode per app.
 ## Last completed: iOS keychain P1 CLOSED on a physical device; taxonomy PR #740 open (ordinary milk, alcohol branch, deodorant dedup, two product moves).
 ## Status: production healthy after the verification release (api uptime monotonic, all sites 200, 401 boundary intact); seller-mobile and buyer-mobile store releases outstanding.
