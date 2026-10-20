@@ -9,8 +9,12 @@
 # healthcheck before the old one is stopped. nginx holds the TCP door open
 # throughout. See .github/workflows/deploy.yml for the rollout sequence.
 #
+# Run it only through scripts/production-compose.py (fixed files, env-file and
+# project; validates the api runtime/CA before every operation).
+#
 # Required files alongside this one:
-#   .env.production              (chmod 600; DB URLs, secrets, GOOGLE_CLIENT_ID)
+#   docker-compose.db-tls.yml    (api DB-TLS layer → host canonical api runtime)
+#   .env.production              (chmod 600; web services + interpolation only)
 #   nginx/nginx.prod.conf        (reverse proxy config for all 4 subdomains)
 #   certbot/conf/                (Let's Encrypt live certs)
 #   certbot/www/                 (ACME http-01 challenge webroot)
@@ -24,27 +28,17 @@ x-healthcheck-defaults: &web-healthcheck
 services:
   # === API (NestJS) ===
   api:
-    image: ghcr.io/ipanga/teka-rdc/api:latest
-    env_file: .env.production
-    environment:
-      # Override SENTRY_RELEASE from `.env.production` (which only carries
-      # an empty placeholder) with the git SHA the deploy workflow exports
-      # before invoking compose. Empty fallback keeps local `docker compose
-      # -f docker-compose.prod.yml up` working without the SHA.
-      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
-      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
-      # Server-side PostHog key, exported from the GitHub Secret by deploy.yml
-      # (same pattern as SENTRY_RELEASE). Empty fallback keeps a plain
-      # `docker compose -f docker-compose.prod.yml up` working without it.
-      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
-      # App-store review login — exported from GitHub Secrets by deploy.yml so
-      # the flag is toggleable without SSHing the VPS-managed .env.production.
-      # Defaults keep it OFF: absent secrets → enabled=false, empty phone →
-      # isReviewLogin() returns false. Flip the APP_REVIEW_LOGIN_ENABLED secret
-      # to `true` only during an active store-review window, then back to `false`.
-      - APP_REVIEW_LOGIN_ENABLED=${APP_REVIEW_LOGIN_ENABLED:-false}
-      - APP_REVIEW_BUYER_PHONE_E164=${APP_REVIEW_BUYER_PHONE_E164:-}
-      - APP_REVIEW_BUYER_OTP=${APP_REVIEW_BUYER_OTP:-123456}
+    # The whole api environment (DATABASE_URL, secrets, SENTRY_*, POSTHOG_API_KEY,
+    # APP_REVIEW_*) comes ONLY from the host canonical runtime via
+    # docker-compose.db-tls.yml — no env_file, no `${VAR:-}` defaults that
+    # could silently overwrite it. Deploy stamps SENTRY_RELEASE through the
+    # validated helper; all other API setting updates are private/explicit.
+    extends:
+      file: docker-compose.db-tls.yml
+      service: api
+    # Image-only rollback: TEKA_API_IMAGE=ghcr.io/ipanga/teka-rdc/api@sha256:<64hex>
+    # (scripts/production-compose.py rejects any other override).
+    image: ${TEKA_API_IMAGE:-ghcr.io/ipanga/teka-rdc/api:latest}
     networks:
       - frontend
       - backend
