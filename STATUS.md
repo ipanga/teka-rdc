@@ -2,48 +2,42 @@
 
 ## Active initiative
 
-**Isolated main integration PR #843 — REVIEW ONLY / RELEASE BLOCKED.**
-[PR #843](https://github.com/ipanga/teka-rdc/pull/843) targets `main` from
-`codex/durable-postgres-tls-main`, based directly on
-`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. Scope:13 integration/CI/test files
-and three existing handoff documents. No PR #841 application/dependency/mobile
-changes, SQL migration contents or historical QA artifact transplant.
+**Security-only remediation published for PR #843; main promotion remains gated.**
+PR #843 is based on main60d70ace and retains the isolated durable Hetzner/TLS
+integration. Owner-authorized scope now additionally includes the seven security
+manifest/lock/test paths from accepted develop commit6151b4fa; no PR841 business
+source, SQL migration content, mobile or historical QA import. Official Claude
+Code Opus5.5 used verified Max subscription authentication with provider API
+credentials excluded. Codex checked byte identity against the accepted files,
+unchanged audit exceptions, frozen install and32/32 real HTTP/Nest proxy tests.
+The exact enforced `pnpm audit --prod --audit-level=high` now passes:6 moderate,
+2 high (both existing ignores),0 critical. This does not mean vulnerability-free.
+Six Sentry/OpenTelemetry moderate findings remain unresolved/risk-accepted until
+2026-11-17; no new ignore, suppression or dependency-policy bypass was added.
 
-PR #842 merged into `develop` with merge commit
-`e58cc99895ba9ed30083ae2d54664393745564b1`, parents41f684d8/aa202347, after
-all15 final-head checks/all13 required contexts passed. Post-merge push
-[CI39508791377](https://github.com/ipanga/teka-rdc/actions/runs/39508791377)
-passed12/12. The two CodeQL analyses succeeded, but the aggregate failed with
-[alert27](https://github.com/ipanga/teka-rdc/security/code-scanning/27),
-`py/clear-text-storage-sensitive-data`, on the hard-coded synthetic fixture.
-It is classified as test code, not a demonstrated production secret exposure.
-Opus5.5/Max made a test-only correction in PR843: explicit synthetic fixture
-naming, unchanged bytes/assertions, and0600 creation before writing. Codex
-reviewed it and the affected existing29-check regression passed. No alert
-suppression/dismissal or CI-policy change. The original develop SHA/alert is
-preserved; backport/merge of any correction needs separate authorization.
+[PR #844](https://github.com/ipanga/teka-rdc/pull/844) is the separate one-file
+develop fixture backport, commit `3546d0dc2a169d46068fc323ddf1085fd9a5df8d`.
+[Python/actions/JS CodeQL](https://github.com/ipanga/teka-rdc/actions/runs/39543802007)
+and aggregate CodeQL passed; [CI](https://github.com/ipanga/teka-rdc/actions/runs/39543803906)
+passed12/12 (16 total successful checks). Exact synthetic bytes/assertions remain,
+with0600 creation before writing. No dismissal/suppression. Alert27 on unmerged
+develop e58 remains open until a separately authorized merge and base scan.
 
-Initial main CI confirms the production dependency audit is a release blocker:
-unchanged main package/lock files report **1 critical,11 high (2 existing
-ignores),13 moderate,5 low**. The critical includes proxy-addr
-GHSA-jqcg-44mw-7w3h. The full-tree report counts46 findings (3 critical,
-15 high including2 ignores,21 moderate,7 low); it is informational, not a clean
-bill of health. No new exceptions or dependency changes. Existing accepted
-six-moderate develop residuals do not accept these main critical/high findings.
-[Initial main CI](https://github.com/ipanga/teka-rdc/actions/runs/39509129103).
-Final-head checks and main-only build validation are reported in
-[PR843 checks](https://github.com/ipanga/teka-rdc/pull/843/checks); do not merge
-until the enforced audit and all required checks pass. A separately approved
-security-only remediation is needed; do not import the full #841 release.
+Fresh PR843 CI and required CodeQL must be verified at its final head before
+main promotion. Default setup is configured, but previously generated no scan
+for this main-targeted PR despite protected-main eligibility documented by
+GitHub. No supported arbitrary-head default-setup dispatch API exists. Do not
+retry workflow_dispatch, borrow another branch's check or weaken protection.
+[Current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks).
+[Advisory paths, relevance and release procedure](docs/deployment.md#security-only-main-backport--2026-10-21).
 
-Hetzner remains authoritative; durable activation, protected runtime/CA,
-credentials, production services and accepted backup/PITR/P2 evidence are
-untouched. PR840's unique chronology/tracker is preserved separately; reconcile
-its overlapping STATUS/PROGRESS/QA history without overwriting newer P2 facts.
-PR841 stays Draft, unmerged and without auto-merge. All operational holds remain.
-Production deploy.yml is still active on main pushes and runs apply-auto:
-future main merge requires an explicit deployment/SQL hold plan first.
-[Compatibility and proposed release/rollback procedure](docs/deployment.md#isolated-main-integration--review-and-ci-only).
+No merge or production operation is authorized in this phase. Hetzner remains
+sole authority; protected runtime/CA, services, credentials, backup/WAL and accepted
+P1/P2 evidence are preserved. PR840 is unchanged; PR841 remains Draft/unmerged/
+no-auto-merge. Deployment, SQL, seed and backfill holds remain active. Main's
+push deployment is still active and runs apply-auto: a separate approved
+release/hold plan is required before main merge. Rollback must retain Hetzner,
+strict TLS and the protected runtime/CA; never reconnect to stale Alwaysdata.
 
 ## Previous context (historical; current facts above)
 

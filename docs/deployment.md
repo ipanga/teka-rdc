@@ -181,77 +181,88 @@ correctly. Do not restore a source DATABASE_URL or infer permission to run SQL.
 
 ### Isolated main integration — review and CI only
 
-**Isolated main integration PR #843 — REVIEW ONLY / RELEASE BLOCKED.**
-[PR #843](https://github.com/ipanga/teka-rdc/pull/843) targets `main` from
-`codex/durable-postgres-tls-main`, based directly on
-`60d70aceb199c75370044dd0e7980f22a4ab5ba5`. Scope:13 integration/CI/test files
-and three existing handoff documents. No PR #841 application/dependency/mobile
-changes, SQL migration contents or historical QA artifact transplant.
+**Security-only remediation published for PR #843; main promotion remains gated.**
+PR #843 is based on main60d70ace and retains the isolated durable Hetzner/TLS
+integration. Owner-authorized scope now additionally includes the seven security
+manifest/lock/test paths from accepted develop commit6151b4fa; no PR841 business
+source, SQL migration content, mobile or historical QA import. Official Claude
+Code Opus5.5 used verified Max subscription authentication with provider API
+credentials excluded. Codex checked byte identity against the accepted files,
+unchanged audit exceptions, frozen install and32/32 real HTTP/Nest proxy tests.
+The exact enforced `pnpm audit --prod --audit-level=high` now passes:6 moderate,
+2 high (both existing ignores),0 critical. This does not mean vulnerability-free.
+Six Sentry/OpenTelemetry moderate findings remain unresolved/risk-accepted until
+2026-11-17; no new ignore, suppression or dependency-policy bypass was added.
 
-PR #842 merged into `develop` with merge commit
-`e58cc99895ba9ed30083ae2d54664393745564b1`, parents41f684d8/aa202347, after
-all15 final-head checks/all13 required contexts passed. Post-merge push
-[CI39508791377](https://github.com/ipanga/teka-rdc/actions/runs/39508791377)
-passed12/12. The two CodeQL analyses succeeded, but the aggregate failed with
-[alert27](https://github.com/ipanga/teka-rdc/security/code-scanning/27),
-`py/clear-text-storage-sensitive-data`, on the hard-coded synthetic fixture.
-It is classified as test code, not a demonstrated production secret exposure.
-Opus5.5/Max made a test-only correction in PR843: explicit synthetic fixture
-naming, unchanged bytes/assertions, and0600 creation before writing. Codex
-reviewed it and the affected existing29-check regression passed. No alert
-suppression/dismissal or CI-policy change. The original develop SHA/alert is
-preserved; backport/merge of any correction needs separate authorization.
+[PR #844](https://github.com/ipanga/teka-rdc/pull/844) is the separate one-file
+develop fixture backport, commit `3546d0dc2a169d46068fc323ddf1085fd9a5df8d`.
+[Python/actions/JS CodeQL](https://github.com/ipanga/teka-rdc/actions/runs/39543802007)
+and aggregate CodeQL passed; [CI](https://github.com/ipanga/teka-rdc/actions/runs/39543803906)
+passed12/12 (16 total successful checks). Exact synthetic bytes/assertions remain,
+with0600 creation before writing. No dismissal/suppression. Alert27 on unmerged
+develop e58 remains open until a separately authorized merge and base scan.
 
-Initial main CI confirms the production dependency audit is a release blocker:
-unchanged main package/lock files report **1 critical,11 high (2 existing
-ignores),13 moderate,5 low**. The critical includes proxy-addr
-GHSA-jqcg-44mw-7w3h. The full-tree report counts46 findings (3 critical,
-15 high including2 ignores,21 moderate,7 low); it is informational, not a clean
-bill of health. No new exceptions or dependency changes. Existing accepted
-six-moderate develop residuals do not accept these main critical/high findings.
-[Initial main CI](https://github.com/ipanga/teka-rdc/actions/runs/39509129103).
-Final-head checks and main-only build validation are reported in
-[PR843 checks](https://github.com/ipanga/teka-rdc/pull/843/checks); do not merge
-until the enforced audit and all required checks pass. A separately approved
-security-only remediation is needed; do not import the full #841 release.
+Fresh PR843 CI and required CodeQL must be verified at its final head before
+main promotion. Default setup is configured, but previously generated no scan
+for this main-targeted PR despite protected-main eligibility documented by
+GitHub. No supported arbitrary-head default-setup dispatch API exists. Do not
+retry workflow_dispatch, borrow another branch's check or weaken protection.
+[Current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks).
+[Advisory paths, relevance and release procedure](docs/deployment.md#security-only-main-backport--2026-10-21).
 
-Hetzner remains authoritative; durable activation, protected runtime/CA,
-credentials, production services and accepted backup/PITR/P2 evidence are
-untouched. PR840's unique chronology/tracker is preserved separately; reconcile
-its overlapping STATUS/PROGRESS/QA history without overwriting newer P2 facts.
-PR841 stays Draft, unmerged and without auto-merge. All operational holds remain.
-Production deploy.yml is still active on main pushes and runs apply-auto:
-future main merge requires an explicit deployment/SQL hold plan first.
-[Compatibility and proposed release/rollback procedure](docs/deployment.md#isolated-main-integration--review-and-ci-only).
+No merge or production operation is authorized in this phase. Hetzner remains
+sole authority; protected runtime/CA, services, credentials, backup/WAL and accepted
+P1/P2 evidence are preserved. PR840 is unchanged; PR841 remains Draft/unmerged/
+no-auto-merge. Deployment, SQL, seed and backfill holds remain active. Main's
+push deployment is still active and runs apply-auto: a separate approved
+release/hold plan is required before main merge. Rollback must retain Hetzner,
+strict TLS and the protected runtime/CA; never reconnect to stale Alwaysdata.
 
+### Security-only main backport — 2026-10-21
 
-PR #842 merged into `develop` using merge commit
-`e58cc99895ba9ed30083ae2d54664393745564b1` after all15 final-head checks,
-including all13 required contexts, succeeded. This branch starts independently
-from `main` at `60d70aceb199c75370044dd0e7980f22a4ab5ba5` and carries only the two
-reviewed durable implementation/test commits plus this scoped handoff. It does
-not merge develop or include PR #841 application changes, dependency updates,
-mobile changes, SQL migration contents or historical QA artifacts.
+The actual failed production audit in [run39509699843](https://github.com/ipanga/teka-rdc/actions/runs/39509699843/job/118927375714)
+reported1 critical and9 unignored high advisories (11 high including2 existing
+ignores). All match main's older lockfile. The accepted develop security patch
+6151b4fa is compatible without PR841 application changes. Its seven public
+manifest/lock/proxy-regression files are reused; the historical1888-line QA
+report is not imported. Same-major companion security patches: Next15.5.27,
+Multer2.4.0, DOMPurify3.4.16 and fast-uri3.1.8. No framework-major upgrade.
 
-Compatibility review: the13 integration paths had identical pre-change content
-on main and pre-#842 develop. PostgreSQL client/Prisma is6.19.2 in both lockfiles;
-the main API Dockerfile already uses Node20 and copies the prisma directory,
-so the guarded auto-apply helper ships in a future image. The host SQL wrapper
-also supports the current pre-helper API image by passing public helper code to
-Node. Migration filenames, contents and ledger behavior are unchanged. Existing
-production activation verifies this same main-based immutable application image.
-The whole host runtime remains mandatory, including all non-DB settings, strict
-Prisma TLS, libpq verify-full and the pinned read-only CA. No live operation is
-part of this PR. Main's package/lock files remain unchanged; a failing enforced
-dependency audit is a release blocker, not permission to broaden risk acceptance.
+| Package / advisory | Main → selected fix | Dependency path and runtime relevance |
+| --- | --- | --- |
+| proxy-addr [GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h) critical | 2.0.7 →2.0.8 | API→Nest platform-express11.1.14→Express5.2.1; request IP parsing. Vulnerable mapped-subnet compilation is not exercised by shipped numeric trust1. |
+| brace-expansion [GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7), [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p) | 5.0.9 →5.0.12 | Sentry10.53.1→OTel/minimatch10.2.4 and bundler5.3.0→glob13.0.6. Recursive-pattern DoS; no user-controlled pattern identified. High patches begin5.0.10/5.0.11;5.0.12 also fixes moderate issue. |
+| grpc-js [GHSA-m9gg-hp2v-232j](https://github.com/advisories/GHSA-m9gg-hp2v-232j) | 1.14.4 →1.14.5 | Firebase Admin13.10.0→Firestore7.11.6→google-gax4.6.1. Certificate auth-context confusion; application uses Messaging, not Firestore/gRPC TLS servers/getAuthContext. |
+| fastify/busboy [GHSA-xjh9-v7x6-24jw](https://github.com/advisories/GHSA-xjh9-v7x6-24jw), [GHSA-x8mw-p69m-v3mx](https://github.com/advisories/GHSA-x8mw-p69m-v3mx) | 3.2.0 →3.2.2 | Firebase Admin13.10.0, lazy multipart Google-response parsing; not the application's upload parser. Multipart DoS fixes begin3.2.1;3.2.2 includes moderate fix. |
+| source-map-js [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) | 1.2.1 →1.2.2 | Next→PostCSS8.5.28; indexed-map event-loop DoS. No untrusted map ingestion identified. |
+| compression [GHSA-vc2v-76pw-4v95](https://github.com/advisories/GHSA-vc2v-76pw-4v95) | 1.8.1 →1.8.2 | Direct global API middleware; aborted compressed responses can leak native zlib memory. Active request-path exposure. |
+| joi [GHSA-6h2x-m376-mqjq](https://github.com/advisories/GHSA-6h2x-m376-mqjq) | 18.2.1 →18.2.9 | Direct boot environment validation; isoDate backtracking, no isoDate use found. High fix starts18.2.6; selected18.2.9 includes companion fixes. |
+| sharp [GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w) | 0.35.4 →0.35.5 | Next optional image optimizer, vulnerable librsvg. No dangerouslyAllowSVG found; Docker uses Alpine/musl, advisory's glibc RCE preconditions not demonstrated. |
 
-PR #840 stays separate. It overlaps STATUS/PROGRESS and the QA report on develop;
-its unique PR836 merge/registry/operator-preflight chronology and the expanded
-order-integrity tracker remain preserved in that branch and the original local
-checkout. Its October18 pending-access/Alwaysdata assumptions are historical:
-future reconciliation must retain the newer accepted P2 and durable activation
-records. PR #841 remains Draft, unmerged and without auto-merge; its develop
-head advances only as the natural result of the separately authorized #842 merge.
+Cloudflare CIDRs restrict Nginx's CF-Connecting-IP trust; Nginx appends verified
+remote_addr rightmost and only Nginx publishes ports. Express retains numeric
+one-hop trust. The accepted32-test real HTTP/Nest regression verifies rightmost
+client selection, spoofed prefixes/alternate headers, IPv6/mapped-subnet fixes,
+throttling, session metadata and OTP budgets. No nginx/main.ts policy change.
+A direct API peer could supply an IP under positional trust; Docker/network
+isolation remains the boundary. No live infrastructure inference was needed.
+
+Both existing ignoreGhsas remain byte-for-byte unchanged:
+GHSA-38f7-945m-qr2g and GHSA-ggr8-5vv4-36mx. Six moderate Sentry/OpenTelemetry
+residuals stay unresolved with the accepted2026-11-17 deadline. No unsupported
+adapter override or broad audit exception was introduced.
+
+The generated CodeQL workflow has no workflow_dispatch trigger. Default setup
+is configured, main is ruleset-protected, but no old PR843 head scan was created.
+GitHub documents protected-target PR eligibility; ruleset-recognition failure
+is a hypothesis, not a proven cause. A real security push supplies synchronize;
+if no scan appears, one ordinary PR reopen may be tried. If still absent, retain
+NO-GO and report the GitHub-managed trigger issue; do not alter required checks,
+retarget the PR or copy develop's result. The develop backport is independently
+validated in PR844, including Python and aggregate CodeQL at3546d0dc.
+
+PR840's unique PR836/registry/operator chronology stays preserved. PR841 stays
+Draft/unmerged/no-auto-merge. All deployment/SQL/seed/backfill holds remain.
 
 ### Proposed safe production release procedure — separate authorization required
 
