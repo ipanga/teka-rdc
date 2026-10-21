@@ -1,5 +1,289 @@
 # Teka RDC — Deployment Guide
 
+## Post-migration closure and publication — 2026-10-21
+
+**Infrastructure CLOSED / accepted PASS.** P1, P2, backup/full restore/PITR,
+migration rehearsal, durable PostgreSQL/TLS activation, GitHub promotion and the
+first production deployment are complete. Do not repeat them. Current accepted
+main is `c076c0613f5958859dbec3899b043588d710c215`, deployed by
+[run 39649498062](https://github.com/ipanga/teka-rdc/actions/runs/39649498062).
+Hetzner PostgreSQL 16/teka-prod, database teka_prod on private port 5433 is the sole
+production authority. Alwaysdata is stale and must never become a fallback.
+
+**Current scope is Package 1 publication only:** documentation [PR #846](https://github.com/ipanga/teka-rdc/pull/846), separate hardening is isolated on `codex/production-release-hardening`; both target main
+for review/CI. No PR merge, main→develop synchronization, production environment
+creation/configuration, deployment workflow enable/dispatch, SQL or production
+change is included. Workflow 265250843 is disabled_manually; CI/CodeQL stay enabled.
+PR #841 remains Draft/unmerged/no-auto-merge; PR #840/unique history is unchanged.
+Manual SQL, seed/backfill and mobile-release holds remain separate.
+
+**Instruction precedence:** current closure and durable settings/rollback
+boundaries supersede old GO prompts, Alwaysdata-authority claims, raw/base-only
+Compose, latest-retagging rollback and GitHub-Secrets-as-API-runtime instructions.
+Dated plans and failed receipts are retained historical evidence, not permission
+or commands to rerun. Hardening described here is proposed/in review, not live.
+
+### Accepted phase evidence and cleanup boundaries
+
+- **Package A:** synthetic operator conditional write, download/SHA256,
+  owner-attested independent recovery and exact-canary deletion passed; no
+  full-IAM/caller-identity claim. Bucket owner/recovery access and all other
+  projects were preserved.
+- **Package B, October 19:** pgBackRest 2.59.3, encrypted full **20261019-050244F**
+  (aes-256-cbc), isolated full restore, matching synthetic baseline. Persisted
+  recover_complete **17:24:16 UTC** proves PITR target **05:03:41.764223 UTC**
+  (`1792386221764223` microseconds), M1 present/M2 absent, paused replay and
+  baseline count 2/matching MD5. Fresh isolated destination
+  `3d6345e9-c21a-47e1-a877-459f3aba5ef9` stopped successfully; source QA and WAL
+  remained healthy. Original code71/missing-pause failure is preserved as prior
+  failure. QA two-chain retention is not the production recovery-window guarantee.
+- **Rehearsal, October 19:** run `dbee8bb4-7394-4f0e-bb4e-bb05a16d3156`, DB
+  complete 19:11:24 UTC/Mac19:11:37 UTC, all 21 checks. Snapshot:50 tables/8,842 rows,
+  114 constraints/246 valid indexes/seven extensions/one function/one sequence/
+  51 ledger entries; ownership/ACL/grants/membership and sequence-next safety
+  passed. Separate socket-only instance stopped; source/QA intact. Three cloned
+  roles remained NOLOGIN/non-privileged; loader disabled. Original TOC failure
+  and uuid-ossp normalization receipt retained. Collation-version difference
+  remains documented; freshly built indexes and French unaccent/trigram checks
+  passed, with no speculative data change or redundant reindex.
+- **P1 accepted October 20:** finalization 10:24:39 UTC; SMTP/monitor 10:57:55 UTC,
+  plus owner-confirmed signed/TLS Gmail delivery. Separate production cluster,
+  TLS/SCRAM/private firewall, NOLOGIN-before-cutover gate and encrypted initial
+  full **20261019-222109F** passed. That empty-cluster backup was configuration
+  proof only. Weekly full Sunday02:00 UTC, differential Monday–Saturday02:00 UTC,
+  continuous WAL, four-full-chain retention and Resend alerts were enabled.
+- **P2 accepted October 20:** final encrypted source run
+  `40a479fd-c109-42e6-8c87-debfc4256f7b`, ciphertext SHA256
+  `5acebc0122bc2b0fdd5f473656eabcc7f40af80db390690c96f8f6ae04d6d1fb`.
+  Validated snapshot 50 tables/8,854 rows/246 indexes/seven extensions/51 ledger rows;
+  these are pre-writer snapshot counts, not a promise that live counts stay fixed.
+  New production-data full **20261020-195212F** (42 seconds) and required WAL
+  passed before runtime LOGIN/target writers. Public reopen20:03:55 UTC,
+  outage 1,691 seconds/28m11s; observation completed 20:33:57 UTC with 29 healthy
+  target/readiness/HTTP200 samples. Final DB status 20:37:27 UTC passed 10/10.
+  Target staging cleanup passed; no application SQL migration or stock correction.
+- **Durable TLS activation, October 20 22:07:16 UTC:** five reviewed public files
+  promoted, protected runtime/CA reused; API-only recreation with its existing
+  immutable image. Full environment, TLS/pinned read-only CA, target identity and
+  unchanged web/nginx accepted. Receipt SHA256
+  `dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`
+  in `/home/deploy/teka-durable-activation-20261020T213628Z`. Original NO-GO and
+  adoption/manifests/rollback copies remain; no adoption repeat.
+- **Code-only promotion October 21 16:51:09 UTC:** PR #843 merged to main as
+  c076c061, parents 60d70ace/35fa2b66, tree identical to accepted candidate a9ae7c60.
+  Exact PR head 35fa2b66adf38bd556579c1733acaff54f894b56 passed 21/21 checks and
+  13/13 required including genuine CodeQL 119210593016/app 57789. Main
+  [CI 39638491972](https://github.com/ipanga/teka-rdc/actions/runs/39638491972)
+  passed 12/12; [CodeQL 39638491882](https://github.com/ipanga/teka-rdc/actions/runs/39638491882)
+  accepted three actual-main analyses. No separate main-push aggregate is claimed.
+
+Evidence remains with original host/private-owner records, not customer-data
+imports into this PR: P2 app `p2-cutover-state.json` SHA256
+`5aeb42bc15c3fabbbc03668d0bcb188f0dce78db38c8391a6ff441cda2ab5247` in
+`/home/deploy/teka-p2-20261020`; DB data receipt SHA256
+`d22753294af7873075ad3c5d40e491632b08de687e22407e3314bb0ba8cbd5e8` and
+final monitor SHA256`d430c9350679f1c44c0685513a0df18828056bce7e6beef727b12afe3ebcacf6`
+in `/home/tekaops/teka-p2-20261020`. The pre-existing
+[sanitized activation evidence](https://github.com/ipanga/teka-rdc/blob/e58cc99895ba9ed30083ae2d54664393745564b1/docs/qa/order-integrity/native-followup/release-preflight-result.json)
+remains separate. PR #840's unique order-integrity/history artifacts are not
+transplanted, overwritten or merged by this publication.
+
+Preserve receipt-bound cleanup: rehearsal **2026-10-26T18:27:17Z**, failed P2
+artifact **2026-10-27T17:58:15Z**, successful final export
+**2026-10-27T19:40:00Z**. Mac cleanup runs first awake/logged-in if necessary.
+This publication neither performs cleanup nor extends deadlines. Keep encrypted
+exports/keys/recovery material private; temporary local diagnostic paths below
+are locators, not a substitute for retaining sanitized evidence durably.
+
+### Remaining risks and approval sequence
+
+The current live workflow still consumes mutable latest, downloads unpinned
+rollout bytes, checks API liveness at replacement, can leave a partial release,
+and can apply pending SQL. The separate hardening PR proposes only exact build
+digests, pinned commit/SHA validation, existing DB-readiness-before-retirement,
+protected before/after receipts/rollback tags and strictly read-only SQL ledger
+refusal. It must preserve current runtime/CA, every non-DB setting and matching
+SENTRY_RELEASE. Existing settings-update and Hetzner-only rollback procedures
+remain below. A proposed guard is not an already deployed guarantee.
+
+The proposed GitHub production job environment must be manually created and
+reviewed under separate authorization before enabling deploy.yml. Require main
+only, the designated owner reviewer and administrator-bypass restriction where
+supported. If prevent-self-review is enabled, the actor who starts deployment
+cannot approve it: with only one approver, use a different authorized initiator
+or explicitly choose/document a supported reviewer configuration. Do not silently
+create an unprotected environment, disable review, or bypass a missing gate.
+Build publication to GHCR may precede approval; host synchronization, SQL check
+and all service modifications must wait. CI/CodeQL/rules and manual-workflow
+controls stay unchanged. No environment is created/configured by Package 1.
+
+Residual security/observability remains unchanged:
+
+- Existing CodeQL `js/incomplete-url-substring-sanitization` warning, generic
+  score 7.8, remains unsuppressed. Accepted focused OG-image-selector review found
+  no demonstrated actionable exploit; no new risk acceptance or dismissal.
+- Six Sentry/OpenTelemetry moderate findings remain unresolved/risk-accepted
+  through **2026-11-17**, with existing exceptions and limitations preserved.
+- Owner privately reviews Sentry API/web production release c076c061 since
+  October 21 18:10:45 UTC, new/regressed errors and aggregate affected-user/event
+  counts versus the preceding interval. Verify ingestion/filters where no data
+  appears; absent session telemetry is not proof of health. Share sanitized
+  aggregate findings only, never event/customer payloads or credentials.
+- Existing APP_REVIEW_LOGIN_ENABLED remains preserved. Owner decides whether
+  store review is complete; only separately approved private flag disablement
+  and API recreation/deployment may apply it. Do not disclose review phone/OTP.
+
+After exact-head CI/CodeQL and separate merge approval, merge documentation
+and hardening without enabling deployment. Then a dedicated develop-based PR
+may merge main into develop, preserving features/history; no reset/rebase or
+wholesale PR #841 release. Accepted assessment at c076c061/ebab9d67:10 main-only/
+20 develop-only commits with equivalent infrastructure/security/CI blobs. Refresh
+only refs/conflicts at that later approval. PR #841 remains Draft until its own
+feature/SQL/compatibility/rollback/exact-head review and release authorization.
+Future environment setup, one hardened deployment and permanent gated resumption
+require separate approval; manual SQL/seed/backfill/mobile do not inherit it.
+
+## Controlled production deployment — 2026-10-21
+
+**PASS — single authorized production deployment complete. The one authorized run is finished; production
+workflow 265250843 is again `disabled_manually`. No further deployment is authorized.**
+This is the current handoff; prior code-only promotion/preflight records below
+remain historical evidence. Hetzner is the sole authoritative production DB.
+
+### Exact execution and stage evidence
+
+- Owner authorization: one bounded deployment of
+  **c076c0613f5958859dbec3899b043588d710c215**, no new migration/seed/backfill,
+  no unrelated repair or permanent reopening of automatic deployment.
+- Fresh main CI 12/12 / CodeQL 3 accepted analyses remain PASS; no competing workflow
+  was active. Mandatory read-only app/TLS/CA/runtime checks passed at 17:59 UTC.
+  All 16 manifest filenames recorded in Hetzner's 51-entry ledger. Owner-assisted
+  DB status 18:02:40 UTC passed 10 checks: WAL 65 / 0 failures / 0 ready, healthy backup/
+  monitor/timers and 33.2 GiB free. No P1/P2/restore/PITR test was repeated.
+- Rollback snapshots/tags independently verified 18:04:15 UTC. Only then was
+  deploy.yml enabled, its actual active state checked, and ONE --ref main
+  dispatch issued. Immediate run/head verification passed.
+- [Run 39649498062](https://github.com/ipanga/teka-rdc/actions/runs/39649498062),
+  workflow 265250843, event workflow_dispatch, head c076c061, started
+  **18:04:56 UTC / 20:04:56 Lubumbashi**, finished
+  **18:10:45 UTC / 20:10:45 Lubumbashi**, conclusion **success**.
+- All 4 build/push jobs succeeded; exactly 5 public files synchronized. Guarded
+  Compose check/pull and ledger preparation succeeded. Actual log output:
+  **0 applied / 16 skipped**; skipped names exactly match the approved manifest.
+  No migration SQL executed and no ledger row was inserted. API→buyer→seller→admin rolled,
+  reviewed nginx handling/logout/dangling-image prune completed. Nginx was not
+  recreated; public health verified independently rather than assuming reload.
+- Installed rollout v0.9 source still hashes d89dd76458baa181af272baaeb3584c19997f4f4a38903b177288fd7c534fe06,
+  matching the reviewed source. The workflow's lack of enforcement on a future
+  tag download remains a documented residual; no unapproved patch was made.
+- deploy.yml was disabled again after run completion, without cancellation.
+  Final independent GET at 18:18:02 UTC and full scope check 18:19:00 UTC confirm
+  **disabled_manually**, exactly one new deployment, unchanged main/other
+  workflow states/rules, and no independent SQL/seed/backfill/mobile run.
+
+### Old and new immutable images
+
+Digests are for ghcr.io/ipanga/teka-rdc/<service>. New SHA tag is the full
+approved c076c061 commit. New digests were extracted from the actual completed
+build-push output, then independently matched to serving image RepoDigests:
+
+| Service | Previous immutable digest | New approved/serving digest |
+| --- | --- | --- |
+| api | `sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a` | `sha256:4dd1c3d8f10a74b10f3239c03cbd734a6e7eb77a735d73725c670d4467c521b5` |
+| buyer-web | `sha256:1cf58ab2368c6f34618628cb838dce583b989c19bf83979d097277cc8de7801e` | `sha256:930cc6ef705401a18070781fd5ad238a8f5e8a667f31917eca20c497b7f8bd67` |
+| seller-web | `sha256:36ba5df1fb58f19dc2f3e0b9e58dd6d0fda837cc55b2a0324e30aa5b3bf8fbcd` | `sha256:1adf963792d030a546745662d21170514c1e25ae68da006d88ee215ef5eac543` |
+| admin-web | `sha256:0fa02f9e58052820c462e296772d52ca92e013cc4f08f3a688f9de3efb052d53` | `sha256:677e547648de7f5942ed8338532a0def2127d9cb0f805634a3cc3fcfd6679f71` |
+
+Post-check 18:16:42 UTC: API 18442c203211, buyer 8345ac88955d, seller 4ff09eadfac3,
+admin a0916275ca38, all healthy and restart counts 0. All four web/API environments
+carry SENTRY_RELEASE=c076c061. Nginx e0a64f226fb0 retains its original ID/image/
+start/restart count; neither nginx config nor .env.production changed.
+
+### Independent live acceptance
+
+- Complete canonical/effective/live API environment equals the protected
+  predeployment snapshot with **only SENTRY_RELEASE changed** to the approved
+  full SHA. DATABASE_URL, PostHog, app-review flags and all other settings kept.
+- Authoritative target is primary teka_prod at 10.77.0.3:5433, established by a
+  bounded READ ONLY transaction. Ledger count remains **51**, all 16 manifest
+  entries recorded. No new schema or data migration was authorized/executed.
+- Strict Prisma/libpq TLS guards pass. Host/container CA remains
+  **bb4912352c678e70053270b340b0445395b52d42221961dfd819381abba47c64**,
+  mounted read-only; runtime 0600 / CA 0444 / protected parent 0700 preserved.
+- Origin API liveness, readiness and database-dependent health pass. Public
+  API live/ready/health plus buyer/seller/admin root GETs all returned 200 at
+  **18:17:37 UTC / 20:17:37 Lubumbashi**. These are non-mutating smoke checks,
+  not customer-order or financial end-to-end claims.
+- App host free **65.06 GiB** after deployment/pruning.
+
+Final DB receipt **2026-10-21T18:24:26Z** (owner-executed checksum-bound --status,
+independently reviewed): **10/10 checks PASS**, healthy PostgreSQL 16.15/stanza/
+AES-256-CBC backup, WAL **65 archived / 0 failed / 0 ready / 0 stale**,
+free **33.22 GiB**, full/diff/monitor timers active as reported by the existing status checks,
+monitor active_events=[] and delivery_pending=false. Latest scheduled differential
+rc=0 at 2026-10-21T02:00:28Z; retained full **20261020-195212F**, error=false. No new
+backup, WAL switch or restoration was performed for acceptance.
+
+### Preserved diagnostics and security limitations
+
+The first temporary post-deployment verifier stopped at its health assertion:
+it expected fields at JSON root, while this API's existing response contract
+wraps them in data. Focused read-only inspection confirmed all three health
+payloads were successful. Only verifier envelope parsing was corrected; exact
+status/database assertions remain. Original NO-GO and diagnostic receipts are
+preserved. This was not an application failure; no production correction,
+rollback, second dispatch or repeat of completed P1/P2 tests occurred.
+
+Available API log segment: 387 lines at 18:16, one error-level marker. Focused
+classification identified exactly the existing BuyerOtpService app-review-enabled
+startup alert; no unclassified ERROR/FATAL or DB/TLS connection marker. Existing
+APP_REVIEW_LOGIN_ENABLED is preserved, not silently disabled; turn-off after
+store review requires a separate approved private runtime update. No phone/OTP,
+raw log, secret or customer record was displayed. This is limited log evidence,
+not a global error-rate guarantee. No authenticated Sentry connector was
+available, so a Sentry dashboard/regression query is **not claimed**.
+
+The existing unsuppressed CodeQL 7.8 generic warning was reviewed in context:
+Cloudinary transformation selection, both branches returning metadata URLs;
+normal upload writer stores provider secure_url; Next renders React metadata.
+No actionable production exploit path was demonstrated by this focused review.
+Finding remains visible/unresolved—no dismissal, suppression, new acceptance or
+fix. Existing dependency exceptions and six unresolved Sentry/OTel moderates
+remain accepted only through 2026-11-17. Other accepted full-tree findings are
+not erased by green CI. Latest-tag consumption, future rollout tag integrity,
+SSH timeout and partial-rollout risks remain documented; no scope expansion.
+
+### Rollback preservation and final boundaries
+
+Protected snapshot:
+/home/deploy/.config/teka-rdc/release-rollback-c076c061-20261021
+(dir 0700, runtime 0600, public CA 0444, five public files preserving original modes).
+Receipt SHA256 a0574d9849b62e5aae331915dae89b7a1379606d7576e6b10e549c548caa5913.
+Each prior running Docker image ID is retained as
+<service>:rollback-pre-c076c061-20261021, independently verified before deployment
+and after dangling cleanup. **No rollback action was needed or performed.**
+
+If later recovery is separately authorized, restore only affected application
+images through the validated durable Compose path, with current Hetzner runtime/
+CA and matching release metadata. Never use legacy Alwaysdata/P2-source rollback
+files or restore a database. Existing backups/WAL/credentials/roles/CA remain.
+
+PR #841 remains Draft, unmerged and without auto-merge. PR #840/history and all
+unrelated local work preserved; no Git commit/push/merge or mobile release
+in this deployment phase. All independent manual SQL/seed/backfill/mobile holds
+remain. **Automatic deployments are NOT permanently reopened. Stop after this
+one release; any next deployment, hold release or PR #841 action needs separate
+authorization.** Only the three existing continuity documents were updated in that deployment phase.
+
+Sanitized evidence: /private/tmp/teka-controlled-deploy-20261021/
+(app-preflight.json, db-preflight.json, rollback-prepared/verified.json,
+dispatch-verified.json, build-and-deploy-evidence.json, postdeploy-result.json,
+postdeploy-diagnostic-result.json, postdeploy-pass.json, public-health.json,
+expected-app-review-marker.json, workflow-final-state.json,
+github-final-acceptance.json, db-postflight.json and final-acceptance.json).
+
+## Earlier activation and release history — superseded where dated
+
 ## Post-P2 durable database integration — 2026-10-20
 
 **Durable production activation PASS — completed 2026-10-20 22:07:16 UTC
@@ -433,6 +717,8 @@ PostgreSQL is hosted externally (cloud-managed) and is **not** containerized.
 
 ## Quick Start
 
+> **Historical bootstrap examples:** do not rerun provisioning, raw/base-only Compose, SQL or seeds on this accepted installation. Current operations require protected Hetzner runtime/CA, the durable wrapper and separate authorization.
+
 ### 1. Clone and Configure
 
 ```bash
@@ -516,6 +802,8 @@ Renewal cron (host-side, runs every 12h):
 
 ### 5. Build and Deploy
 
+> **Historical flow, currently held:** deploy.yml is disabled. These latest/apply examples describe prior operation; proposed digest/check-only hardening is a separate PR and is not yet live. Never use base-only commands to bypass the durable wrapper.
+
 **Normal operation: you do not run this.** Every deploy is performed by
 `.github/workflows/deploy.yml` on a merge to `main` — it builds the four images in CI (baking the
 `NEXT_PUBLIC_*` build-args from GitHub Secrets), pushes them to GHCR as `:latest` **and**
@@ -545,6 +833,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 > machine using the same Dockerfiles and tags.
 
 ### 5a. Database migrations (automated during deploy)
+
+> **SQL hold:** the existing deploy path can write if entries are pending. No apply-auto.sh, ledger initialization, migration, seed or backfill is authorized by this documentation. The separate hardening proposal must check read-only and fail on pending entries; application remains a separately approved operation.
 
 Schema-affecting changes ship as **idempotent manual SQL files** under
 `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql`. There are now **two** ways
@@ -610,6 +900,8 @@ change reaches production through the manual-SQL + auto-apply flow above or the
 development-only commands.)_
 
 ### 5b. Initial production seed (first deploy only)
+
+> **Historical first-deploy recipe:** seeding the accepted production database is not authorized. Never rerun this checklist or treat CI/CD resumption as seed authorization.
 
 The seed script understands `SEED_MODE` (`dev` | `prod`). **Always use `prod`** against the production database — `dev` inserts sample buyers, sellers, products, orders, banners and so on, which you do not want anywhere near a live system.
 
@@ -709,6 +1001,8 @@ Expected health response:
 
 ## Environment Variables Reference
 
+> **Current runtime precedence:** API secrets/settings are protected host-managed api-runtime.json, validated by production-compose.py. Updating GitHub secrets or .env.production does not replace API runtime. SENTRY_RELEASE is explicitly updated per deployed image; private PostHog/review edits use the durable prompt procedure above.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string with pooling params (e.g., `postgresql://user:pass@host:5432/teka_rdc?sslmode=require`) |
@@ -748,6 +1042,8 @@ Expected health response:
 | `DEFAULT_CURRENCY` | No | Default currency code (default: `CDF`) |
 
 ## Docker Compose Production Configuration
+
+> **Current guard required:** the base file inherits the mandatory protected TLS/runtime fragment. Use the validated durable wrapper with approved immutable images. Do not run old raw Compose commands or drop the CA/runtime configuration.
 
 The `docker-compose.prod.yml` defines all services with:
 
@@ -849,6 +1145,8 @@ docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
 
 ### Database
 
+> **Superseded backup examples:** dedicated Hetzner uses accepted encrypted pgBackRest/OVH backup/WAL and isolated recovery proof. The generic plaintext/credential-argv examples below are historical, not current instructions; do not execute them.
+
 Cloud PostgreSQL providers (Neon, Supabase, Railway) offer automated daily backups. For additional manual backups:
 
 ```bash
@@ -867,6 +1165,8 @@ psql "$DATABASE_URL" < backup_20260228_120000.sql
 Product images are stored on Cloudinary's CDN. Cloudinary provides its own backup and redundancy. No separate backup is needed for media assets.
 
 ## Updates and Rollback
+
+> **Current safety override:** legacy base-only Compose, latest retagging and rollback.yml examples below are superseded for the current API. Preserve current Hetzner runtime/CA/non-DB settings and use approved immutable affected-service images plus matching release metadata. Never restore Alwaysdata or a stale whole-runtime snapshot.
 
 > **Read this before an incident, not during one.** Everything below is written against the
 > deployment that actually exists: images built by GitHub Actions and pushed to GHCR, a **flat**
@@ -891,6 +1191,8 @@ the immutable `:<sha>` tags are what makes a rollback possible.
 
 ### Standard deploy (automatic)
 
+> **Historical trigger flow:** automatic production deployment is not resumed. Enabling deploy.yml restores its main-push trigger; separate hardening, verified owner approval gate and explicit resumption authorization are required.
+
 Merging to `main` runs `deploy.yml`, which:
 
 1. builds and pushes the four images (`:latest` + `:<sha>`);
@@ -907,6 +1209,8 @@ No manual step is needed for an ordinary deploy. Manual steps that a *release* m
 the release checklist at the end of this document.
 
 ### Rollback
+
+> **Historical command examples below:** use the current protected rollback receipt/affected-image procedure above. Do not apply old P2 source overrides, rollback.yml or database rollback to recover an application release.
 
 Four independent layers. Roll back only the one that is broken.
 
@@ -1013,6 +1317,8 @@ image therefore works with the new schema untouched — that is the point of the
   before considering a destructive revert.
 
 ### Updating a single service
+
+> **Held/superseded command example:** do not pull latest or recreate the API using raw Compose. Approved service recovery requires its verified immutable image, matching SENTRY_RELEASE and durable protected Hetzner/TLS/CA configuration.
 
 There is nothing to build on the VPS. To move one service to a specific build:
 
@@ -1230,6 +1536,8 @@ One-off, for a brand-new environment (not repeated per release):
 - [ ] Cloudinary presets and limits configured
 
 ## Release checklist — every `develop → main` release
+
+> **Current release gate:** this legacy whole-develop checklist does not approve PR841 or automatic deployment/SQL. Reuse accepted infrastructure evidence, review only changed release scope, require exact-head CI/CodeQL and separately approved production gate/deployment. Manual SQL, seed, backfill and mobile holds remain independent.
 
 Work through this in order. « Automated » items are gates that must already be green before the
 release PR is opened; « Manual » items are human actions around the merge; « Post-deploy » items are
