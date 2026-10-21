@@ -2,42 +2,52 @@
 
 ## Active initiative
 
-**Security-only remediation published for PR #843; main promotion remains gated.**
-PR #843 is based on main60d70ace and retains the isolated durable Hetzner/TLS
-integration. Owner-authorized scope now additionally includes the seven security
-manifest/lock/test paths from accepted develop commit6151b4fa; no PR841 business
-source, SQL migration content, mobile or historical QA import. Official Claude
-Code Opus5.5 used verified Max subscription authentication with provider API
-credentials excluded. Codex checked byte identity against the accepted files,
-unchanged audit exceptions, frozen install and32/32 real HTTP/Nest proxy tests.
-The exact enforced `pnpm audit --prod --audit-level=high` now passes:6 moderate,
-2 high (both existing ignores),0 critical. This does not mean vulnerability-free.
-Six Sentry/OpenTelemetry moderate findings remain unresolved/risk-accepted until
-2026-11-17; no new ignore, suppression or dependency-policy bypass was added.
+**CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**
+The owner-authorized replacement is `.github/workflows/codeql.yml`: normal PRs
+and pushes to develop/main, all3 languages(Actions, JavaScript/TypeScript,
+Python), default query suite/remote threat model, weekly analysis and supported
+manual dispatch. Official signed pins: checkout7.0.1 and CodeQL4.39.0; no app
+build/install, secrets, filters, suppressions or downstream deployment trigger.
 
-[PR #844](https://github.com/ipanga/teka-rdc/pull/844) is the separate one-file
-develop fixture backport, commit `3546d0dc2a169d46068fc323ddf1085fd9a5df8d`.
-[Python/actions/JS CodeQL](https://github.com/ipanga/teka-rdc/actions/runs/39543802007)
-and aggregate CodeQL passed; [CI](https://github.com/ipanga/teka-rdc/actions/runs/39543803906)
-passed12/12 (16 total successful checks). Exact synthetic bytes/assertions remain,
-with0600 creation before writing. No dismissal/suppression. Alert27 on unmerged
-develop e58 remains open until a separately authorized merge and base scan.
+[PR #845](https://github.com/ipanga/teka-rdc/pull/845) merged ONLY the workflow
+into develop with merge commit `ebab9d671593f86782a231080223cc5659be1be7`,
+parents ad611bc7/ca756d44, after all16checks/all13required and all3 accepted PR
+analyses passed. [Develop push CI39595934967](https://github.com/ipanga/teka-rdc/actions/runs/39595934967)
+and [CodeQL39595934951](https://github.com/ipanga/teka-rdc/actions/runs/39595934951)
+pass at that merge SHA; all3 uploads accepted on refs/heads/develop and genuine
+CodeQL app57789 aggregate succeeds. Alert27 remains fixed, never dismissed.
 
-Fresh PR843 CI and required CodeQL must be verified at its final head before
-main promotion. Default setup is configured, but previously generated no scan
-for this main-targeted PR despite protected-main eligibility documented by
-GitHub. No supported arbitrary-head default-setup dispatch API exists. Do not
-retry workflow_dispatch, borrow another branch's check or weaken protection.
-[Current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks).
-[Advisory paths, relevance and release procedure](docs/deployment.md#security-only-main-backport--2026-10-21).
+PR843 carries the byte-identical workflow in implementation commit
+`a714933dd9fdec4bf61e2ae06e09bae6a9ad539e`, independently based on main60d70ace.
+Its first accepted normal-PR analysis39595497971 scanned actual merge candidate
+`3e1104ef82d9ea6c5ea4101d5303e7ab2cd53569` at refs/pull/843/merge: all3languages,
+0results/no errors, plus genuine required CodeQL check119206897518(app57789)
+SUCCESS. CI39595498005(12/12) and PRvalidation39595497965(5/5 incl4Dockerbuilds)
+passed,21 successful checks total. This documentation follow-up changes the
+head; [current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks)
+must also pass before any separately authorized merge. No earlier-head result
+may substitute for final acceptance. Source scope is24 paths, adding only this
+one workflow to the accepted23; no full develop/PR841 business import.
 
-No merge or production operation is authorized in this phase. Hetzner remains
-sole authority; protected runtime/CA, services, credentials, backup/WAL and accepted
-P1/P2 evidence are preserved. PR840 is unchanged; PR841 remains Draft/unmerged/
-no-auto-merge. Deployment, SQL, seed and backfill holds remain active. Main's
-push deployment is still active and runs apply-auto: a separate approved
-release/hold plan is required before main merge. Rollback must retain Hetzner,
-strict TLS and the protected runtime/CA; never reconnect to stale Alwaysdata.
+Default Setup was switched to not-configured through the supported API before
+Advanced uploads. Before-state/rollback are retained. Both rulesets,13 required
+contexts and CodeQL app57789 remain unchanged with no bypass actors. Authenticated
+UI verifies unchanged failure thresholds: Security High or higher; Standard Only
+errors. Original Default-trigger cause remains unproven. Actual successful PR
+comparison required no separate main baseline; none was fabricated or borrowed.
+
+Security patches/exceptions are preserved: enforced production audit passes,
+6 Sentry/OTel moderates unresolved/risk-accepted through2026-11-17,2 existing high
+ignores unchanged. Informational full-tree tooling findings remain unresolved
+(including2critical Handlebars advisories); no new acceptance/suppression.
+
+Main remains60d70ace; PR843 unmerged/no-auto-merge. PR840's unique history remains
+separate; PR841 stays Draft/unmerged/no-auto-merge(its develop head advances
+naturally). All deploy/SQL/seed/backfill/mobile-release holds remain. No production
+contact, container/DB/runtime/CA/credential/backup/WAL change or P1/P2 repeat.
+Main push deploy.yml is active and runs apply-auto: separate main-release and
+operational-hold authorization remains essential. Hetzner-only rollback remains
+mandatory; never reconnect to stale Alwaysdata.
 
 ## Previous context (historical; current facts above)
 
