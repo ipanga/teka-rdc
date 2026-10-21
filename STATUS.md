@@ -17,8 +17,7 @@ without auto-merge; PR #840 and its unique historical evidence remain unchanged.
 
 **Package 1 is authorized for two main-targeted PRs only:** this three-file
 closure documentation and a separate focused CI/CD hardening implementation.
-Publication tracking: documentation PR **pending publication**; hardening PR
-**pending publication**. These proposals are not active production guarantees.
+Publication tracking: documentation [PR #846](https://github.com/ipanga/teka-rdc/pull/846); hardening is isolated on `codex/production-release-hardening`. These proposals are not active production guarantees.
 No merge, environment creation/configuration, workflow enablement, deployment,
 SQL execution or main/develop synchronization is authorized by Package 1.
 

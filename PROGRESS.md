@@ -6,7 +6,7 @@ Owner accepted migration and the first post-migration production deployment as
 **CLOSED / PASS**. This publication reconciles only STATUS.md, PROGRESS.md and
 docs/deployment.md from clean main c076c061; no historical PR #840 artifacts
 or unrelated dirty-checkout changes are imported. Publication tracking:
-documentation PR **pending publication**; separate hardening PR **pending publication**.
+documentation [PR #846](https://github.com/ipanga/teka-rdc/pull/846); separate hardening is isolated on `codex/production-release-hardening`.
 Both target main for review/CI only. No merge or production execution is authorized.
 
 Accepted proof, preserved without repeating operations:

@@ -10,8 +10,7 @@ main is `c076c0613f5958859dbec3899b043588d710c215`, deployed by
 Hetzner PostgreSQL 16/teka-prod, database teka_prod on private port 5433 is the sole
 production authority. Alwaysdata is stale and must never become a fallback.
 
-**Current scope is Package 1 publication only:** documentation PR **pending
-publication**, separate hardening PR **pending publication**; both target main
+**Current scope is Package 1 publication only:** documentation [PR #846](https://github.com/ipanga/teka-rdc/pull/846), separate hardening is isolated on `codex/production-release-hardening`; both target main
 for review/CI. No PR merge, main→develop synchronization, production environment
 creation/configuration, deployment workflow enable/dispatch, SQL or production
 change is included. Workflow 265250843 is disabled_manually; CI/CodeQL stay enabled.
