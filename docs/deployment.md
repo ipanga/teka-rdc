@@ -1,5 +1,413 @@
 # Teka RDC — Deployment Guide
 
+## Post-P2 durable database integration — 2026-10-20
+
+**Durable production activation PASS — completed 2026-10-20 22:07:16 UTC
+(2026-10-21 00:07:16 Lubumbashi). Hetzner remains authoritative; P2 is COMPLETE.**
+The owner-authorized continuation reused the adopted protected runtime/CA,
+promoted exactly five public files and recreated only the API once, using the
+existing immutable image. Ordinary deployments, SQL/seed/backfill workflows and
+PR #841 remain **held**. This isolated publication is authorized for review/CI
+only; main merge and workflow resumption require separate approval.
+This section supersedes legacy database/runtime/API rollback instructions below.
+Never reconnect to stale Alwaysdata or apply the P2 source rollback override.
+
+### Activation result and retained evidence
+
+The fresh continuation checked the corrected guard SHA256, exact five-file
+manifest, original P2 API/image/environment, adopted runtime/CA, rollback files
+and all destination ancestors. The full effective Compose model matched the
+old working model after normalizing only the intended CA host path. All six
+existing 0775 directory modes were preserved; no permission changes or adoption
+repeat occurred. The API image remained:
+
+`ghcr.io/ipanga/teka-rdc/api@sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a`.
+
+New API ID:
+`56873c4f9b844035ba6279f2e37cbb7607f92c2cad3508d1a5063a0aec6f9489`.
+Recreation began 22:07:00 UTC; all final checks passed 16.8 seconds later. This is
+execution timing, not a measured customer outage. Saved evidence confirms:
+
+- Healthy API and internal readiness; origin and independent external public
+  readiness HTTP 200.
+- Read-only metadata probe: `teka_prod`, 10.77.0.3:5433, primary, TLS enabled.
+  Prisma strict TLS settings and libpq verify-full configuration are preserved.
+- Canonical read-only CA mount, with the CA checksum verified inside the API:
+  `bb4912352c678e70053270b340b0445395b52d42221961dfd819381abba47c64`.
+- Exact complete API environment match, including all non-DB settings and the
+  current SENTRY_RELEASE. Legitimate multiline/dollar values are preserved.
+- Nginx/web container IDs, start times and restart counts, original env/nginx
+  files, directory modes, manifests and private rollback evidence unchanged.
+
+Evidence directory: `/home/deploy/teka-durable-activation-20261020T213628Z`.
+`activation-complete-20261021.json` SHA256:
+`dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`.
+Codex independently retrieved and reviewed the saved receipt. The [sanitized activation evidence on develop](https://github.com/ipanga/teka-rdc/blob/e58cc99895ba9ed30083ae2d54664393745564b1/docs/qa/order-integrity/native-followup/release-preflight-result.json)
+records it and the external public readiness result. Historical QA artifacts
+are deliberately not imported into this isolated main PR. `continuation-preflight-20261021.json`,
+`promotion.json`, `continuation-validated-20261021.json` and the single recreation
+start receipt remain on the host. No SQL migrations, database changes,
+backup/restore/PITR repeats, new images or Git operations were performed.
+
+The original stopped attempt is retained: `no-go.json` SHA256
+`fcc0adc32e59fd56bc451c44309e7ce13556bcf482d044482e4e473e099219f0`,
+plus `adoption.json`, manifests and protected backups. Its cause was an overly
+narrow P2 parent-directory allowlist, not unsafe permissions. The reviewed
+Opus5.5/Max adapter SHA256
+`7f0deaa4e32511f5f67bac8759dd60bfc76c3f5fc7ea7907963a3b31cef184fd`
+scoped the in-memory allowlist to exact manifest ancestors while retaining
+UID/GID1000, sole `{deploy}` membership, ACL, symlink and world-write checks.
+It changed neither the saved P2 helper nor directory modes. No new implementation
+was needed for this continuation. **Do not repeat adoption or this activation.**
+
+### Active durable configuration
+
+- The base production Compose definition requires the database/TLS service
+  fragment, including a required protected API environment file outside the
+  checkout. Missing files fail rather than falling back to `.env.production`.
+- The protected runtime contains the complete approved API environment, copied
+  from P2 only after comparison with the running API. It contains no image pin;
+  deployment and image rollback keep the same database and CA configuration.
+  The stable directory is `/home/deploy/.config/teka-rdc` (0700), containing
+  `api-runtime.json` (0600) and public-only `production-ca.crt` (0444). The
+  repository's `docker-compose.db-tls.yml` inherits that runtime and is itself
+  inherited by `docker-compose.prod.yml`; passing an extra `-f` is unnecessary.
+  Prisma retains `sslmode=require`, `sslaccept=strict` and
+  `sslcert=/run/teka-db-ca/ca.crt`; libpq uses `PGSSLMODE=verify-full` with
+  `PGSSLROOTCERT=/run/teka-db-ca/ca.crt`.
+- Web services continue using their existing `.env.production` and deployment
+  variables. API secrets, including PostHog and store-review controls, become
+  explicitly host-managed. Empty CI defaults must not overwrite them.
+  `SENTRY_RELEASE` is updated to the deployment commit SHA by the held deploy
+  workflow immediately before the API rolling update; it is not frozen at the
+  adopted value. Do not print rendered Compose configuration.
+- A shared production Compose helper checks the target, strict TLS, CA hash,
+  protected file permissions, effective API environment and read-only mount
+  before deployment, rollout or manual writer commands. Rollout receives the
+  same project, Compose file and environment-file selection.
+- Auto/manual SQL uses a shared Node runner to pass decoded connection fields
+  directly to libpq with `PGSSLMODE=verify-full` and the pinned public CA. It
+  does not shell-evaluate credentials or put the database URL in command
+  arguments. Existing SQL files and migration-ledger semantics are preserved.
+
+Docker documents [service inheritance](https://docs.docker.com/compose/how-tos/multiple-compose-files/extends/)
+and [literal-dollar escaping](https://docs.docker.com/reference/compose-file/interpolation/).
+PostgreSQL documents [verify-full certificate and host validation](https://www.postgresql.org/docs/16/libpq-ssl.html).
+No application dependency upgrade or database schema change is needed.
+
+### Validation and remaining limits
+
+Codex independently reviewed the official Claude Code Opus5.5 implementation,
+with Max authentication verified and provider/API credentials excluded. The
+focused local regression passes all29 assertions: real Compose rendering with
+synthetic multiline/dollar values and a stale source env; missing/unsafe runtime,
+wrong target/TLS/CA and wrong live-container settings fail closed; the psql stub
+receives the correct libpq fields without credential argv or ambient routing.
+Two additional local adoption assertions confirm staging works **before** the
+new Compose files, preserves source files/modes and refuses existing destinations.
+No test connects to a database or creates a container. Python/Node/shell syntax,
+the five changed workflow YAML files, both Compose YAML files and patch
+whitespace checks pass. The existing **Release Config** CI job now runs the
+focused regression; no GitHub run was triggered.
+
+Local Compose validation used 5.6.0; production 5.1.3 successfully rendered the
+promoted stack and recreated the API. The adopted runtime/CA now exists at the
+protected paths above, and in-container CA readability/checksum passed.
+Activation preserved the existing API release and every non-DB value.
+Future deployments explicitly stamp their commit SHA through the protected
+metadata update described below. GitHub PostHog/store-review secret edits alone
+will no longer change the API.
+CA rotation requires a separately reviewed certificate/pin update, not a TLS
+downgrade. No full application build is claimed or needed for these scripts;
+the completed activation used the existing validated image.
+
+### Completed activation and future rollback boundaries
+
+The bounded activation and controlled promotion-only continuation were owner
+authorized and have completed. The sequence below is retained as execution
+history and rollback context, **not a rerun instruction**. Ordinary deployment/SQL
+holds, Git publication and PR #841 remain unchanged. No additional activation
+approval or repetition is required; the next approval concerns publication and
+resumption of normal deployment paths.
+
+Reviewed public entry-point SHA-256 values (verify before staging/execution):
+
+```text
+d59abcbcb164b3d1ffcd1e2fb7c0cd3b7fe20586efaae858bb2d1fe4021a99f9  scripts/production-compose.py
+6f2c423f24b6783a11618cecdda0d1f81b3319a866fc5a2497b953005bf98778  apps/api/prisma/migrations/production-psql.cjs
+```
+
+1. Keep deployment/SQL holds in force. Preserve the existing P2 configuration
+   and pinned API image as the known-good configuration rollback. Save the
+   current host deployment files privately before synchronizing replacements.
+2. Adoption completed once before public-file promotion. The protected runtime
+   and CA were reused by the continuation. **Do not run `--adopt-p2` again.**
+   `.env.production`, credentials and the DB host were not changed.
+3. Promote the reviewed public files: `docker-compose.prod.yml`,
+   `docker-compose.db-tls.yml`, `scripts/production-compose.py`,
+   `scripts/run-prod-sql.sh` and
+   `apps/api/prisma/migrations/production-psql.cjs`, preserving their paths.
+   Then run `python3 scripts/production-compose.py --check`, expecting
+   `production-compose: OK`. Confirm complete API
+   environment equality and strict TLS/CA inheritance before authorizing an API
+   recreation. A missing file, CA mismatch or target/environment drift is
+   NO-GO; preserve the running container and correct only the reported problem.
+4. The completed single recreation used the **existing immutable API digest**
+   with the durable settings (record only; do not rerun):
+
+   ```sh
+   TEKA_API_IMAGE=ghcr.io/ipanga/teka-rdc/api@sha256:a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a \
+     python3 -I -B scripts/production-compose.py up -d --no-deps --pull never --force-recreate api
+   ```
+
+   Target identity, readiness, public readiness and mounted CA checks passed.
+   No SQL migration was run to test the plumbing. Future recreations/deployments
+   still require their own authorization; normal workflows remain held.
+5. Image rollback changes only the API image to a verified compatible digest.
+   Keep the durable runtime, CA, private target and all non-database settings.
+   Schema compatibility is still required; an image rollback is not a database
+   rollback. If durable-file activation fails before recreation, leave the
+   running API alone. If configuration rollback is needed, use the retained P2
+   **target** override and CA with the original pinned image; never the source
+   override or stale `.env.production` alone.
+
+For a future API image rollback, use the same `TEKA_API_IMAGE=<approved immutable
+digest>` command above; no environment override file is needed. Do not use the
+legacy `rollback.yml` procedure below for the API. If reverting the durable
+Compose definition itself, use the saved pre-integration base with the retained
+P2 TLS fragment and **target** override, explicitly retaining Compose project
+`teka-rdc` and project directory `/home/deploy/teka-rdc` so relative paths resolve
+correctly. Do not restore a source DATABASE_URL or infer permission to run SQL.
+
+### Isolated main integration — review and CI only
+
+**CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**
+The owner-authorized replacement is `.github/workflows/codeql.yml`: normal PRs
+and pushes to develop/main, all3 languages(Actions, JavaScript/TypeScript,
+Python), default query suite/remote threat model, weekly analysis and supported
+manual dispatch. Official signed pins: checkout7.0.1 and CodeQL4.39.0; no app
+build/install, secrets, filters, suppressions or downstream deployment trigger.
+
+[PR #845](https://github.com/ipanga/teka-rdc/pull/845) merged ONLY the workflow
+into develop with merge commit `ebab9d671593f86782a231080223cc5659be1be7`,
+parents ad611bc7/ca756d44, after all16checks/all13required and all3 accepted PR
+analyses passed. [Develop push CI39595934967](https://github.com/ipanga/teka-rdc/actions/runs/39595934967)
+and [CodeQL39595934951](https://github.com/ipanga/teka-rdc/actions/runs/39595934951)
+pass at that merge SHA; all3 uploads accepted on refs/heads/develop and genuine
+CodeQL app57789 aggregate succeeds. Alert27 remains fixed, never dismissed.
+
+PR843 carries the byte-identical workflow in implementation commit
+`a714933dd9fdec4bf61e2ae06e09bae6a9ad539e`, independently based on main60d70ace.
+Its first accepted normal-PR analysis39595497971 scanned actual merge candidate
+`3e1104ef82d9ea6c5ea4101d5303e7ab2cd53569` at refs/pull/843/merge: all3languages,
+0results/no errors, plus genuine required CodeQL check119206897518(app57789)
+SUCCESS. CI39595498005(12/12) and PRvalidation39595497965(5/5 incl4Dockerbuilds)
+passed,21 successful checks total. This documentation follow-up changes the
+head; [current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks)
+must also pass before any separately authorized merge. No earlier-head result
+may substitute for final acceptance. Source scope is24 paths, adding only this
+one workflow to the accepted23; no full develop/PR841 business import.
+
+Default Setup was switched to not-configured through the supported API before
+Advanced uploads. Before-state/rollback are retained. Both rulesets,13 required
+contexts and CodeQL app57789 remain unchanged with no bypass actors. Authenticated
+UI verifies unchanged failure thresholds: Security High or higher; Standard Only
+errors. Original Default-trigger cause remains unproven. Actual successful PR
+comparison required no separate main baseline; none was fabricated or borrowed.
+
+Security patches/exceptions are preserved: enforced production audit passes,
+6 Sentry/OTel moderates unresolved/risk-accepted through2026-11-17,2 existing high
+ignores unchanged. Informational full-tree tooling findings remain unresolved
+(including2critical Handlebars advisories); no new acceptance/suppression.
+
+Main remains60d70ace; PR843 unmerged/no-auto-merge. PR840's unique history remains
+separate; PR841 stays Draft/unmerged/no-auto-merge(its develop head advances
+naturally). All deploy/SQL/seed/backfill/mobile-release holds remain. No production
+contact, container/DB/runtime/CA/credential/backup/WAL change or P1/P2 repeat.
+Main push deploy.yml is active and runs apply-auto: separate main-release and
+operational-hold authorization remains essential. Hetzner-only rollback remains
+mandatory; never reconnect to stale Alwaysdata.
+
+### Explicit CodeQL coverage and rollback
+
+The verified source workflow SHA256 is
+`dc96905fe3ccecaafe21e998d92c0f07757d33b5ed89463647351560ec9322e8`.
+Checkout7.0.1 is pinned to3d3c42e5aac5ba805825da76410c181273ba90b1;
+CodeQL4.39.0 init/analyze to6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee.
+Only contents:read and security-events:write are granted. Checkout has no ref
+override; the normal pull_request merge commit is analyzed. Every upload waits
+for processing; acceptance still independently requires all3 stored analyses
+and the real CodeQL aggregate from app57789. A green action alone is insufficient.
+
+Weekly schedule is Tuesday05:23UTC on default branch develop. Manual analysis
+is now available because this workflow is present there:
+
+```sh
+gh workflow run codeql.yml --repo ipanga/teka-rdc --ref develop
+```
+
+Do not dispatch the old generated workflow, or dispatch main before the file
+exists on main. A future main push/PR is explicitly covered once this reviewed
+workflow is promoted there. No extra manual or future scheduled execution is
+claimed as tested; the real post-merge push demonstrates current coverage.
+Existing workflow review found no workflow_run/call/dispatch bridge from CodeQL
+or develop merge to production/SQL/mobile publication.
+
+The [supported switch procedure](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/configure-code-scanning/configuring-advanced-setup-for-code-scanning)
+requires Default Setup off before Advanced uploads; this was verified. Old
+managed workflow277553868 is not the new explicit workflow391652184. The saved
+Default configuration used alias-expanded JS/TS; restore canonical equivalent
+languages(actions,javascript-typescript,python), query suite default, threat
+model remote and standard runner. Keep all rules/thresholds unchanged.
+
+If this authorized transition fails, preserve receipts/heads and keep release
+merges blocked. Restore the recorded Default configuration with this public,
+non-secret payload (do not change any other setting):
+
+```json
+{"state":"configured","languages":["actions","javascript-typescript","python"],"query_suite":"default","threat_model":"remote","runner_type":"standard"}
+```
+
+Save it as restore-default.json, then run
+`gh api --method PATCH repos/ipanga/teka-rdc/code-scanning/default-setup --input restore-default.json`.
+Verify the returned validation run and genuine3language coverage, then GET the
+same endpoint: configured/default/remote/standard/weekly and canonical3languages.
+Enabling Default disables Advanced analysis/uploads; verify the explicit
+workflow state and pause only that new workflow if needed after Default is
+confirmed configured. Do not revert protected branches, erase evidence or
+weaken required checks. This is scanning rollback, never a database/API rollback.
+The before-state, reviewed transition and actual run/analysis receipts are in
+`/private/tmp/teka-codeql-advanced-20261021/`; durable acceptance facts are retained
+here, in STATUS/PROGRESS and PR843/845. A separate main baseline was unnecessary:
+GitHub accepted all3 actual PR merge analyses and produced the required PASS.
+
+### Security-only main backport — 2026-10-21
+
+The actual failed production audit in [run39509699843](https://github.com/ipanga/teka-rdc/actions/runs/39509699843/job/118927375714)
+reported1 critical and9 unignored high advisories (11 high including2 existing
+ignores). All match main's older lockfile. The accepted develop security patch
+6151b4fa is compatible without PR841 application changes. Its seven public
+manifest/lock/proxy-regression files are reused; the historical1888-line QA
+report is not imported. Same-major companion security patches: Next15.5.27,
+Multer2.4.0, DOMPurify3.4.16 and fast-uri3.1.8. No framework-major upgrade.
+
+| Package / advisory | Main → selected fix | Dependency path and runtime relevance |
+| --- | --- | --- |
+| proxy-addr [GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h) critical | 2.0.7 →2.0.8 | API→Nest platform-express11.1.14→Express5.2.1; request IP parsing. Vulnerable mapped-subnet compilation is not exercised by shipped numeric trust1. |
+| brace-expansion [GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7), [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p) | 5.0.9 →5.0.12 | Sentry10.53.1→OTel/minimatch10.2.4 and bundler5.3.0→glob13.0.6. Recursive-pattern DoS; no user-controlled pattern identified. High patches begin5.0.10/5.0.11;5.0.12 also fixes moderate issue. |
+| grpc-js [GHSA-m9gg-hp2v-232j](https://github.com/advisories/GHSA-m9gg-hp2v-232j) | 1.14.4 →1.14.5 | Firebase Admin13.10.0→Firestore7.11.6→google-gax4.6.1. Certificate auth-context confusion; application uses Messaging, not Firestore/gRPC TLS servers/getAuthContext. |
+| fastify/busboy [GHSA-xjh9-v7x6-24jw](https://github.com/advisories/GHSA-xjh9-v7x6-24jw), [GHSA-x8mw-p69m-v3mx](https://github.com/advisories/GHSA-x8mw-p69m-v3mx) | 3.2.0 →3.2.2 | Firebase Admin13.10.0, lazy multipart Google-response parsing; not the application's upload parser. Multipart DoS fixes begin3.2.1;3.2.2 includes moderate fix. |
+| source-map-js [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) | 1.2.1 →1.2.2 | Next→PostCSS8.5.28; indexed-map event-loop DoS. No untrusted map ingestion identified. |
+| compression [GHSA-vc2v-76pw-4v95](https://github.com/advisories/GHSA-vc2v-76pw-4v95) | 1.8.1 →1.8.2 | Direct global API middleware; aborted compressed responses can leak native zlib memory. Active request-path exposure. |
+| joi [GHSA-6h2x-m376-mqjq](https://github.com/advisories/GHSA-6h2x-m376-mqjq) | 18.2.1 →18.2.9 | Direct boot environment validation; isoDate backtracking, no isoDate use found. High fix starts18.2.6; selected18.2.9 includes companion fixes. |
+| sharp [GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w) | 0.35.4 →0.35.5 | Next optional image optimizer, vulnerable librsvg. No dangerouslyAllowSVG found; Docker uses Alpine/musl, advisory's glibc RCE preconditions not demonstrated. |
+
+Cloudflare CIDRs restrict Nginx's CF-Connecting-IP trust; Nginx appends verified
+remote_addr rightmost and only Nginx publishes ports. Express retains numeric
+one-hop trust. The accepted32-test real HTTP/Nest regression verifies rightmost
+client selection, spoofed prefixes/alternate headers, IPv6/mapped-subnet fixes,
+throttling, session metadata and OTP budgets. No nginx/main.ts policy change.
+A direct API peer could supply an IP under positional trust; Docker/network
+isolation remains the boundary. No live infrastructure inference was needed.
+
+Both existing ignoreGhsas remain byte-for-byte unchanged:
+GHSA-38f7-945m-qr2g and GHSA-ggr8-5vv4-36mx. Six moderate Sentry/OpenTelemetry
+residuals stay unresolved with the accepted2026-11-17 deadline. No unsupported
+adapter override or broad audit exception was introduced.
+
+The generated CodeQL workflow has no workflow_dispatch trigger. Default setup
+is configured, main is ruleset-protected, but no old PR843 head scan was created.
+GitHub documents protected-target PR eligibility; ruleset-recognition failure
+is a hypothesis, not a proven cause. A real security push supplies synchronize;
+if no scan appears, one ordinary PR reopen may be tried. If still absent, retain
+NO-GO and report the GitHub-managed trigger issue; do not alter required checks,
+retarget the PR or copy develop's result. The develop backport is independently
+validated in PR844, including Python and aggregate CodeQL at3546d0dc.
+
+PR840's unique PR836/registry/operator chronology stays preserved. PR841 stays
+Draft/unmerged/no-auto-merge. All deployment/SQL/seed/backfill holds remain.
+
+### Proposed safe production release procedure — separate authorization required
+
+1. Require this isolated PR's13 required checks and main-only validation to pass,
+   review its exact diff and explicitly approve any subsequent main merge.
+   The production workflow is currently **active**, triggered by every main
+   push; deployment/SQL holds are operational, not a disabled-workflow switch.
+   Before a merge, separately authorize either pausing the workflow for a
+   code-only merge or the reviewed merge-triggered deployment itself. Do not
+   merge while assuming the present hold automatically prevents a deploy.
+2. Before separately authorized workflow resumption, verify unchanged protected
+   runtime/CA, Hetzner identity, compatible immutable rollback image and no
+   outstanding migration-manifest entries. The deploy workflow automatically
+   runs apply-auto, even if it becomes a no-op; do not resume it while SQL
+   execution remains unapproved. Keep seed/backfill workflows held separately.
+3. Sync only the five public files, validate the effective full API environment,
+   target/TLS/CA and image choice through production-compose.py; preserve all
+   host-managed secrets and non-DB settings. For a normal image deployment,
+   stamp only SENTRY_RELEASE with the actual image's commit before API rollout.
+   PostHog/review edits remain private and explicit. Do not run adoption again.
+4. Deploy only under the separately approved service/image scope, then verify
+   readiness/public200, Hetzner identity/TLS and the canonical read-only CA.
+   Stop on unexpected behavior. No backup/PITR repetition or database migration
+   is needed merely to publish or validate this integration.
+5. If rollback is needed, retain the current Hetzner runtime/CA and credentials;
+   use a known-compatible immutable API digest and matching SENTRY_RELEASE.
+   For configuration rollback, retain the saved pre-integration base with P2
+   **target** override/CA and explicit project directory. Never restore stale
+   Alwaysdata or a whole obsolete runtime backup. Preserve existing backup,
+   WAL and monitoring safeguards.
+
+Main merge, deployment, SQL/seed/backfill resumption and PR #841 approval are
+not authorized by this preparation. No workflows were disabled or dispatched.
+
+Manual SQL after activation uses `bash scripts/run-prod-sql.sh <reviewed.sql>`
+or `bash scripts/run-prod-sql.sh --migration <bundled-file.sql>`, only under its
+own production authorization. The public Node helper is passed to the running
+container, so manual SQL does not require a new API image. Auto-apply uses the
+same helper bundled with the next normally built image. Ledger ordering and
+once-only auto-apply behavior stay unchanged. SQL-file stdout/stderr is
+suppressed to keep customer rows out of CI; failures retain fixed codes/status,
+and any detailed diagnosis must be attended privately. Query output used by
+the ledger remains available to the runner.
+
+### Future API metadata and settings procedure
+
+From the application VPS as `deploy`, in `/home/deploy/teka-rdc`:
+
+- A separately authorized normal deployment runs
+  `python3 scripts/production-compose.py --set-release <40-character-commit-SHA>`
+  immediately before API rollout. This changes **only** `SENTRY_RELEASE`, saves
+  a unique0600 protected previous-runtime copy, atomically replaces the runtime
+  and validates effective Compose configuration. Failed candidate validation
+  restores the original file; no service is restarted by this command.
+  Today's activation uses the same existing image and preserves release
+  `60d70aceb199c75370044dd0e7980f22a4ab5ba5`.
+- PostHog/review updates are private, owner-attended operations:
+  `python3 scripts/production-compose.py --edit-api-setting KEY`. The only keys
+  are `POSTHOG_API_KEY`, `POSTHOG_HOST`, `APP_REVIEW_LOGIN_ENABLED`,
+  `APP_REVIEW_BUYER_PHONE_E164` and `APP_REVIEW_BUYER_OTP`. The two hidden prompts
+  request the new value and confirmation; no current/secret value is printed or
+  passed in arguments. An empty value explicitly clears a key where valid;
+  review-enabled accepts only `true`/`false`, host requires HTTPS, phone E164 and
+  OTP six digits or empty. Set review credentials first, enable last; disable
+  promptly after the approved review window. DB/TLS/image keys cannot be edited.
+- These commands stage configuration only. A separately approved API recreation
+  or deployment applies it; check readiness and target/TLS afterwards. Settings
+  do not change as a side effect of today's activation.
+- If a future rollout fails, retain deployment/SQL holds. Confirm the image and
+  release still serving, then reconcile **only** `SENTRY_RELEASE` using
+  `--set-release <that-image-commit-SHA>` before manual recreation. An image
+  rollback likewise uses its matching commit SHA and approved immutable image
+  digest, retaining Hetzner and the current credentials/CA. Do not blindly copy
+  an old full runtime backup over newer settings or restore a source DB URL.
+
+P1, P2, backup/WAL monitoring, accepted rehearsal/PITR evidence, cleanup deadlines
+and the six unresolved moderate Sentry/OpenTelemetry findings accepted through
+2026-11-17 are unchanged. No provisioning, backup, restore or PITR check is
+repeated by this integration task.
+
+
+
 ## Prerequisites
 
 - Docker 24+ and Docker Compose v2

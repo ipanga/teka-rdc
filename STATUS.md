@@ -1,6 +1,55 @@
-# Status — 2026-09-27
+# Status — 2026-10-21
 
 ## Active initiative
+
+**CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**
+The owner-authorized replacement is `.github/workflows/codeql.yml`: normal PRs
+and pushes to develop/main, all3 languages(Actions, JavaScript/TypeScript,
+Python), default query suite/remote threat model, weekly analysis and supported
+manual dispatch. Official signed pins: checkout7.0.1 and CodeQL4.39.0; no app
+build/install, secrets, filters, suppressions or downstream deployment trigger.
+
+[PR #845](https://github.com/ipanga/teka-rdc/pull/845) merged ONLY the workflow
+into develop with merge commit `ebab9d671593f86782a231080223cc5659be1be7`,
+parents ad611bc7/ca756d44, after all16checks/all13required and all3 accepted PR
+analyses passed. [Develop push CI39595934967](https://github.com/ipanga/teka-rdc/actions/runs/39595934967)
+and [CodeQL39595934951](https://github.com/ipanga/teka-rdc/actions/runs/39595934951)
+pass at that merge SHA; all3 uploads accepted on refs/heads/develop and genuine
+CodeQL app57789 aggregate succeeds. Alert27 remains fixed, never dismissed.
+
+PR843 carries the byte-identical workflow in implementation commit
+`a714933dd9fdec4bf61e2ae06e09bae6a9ad539e`, independently based on main60d70ace.
+Its first accepted normal-PR analysis39595497971 scanned actual merge candidate
+`3e1104ef82d9ea6c5ea4101d5303e7ab2cd53569` at refs/pull/843/merge: all3languages,
+0results/no errors, plus genuine required CodeQL check119206897518(app57789)
+SUCCESS. CI39595498005(12/12) and PRvalidation39595497965(5/5 incl4Dockerbuilds)
+passed,21 successful checks total. This documentation follow-up changes the
+head; [current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks)
+must also pass before any separately authorized merge. No earlier-head result
+may substitute for final acceptance. Source scope is24 paths, adding only this
+one workflow to the accepted23; no full develop/PR841 business import.
+
+Default Setup was switched to not-configured through the supported API before
+Advanced uploads. Before-state/rollback are retained. Both rulesets,13 required
+contexts and CodeQL app57789 remain unchanged with no bypass actors. Authenticated
+UI verifies unchanged failure thresholds: Security High or higher; Standard Only
+errors. Original Default-trigger cause remains unproven. Actual successful PR
+comparison required no separate main baseline; none was fabricated or borrowed.
+
+Security patches/exceptions are preserved: enforced production audit passes,
+6 Sentry/OTel moderates unresolved/risk-accepted through2026-11-17,2 existing high
+ignores unchanged. Informational full-tree tooling findings remain unresolved
+(including2critical Handlebars advisories); no new acceptance/suppression.
+
+Main remains60d70ace; PR843 unmerged/no-auto-merge. PR840's unique history remains
+separate; PR841 stays Draft/unmerged/no-auto-merge(its develop head advances
+naturally). All deploy/SQL/seed/backfill/mobile-release holds remain. No production
+contact, container/DB/runtime/CA/credential/backup/WAL change or P1/P2 repeat.
+Main push deploy.yml is active and runs apply-auto: separate main-release and
+operational-hold authorization remains essential. Hetzner-only rollback remains
+mandatory; never reconnect to stale Alwaysdata.
+
+## Previous context (historical; current facts above)
 
 **Seller Catalogue Speed-up — RELEASED TO PRODUCTION (2026-09-27); seller-mobile store round in progress.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
 

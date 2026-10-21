@@ -1,0 +1,36 @@
+# Durable production DB-TLS layer for `api` (Post-P2). NOT a standalone
+# override: docker-compose.prod.yml's `api` service `extends` this file, which
+# in turn `extends` the host-managed canonical API runtime. Never pass this
+# file with `-f`. Run every production Compose operation through
+# scripts/production-compose.py, which validates this chain before mutating.
+#
+# /home/deploy/.config/teka-rdc/ (outside the checkout, dir 0700):
+#   api-runtime.json    0600  {"services":{"api":{"environment":{...}}}}
+#                             — the COMPLETE api environment (DB + non-DB),
+#                             values Compose-escaped (`$` written as `$$`).
+#                             `.env.production` no longer feeds `api`.
+#   production-ca.crt   0444  public DB CA only (pinned by sha256 in the helper)
+# A missing runtime file makes every config/up fail — there is no fallback to
+# the stale `.env.production` DB URL. Non-DB secret changes are explicit,
+# protected edits of api-runtime.json (followed by `--check`); CI no longer
+# injects API secrets. Deploy explicitly updates only SENTRY_RELEASE through
+# the validated --set-release mode immediately before API rollout.
+#
+# Prisma 6 does not honour sslrootcert/PGSSL*: DATABASE_URL itself carries
+#   sslmode=require&sslaccept=strict&sslcert=%2Frun%2Fteka-db-ca%2Fca.crt
+# libpq tools (production-psql.cjs) use the PG* values below.
+services:
+  api:
+    extends:
+      file: /home/deploy/.config/teka-rdc/api-runtime.json
+      service: api
+    volumes:
+      - type: bind
+        source: /home/deploy/.config/teka-rdc/production-ca.crt
+        target: /run/teka-db-ca/ca.crt
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/teka-db-ca/ca.crt
