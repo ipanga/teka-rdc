@@ -1468,3 +1468,16 @@ The Teka RDC e-commerce marketplace is feature-complete across all 5 frontends (
 - Docker production configs, SSL, documentation
 - 90 e2e test cases covering critical paths
 - Self-service profile management: avatar / personal info / password / notification preferences / active session list (2026-05-20)
+
+## Package 1 CI/CD release hardening — 2026-10-21
+
+Deploy workflow: an environment-preflight runs before any `environment:`
+reference; per-leg digest artifacts feed four validated immutable refs; owner
+approval is followed by a protection recheck before scp. The host side runs
+`scripts/production-release.py` (snapshot → install → deploy, explicit
+one-service `recover`). `apply-auto.sh` now defaults to `--check-only`. The API
+healthcheck is `/api/v1/health/ready`. Regression:
+`scripts/tests/production_release_regression.py` (CI Release Config). Production
+remains held pending review/merge authorization. See `docs/deployment.md`.
+
+Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.

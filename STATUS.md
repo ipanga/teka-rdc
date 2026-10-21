@@ -1605,3 +1605,14 @@ Surfaced by a 2026-05-21 code-rot audit. Not yet picked up.
 - `~/.claude/plans/archive/partitioned-nibbling-spark.shipped.md` — Rakuten redesign, executed in PRs #67–#73. **Do not re-execute.** Plan files in `~/.claude/plans/archive/` with `.shipped.md` are historical — read for context only.
 
 > Other untouched files in `~/.claude/plans/` (e.g. `calm-soaring-emerson.md`, `fix-ios-push-mighty-nebula.md`) have unknown status. They are not necessarily in-flight — cross-reference against git log + this file before treating one as a backlog item.
+
+## Package 1 CI/CD release hardening — implementation for review
+
+Implemented on `codex/production-release-hardening` (base main `c076c061`), prepared for independent review and publication. The changes cover immutable four-digest
+releases, the read-only `production` environment preflight + post-approval
+recheck, receipt/snapshots before sync/pull, a pinned+verified docker-rollout,
+the API `/health/ready` healthcheck, and a default read-only migration ledger
+check. Runbook: `docs/deployment.md` (Package 1 release hardening section). Production deploys stay held;
+no environment/settings, SQL, manifest or dependency changes.
+
+Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
