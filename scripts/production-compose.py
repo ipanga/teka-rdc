@@ -13,6 +13,7 @@ docker-compose.db-tls.yml). Before ANY docker mutation it validates:
   - the effective `compose config` api environment equals the runtime exactly,
     the CA is mounted read-only, and the api image is the default `latest` or
     an immutable ghcr.io/ipanga/teka-rdc/api@sha256 digest (TEKA_API_IMAGE);
+    web images equal TEKA_{BUYER,SELLER,ADMIN}_WEB_IMAGE digests when set;
   - before `exec`: docker inspect of every running api container (fixed
     project/service labels) shows the canonical env exactly (extras only image
     defaults) and a read-only bind of the pinned CA (canonical or P2 source).
@@ -61,6 +62,14 @@ P2_IMAGE = ('ghcr.io/ipanga/teka-rdc/api@sha256:'
             'a9a722601485ed39cf0e07f3533d0f80aa744e3772c2119121d86fe4d807a38a')
 DEFAULT_IMAGE = 'ghcr.io/ipanga/teka-rdc/api:latest'
 DIGEST_IMAGE = re.compile(r'ghcr\.io/ipanga/teka-rdc/api@sha256:[0-9a-f]{64}')
+# Deploy (scripts/production-release.py) pins every service to its immutable
+# build digest through these; unset keeps the compose default (operator use).
+IMAGE_VARS = {'api': 'TEKA_API_IMAGE', 'buyer-web': 'TEKA_BUYER_WEB_IMAGE',
+              'seller-web': 'TEKA_SELLER_WEB_IMAGE', 'admin-web': 'TEKA_ADMIN_WEB_IMAGE'}
+
+
+def digest_ref(service):
+    return re.compile(r'ghcr\.io/ipanga/teka-rdc/' + re.escape(service) + r'@sha256:[0-9a-f]{64}')
 TARGET = {'host': '10.77.0.3', 'port': 5433, 'db': 'teka_prod', 'user': 'congofoot_user_teka_rdc'}
 PRISMA_QUERY = sorted([('sslmode', 'require'), ('sslaccept', 'strict'), ('sslcert', CA_TARGET)])
 SERVICES = ('api', 'buyer-web', 'seller-web', 'admin-web')
@@ -100,9 +109,10 @@ def docker_env():
         raise Fail('DOCKER_CONTEXT')
     env = {k: v for k, v in os.environ.items() if not k.startswith('COMPOSE_')}
     env['COMPOSE_PROJECT_NAME'] = PROJECT
-    image = env.get('TEKA_API_IMAGE')
-    if image and not DIGEST_IMAGE.fullmatch(image):
-        raise Fail('API_IMAGE')
+    for service, var in IMAGE_VARS.items():
+        image = env.get(var)
+        if image and not digest_ref(service).fullmatch(image):
+            raise Fail('API_IMAGE' if service == 'api' else 'WEB_IMAGE')
     return env
 
 
@@ -241,10 +251,15 @@ def load_runtime():
 def check_effective(raw, decoded, env):
     out = docker_capture(['compose', *COMPOSE_ARGS, 'config', '--format', 'json'], env, 'COMPOSE_CONFIG')
     try:
-        api = json.loads(out)['services']['api']
+        services = json.loads(out)['services']
+        api = services['api']
         effective = api.get('environment') or {}
+        web_images = {s: services[s].get('image') for s in SERVICES if s != 'api'}
     except (ValueError, KeyError, TypeError, AttributeError):
         raise Fail('COMPOSE_CONFIG') from None
+    for service, image in web_images.items():
+        if image != (env.get(IMAGE_VARS[service]) or f'ghcr.io/ipanga/teka-rdc/{service}:latest'):
+            raise Fail('WEB_IMAGE')
     # `config` may keep `$$` escaping or render literals; it must match one
     # encoding consistently across ALL values.
     if effective != raw and effective != decoded:
@@ -253,6 +268,8 @@ def check_effective(raw, decoded, env):
         raise Fail('API_ENV_FILE')
     image = api.get('image')
     if image != DEFAULT_IMAGE and not DIGEST_IMAGE.fullmatch(image or ''):
+        raise Fail('API_IMAGE')
+    if env.get('TEKA_API_IMAGE') and image != env['TEKA_API_IMAGE']:
         raise Fail('API_IMAGE')
     mounts = [v for v in api.get('volumes') or [] if isinstance(v, dict) and v.get('target') == CA_TARGET]
     if (len(mounts) != 1 or mounts[0].get('type') != 'bind' or mounts[0].get('source') != CA

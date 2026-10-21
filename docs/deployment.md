@@ -1671,3 +1671,82 @@ seller transition of that same order. Never test-write on a real seller's or buy
 | A4 | Operational views | sellers list, orders list, products moderation queue, payouts list all load |
 | A5 | Document preview | a seller verification document preview loads (signed Cloudinary URL) |
 
+## Package 1 release hardening (PR pending review) — 2026-10-21
+
+**Ordinary deployments remain held; the deploy workflow stays disabled
+externally. This PR changes no GitHub environment/settings, manifest, SQL or
+dependency.** Flow (`.github/workflows/deploy.yml`, `scripts/production-release.py`):
+
+1. `environment-preflight` (main push/dispatch only, no `environment:` key):
+   read-only REST GET of `production` + its branch policies. Required:
+   `can_admins_bypass=false`; one required-reviewers rule listing only User
+   `ipanga` (7407149); `prevent_self_review=false`, because the sole approver
+   approves their own run (`true` fails `ENV_SELF_REVIEW_SOLE_APPROVER` unless a
+   second approved reviewer is added to `SECOND_REVIEWERS` by a reviewed change);
+   custom branch policies with exactly `main`, type `branch` (no protected-branches
+   mode, wildcard or tag). 404 → `ENV_GATE_MISSING`, 401/403 →
+   `ENV_GATE_UNAUTHORIZED`. Referencing a missing environment would auto-create
+   an unprotected one, so only `deploy` references it, and only after this passes.
+2. `build-and-push` publishes `:latest`/`:<sha>` tags (publication only) and each
+   matrix leg uploads its own digest artifact; `release-images` accepts exactly
+   four (`ghcr.io/ipanga/teka-rdc/<svc>@sha256:<64hex>`, this SHA, exactly one
+   per service; equal content digests across repositories are allowed).
+3. `deploy`: owner approval → protection recheck (first step after checkout,
+   before any scp) → an SSH check creates `/home/deploy/teka-rdc-staging/`
+   owned/0700 (an existing unsafe dir stops; its mode is never changed) → the six
+   public files are staged there → host (snapshot/install/deploy/recover share a
+   non-blocking host lock; a concurrent run fails `RELEASE_LOCKED`):
+   - `snapshot`: validated runtime/CA and live api env/CA first; receipt
+     `~/.config/teka-rdc/releases/<sha>/receipt.json` (0700/0600, host only),
+     protected copies of the current public files (modes/hashes in the receipt),
+     `.env.production` and api runtime (0600) and CA (0444) — values stay host-only
+     and are never restored wholesale. Every service must be running, healthy and
+     on a known SENTRY_RELEASE; running image IDs are tagged
+     `teka-rdc-rollback/<svc>:pre-<sha>` and each tag must re-resolve to the
+     captured ID. An existing receipt for the SHA stops (`RECEIPT_EXISTS`).
+   - `install`: exactly the six staged files (owned, no group/world write, no
+     symlink, no extra file); symlinked destinations are refused, existing file
+     modes preserved. `deploy`: pull the four digests (TEKA_*_IMAGE;
+     no selection uses `latest`), `apply-auto.sh --check-only` in the new api
+     image (one READ ONLY ledger query; 16 unique entries, a duplicate fails
+     before SQL; missing manifest/ledger, unapplied file or SQL error stops
+     before rollout — nothing is created or applied), docker-rollout from commit
+     `93a73319…` verified against SHA256 `d89dd764…` (owned, safe parent, no
+     group/world write; a mismatch keeps the prior plugin) and executed by that
+     verified file path, never a `docker rollout` lookup; a CLI timeout kills its
+     whole process group. Then api SENTRY_RELEASE stamp, rollout api → buyer →
+     seller → admin, live acceptance (image ID, healthy, SENTRY_RELEASE per
+     container, full canonical api env + read-only pinned CA, every non-release
+     setting equal to the protected pre-release copy).
+   - API healthcheck is now `/api/v1/health/ready`: a replacement that cannot
+     reach Postgres never turns healthy, so docker-rollout removes it and the old
+     api keeps serving.
+4. Failure: stop on the first error. No retry, whole-stack rollback or DB revert.
+   After a failed or timed-out api swap the actual api is inspected: ONLY if
+   every serving container is the old image, healthy and on the prior release
+   is `SENTRY_RELEASE` (that one key) re-stamped (`old_release_restored`). A
+   new, mixed, absent or uncertain state is recorded as `manual_required` and
+   nothing is claimed restored. Check the receipt with
+   `python3 -I scripts/production-release.py status --sha <sha>`.
+
+**Explicit recovery (owner-run on the host, one affected service, separately
+authorised):** `python3 -I scripts/production-release.py recover --sha <sha>
+--service <svc>`. Accepts a failed/completed receipt or an interrupted one
+(`synced`/`pulled`/`sql_checked`/`rolling`); it fails `RELEASE_LOCKED` while a
+release runs. Running state is observed against the receipt's old/new image IDs
+(stored markers are not trusted); any other service not exactly old or new
+stops it. The rollback tag and old digest must resolve to the captured ID. Only
+the selected service is recreated (`up -d --no-deps --pull never
+--force-recreate <svc>`, bounded readiness) with the current runtime/CA (api:
+only SENTRY_RELEASE re-stamped, then full live env/CA check); other services'
+containers must be unchanged. The receipt keeps the original failure, records
+`interrupted_phase` and the attempt, and moves to phase `recovery` — never
+`completed`. No retry or DB rollback. `apply-auto.sh --apply`
+exists for separately authorised manual use only. No deployment input can
+reach it.
+
+Limitations: manual `production-compose.py up`/`pull` without TEKA_*_IMAGE still
+selects `latest`. Export the receipt refs first. The receipt and rollback tags
+are never pruned automatically.
+
+Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
