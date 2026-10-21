@@ -1,5 +1,52 @@
 # Teka RDC — Development Progress
 
+## Infrastructure closure and Package 1 publication — 2026-10-21
+
+Owner accepted migration and the first post-migration production deployment as
+**CLOSED / PASS**. This publication reconciles only STATUS.md, PROGRESS.md and
+docs/deployment.md from clean main c076c061; no historical PR #840 artifacts
+or unrelated dirty-checkout changes are imported. Publication tracking:
+documentation PR **pending publication**; separate hardening PR **pending publication**.
+Both target main for review/CI only. No merge or production execution is authorized.
+
+Accepted proof, preserved without repeating operations:
+
+- October 19: Package A synthetic S3 upload/read/checksum/owner-attested recovery/
+  exact deletion completed; full-IAM isolation was not claimed. Package B reused
+  encrypted full 20261019-050244F for isolated full restore and PITR, target
+  2026-10-19 05:03:41.764223 UTC. Persisted recover_complete at 17:24:16 UTC records
+  M1 present/M2 absent, matching baseline and stopped isolated recovery instance;
+  original code 71 failure remains historical, not current acceptance.
+- October 19: migration rehearsal dbee8bb4-7394-4f0e-bb4e-bb05a16d3156 passed 21/21
+  schema/data/extensions/sequences/permissions/index/ledger checks, 51 ledger rows,
+  and stopped its separate instance. Encrypted source export and failure/normalization
+  receipts retained; collation difference accepted without speculative changes.
+- October 20: P1 production TLS/SCRAM/private access, encrypted backups/WAL/timers
+  and Resend SMTP alerts passed, including owner-confirmed inbox delivery. P2 then
+  restored one current encrypted source snapshot, validated it, and took full
+  20261020-195212F plus WAL proof before target writers. Hetzner became authority;
+  public reopen at 20:03:55 UTC, 28m11s outage, 30-minute observation and final DB
+  receipt passed. Source copy became stale. No historical inventory correction.
+- October 20 22:07:16 UTC: durable host activation completed, preserving the full
+  API environment/immutable image, strict TLS and pinned CA; only API recreated.
+- October 21 16:51:09 UTC: PR #843 merged as c076c061 after exact-head 21 checks /
+  13 required contexts. Main CI 39638491972 passed 12/12 and CodeQL 39638491882
+  accepted all three analyses. The existing JS finding remained unsuppressed.
+- October 21 18:04:56–18:10:45 UTC: deployment 39649498062 succeeded, four actual
+  digests/health/TLS/CA/environment verified, SQL 0 applied / 16 skipped, ledger 51.
+  Rollback snapshots/tags retained; no rollback/second run. Final 18:24:26 UTC
+  DB receipt passed 10/10, WAL 65/0 failures/no pending, 33.22 GiB free/no alerts.
+
+Workflow 265250843 was returned to disabled_manually. Production/SQL/seed/backfill/
+mobile holds remain; PR #841 Draft/unmerged/no-auto-merge and PR #840 unchanged.
+CI/CD hardening is a separate proposed implementation, not deployed behavior.
+Environment creation/configuration and main→develop synchronization remain outside
+Package 1. Six unresolved Sentry/OTel moderates retain 2026-11-17 review; CodeQL,
+Sentry owner review and the app-review window decision remain open. Exact proof,
+cleanup deadlines and safe rollback boundaries are in [deployment.md](docs/deployment.md#post-migration-closure-and-publication--2026-10-21).
+All earlier entries below are dated historical states, superseded where they
+conflict with the accepted Hetzner authority/closure above.
+
 ## CodeQL Advanced Setup and exact-ref acceptance — 2026-10-21
 
 **CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**

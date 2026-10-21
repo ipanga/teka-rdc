@@ -1,6 +1,78 @@
 # Status — 2026-10-21
 
-## Active initiative
+## Current handoff — infrastructure closed; publication in review
+
+**Infrastructure CLOSED / accepted PASS (2026-10-21).** P1, P2, encrypted
+backup/full restore/PITR, migration rehearsal, durable PostgreSQL/TLS activation,
+GitHub promotion and the first post-migration deployment are complete. Accepted
+[run 39649498062](https://github.com/ipanga/teka-rdc/actions/runs/39649498062)
+serves main `c076c0613f5958859dbec3899b043588d710c215`. Hetzner `teka_prod`
+is the sole authoritative database. Alwaysdata is a stale source, never a fallback.
+No completed provisioning, export, backup, restore, PITR or activation needs repeating.
+
+Production workflow **265250843 remains disabled_manually** after the one accepted
+release. CI and CodeQL remain available. Deployment, manual SQL, seed, backfill
+and mobile-release holds remain independent. PR #841 stays Draft, unmerged and
+without auto-merge; PR #840 and its unique historical evidence remain unchanged.
+
+**Package 1 is authorized for two main-targeted PRs only:** this three-file
+closure documentation and a separate focused CI/CD hardening implementation.
+Publication tracking: documentation PR **pending publication**; hardening PR
+**pending publication**. These proposals are not active production guarantees.
+No merge, environment creation/configuration, workflow enablement, deployment,
+SQL execution or main/develop synchronization is authorized by Package 1.
+
+The hardening proposal consumes four build-produced digests, pins/verifies the
+rollout helper, gates API replacement on DB readiness, preserves release/rollback
+receipts, refuses pending SQL read-only, and wires an independently configured
+production approval gate. The environment must not be silently created or bypassed.
+The current deployment/runtime configuration remains the accepted c076c061 release.
+
+Main/develop history diverges (accepted assessment: 10 main-only / 20 develop-only
+commits at main c076c061 / develop ebab9d67). Later synchronize main into a
+separate develop-based PR preserving features; do not release all develop or
+cherry-pick equivalent infrastructure. This task performs no synchronization.
+
+Residuals remain visible: the unsuppressed CodeQL URL warning; six unresolved
+Sentry/OpenTelemetry moderates risk-accepted through **2026-11-17**; owner-private
+Sentry release-health review still required; and the existing app-review flag
+pending the owner's store-review-window decision. No security acceptance or
+runtime flag changed. See [closure evidence and release boundaries](docs/deployment.md#post-migration-closure-and-publication--2026-10-21).
+
+## Accepted closure evidence — historical, do not rerun
+
+- **QA and migration proof, October 19:** encrypted full `20261019-050244F`,
+  isolated full restore and persisted PITR completion at 17:24:16 UTC; original
+  target 05:03:41.764223 UTC, M1 present/M2 absent, baseline match and isolated
+  shutdown. Rehearsal run `dbee8bb4-7394-4f0e-bb4e-bb05a16d3156` passed 21/21
+  essential checks and stopped its separate instance. The original failed receipts,
+  collation limitation and owner-attested S3 recovery/full-IAM limits remain.
+- **P1, October 20:** private production cluster/TLS/SCRAM, encrypted backups,
+  continuous WAL, retention configured for four weekly full chains, daily
+  differential timers and
+  existing Resend monitoring accepted; SMTP submission plus owner inbox delivery
+  confirmed. The empty-cluster backup was configuration proof only.
+- **P2, October 20:** one encrypted final export/restore, fresh production full
+  `20261020-195212F` and WAL protection before writers. Public reopen 20:03:55 UTC;
+  measured outage 28m11s; 30-minute observation and final DB receipt passed.
+- **Durable TLS activation:** 22:07:16 UTC October 20; only API recreated using
+  its existing immutable image. Full environment/Hetzner/TLS/pinned read-only CA
+  and unchanged web/nginx verified. Original stopped-attempt evidence preserved.
+- **Main promotion, October 21:** PR #843 merge `c076c0613f5958859dbec3899b043588d710c215`
+  at 16:51:09 UTC after 21/21 PR checks and 13/13 required contexts, including
+  genuine CodeQL app 57789. Main CI 12/12 and three accepted CodeQL analyses passed.
+- **First deployment:** run 39649498062, 18:04:56–18:10:45 UTC; four serving
+  digests match build outputs; healthy containers/restarts 0, HTTP 200, TLS/CA,
+  preserved environment except intended SENTRY_RELEASE. SQL **0 applied / 16 skipped**,
+  ledger **51**, rollback tags/snapshots retained. No rollback or second dispatch.
+- **Final DB acceptance 18:24:26 UTC:** owner-attended sanitized receipt reviewed,
+  10/10 PASS; WAL 65 archived/0 failed/0 ready/stale, 33.22 GiB free; successful
+  differential, full 20261020-195212F retained, timers/monitor healthy/no alerts.
+  This was status evidence, not another restore proof. Sentry dashboard was not
+  checked; the inspected API log segment contained only the known review-login
+  startup marker and no unclassified ERROR/FATAL or DB/TLS marker.
+
+## Prior active initiative — pre-merge snapshot (historical)
 
 **CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**
 The owner-authorized replacement is `.github/workflows/codeql.yml`: normal PRs
