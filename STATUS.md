@@ -1,6 +1,39 @@
-# Status — 2026-10-21
+# Status — 2026-10-22
 
-## Current handoff — infrastructure closed; publication in review
+## Current handoff — host release PASS; durable SCP fix in review (2026-10-22)
+
+Infrastructure migration and deployment remain **CLOSED / accepted PASS**.
+Production serves `6fb1ceb68a91d3dc596b824c8d5847c877755154` after the separately
+supervised host continuation completed at **2026-10-22T10:37:56Z**. Hetzner is the
+sole database authority. Do not repeat P1/P2, rehearsal, backup, restore or PITR.
+
+[GitHub run 39749631613](https://github.com/ipanga/teka-rdc/actions/runs/39749631613)
+remains **FAILED, attempt 1**, at `install / STAGED_UNSAFE`; host success does not
+change that historical result. Continuation `3684d63a-f8c6-4f07-aadf-e82efbf3e3a6`
+retained the original immutable failure receipt and recorded the guarded resume
+from its completed snapshot. All four approved digests, strict TLS/read-only CA,
+non-release settings, read-only SQL (0 applied / 16 verified), public health and
+retained rollback images passed existing acceptance. No retest is needed.
+
+The focused `codex/scp-staging-permissions` PR prepares exactly five safe staging
+parents before SCP. It refuses unsafe existing paths without chmod or repairs;
+root remains 0700 and the unchanged `STAGED_UNSAFE` guard remains mandatory.
+See [current deployment handoff](docs/deployment.md#durable-scp-staging-permissions--review-only-2026-10-22)
+for source analysis, focused filesystem/tar evidence and remaining limits.
+
+This authorization covers branch/commit/push/one main-targeted PR and CI only.
+The owner explicitly permits the existing CI-only Docker build checks
+(`push: false`); no application image is published or deployed by this task.
+Workflow **265250843 remains disabled_manually**. A future code-only merge,
+production deployment or permanent workflow resumption needs separate approval.
+The GitHub production environment already exists; do not recreate or change it.
+Independent SQL/seed/backfill/mobile controls remain held. PR #841 stays Draft,
+unmerged and without auto-merge; PR #840 and its historical evidence are untouched.
+Main/develop synchronization remains held. No production access or configuration
+change is part of this fix; current protected runtime, CA, credentials, immutable
+failure evidence, rollback tags and release metadata are preserved.
+
+## Earlier Package 1 publication — historical, superseded above
 
 **Infrastructure CLOSED / accepted PASS (2026-10-21).** P1, P2, encrypted
 backup/full restore/PITR, migration rehearsal, durable PostgreSQL/TLS activation,
