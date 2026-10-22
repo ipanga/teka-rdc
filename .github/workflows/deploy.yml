@@ -249,8 +249,12 @@ jobs:
       # never reached prod. Other VPS config (nginx, certbot data,
       # .env.production, the canonical api runtime + CA under
       # /home/deploy/.config/teka-rdc/) stays operator-managed.
-      # Owned 0700 staging dir before any copy. An existing dir that is not
-      # ours/0700 (or a symlink) stops here; its mode is never changed.
+      # Owned 0700 staging dir before any copy, plus the parent dirs of the
+      # staged files (scp extracts explicit file paths only, so tar would
+      # otherwise create them 0775 under the host's umask 0002). Missing
+      # children are created 0755 (umask may only narrow that). An existing
+      # entry that is a symlink, not a dir, not ours, root not exactly 0700
+      # or a child group/world-writable stops here; its mode is never changed.
       - name: Prepare staging directory on VPS
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
@@ -259,15 +263,22 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -eu
-            d=/home/deploy/teka-rdc-staging
-            if [ -L "$d" ] || [ -e "$d" ]; then
-              if [ -L "$d" ] || [ ! -d "$d" ] || [ "$(stat -c '%u %a' "$d")" != "$(id -u) 700" ]; then
-                echo 'production-release: FAIL STAGING_DIR_UNSAFE' >&2
-                exit 1
-              fi
-            else
-              (umask 077 && mkdir "$d")
-            fi
+            python3 -I -B - <<'PY'
+            import os, stat, sys
+            root = '/home/deploy/teka-rdc-staging'
+            for rel in ('', 'scripts', 'apps', 'apps/api', 'apps/api/prisma', 'apps/api/prisma/migrations'):
+                p = os.path.join(root, rel) if rel else root
+                try:
+                    os.mkdir(p, 0o755 if rel else 0o700)
+                except FileExistsError:
+                    pass
+                st = os.lstat(p)
+                mode = stat.S_IMODE(st.st_mode)
+                if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid()
+                        or (mode != 0o700 if not rel else mode & 0o022)):
+                    print('production-release: FAIL STAGING_DIR_UNSAFE', file=sys.stderr)
+                    sys.exit(1)
+            PY
 
       - name: Stage production compose files and helpers on VPS
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0

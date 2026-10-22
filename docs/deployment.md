@@ -1,6 +1,112 @@
 # Teka RDC — Deployment Guide
 
-## Post-migration closure and publication — 2026-10-21
+## Durable SCP staging permissions — review only (2026-10-22)
+
+**Current authority and release:** Hetzner `teka_prod` remains the sole Production
+database; Production serves `6fb1ceb68a91d3dc596b824c8d5847c877755154`. Infrastructure
+migration and deployment are accepted **CLOSED / PASS**. All older dated deployment
+plans below are historical where superseded here. Never reconnect to stale
+Alwaysdata. Do not repeat accepted P1/P2, rehearsal, backup, restore or PITR.
+
+### Accepted host continuation; original GitHub failure retained
+
+[Run 39749631613](https://github.com/ipanga/teka-rdc/actions/runs/39749631613)
+remains **FAILED at install / STAGED_UNSAFE, attempt 1**. Its approved builds and
+personal environment approval preceded the failure; no public-file promotion,
+image pull, SQL or rollout had occurred at that failure point. The later host
+continuation was separately authorized and completed **2026-10-22T10:37:56Z**;
+it must never be described as a successful GitHub workflow rerun.
+
+Only the five staging parents listed below were repaired 0775 → 0755 by explicit
+non-recursive chmod during that earlier authorization. Root 0700, deploy ownership,
+ACLs and six staged-file hashes were preserved. Original failed receipt copy:
+
+`/home/deploy/.config/teka-rdc/releases/6fb1ceb68a91d3dc596b824c8d5847c877755154/receipt.failed-install-STAGED_UNSAFE.58b1111580ae684bc196291e7c5590abebfeed8c8d4463fc5ec90b230579301d.json`
+
+SHA-256 `58b1111580ae684bc196291e7c5590abebfeed8c8d4463fc5ec90b230579301d`;
+mode 0400 and filesystem immutable flag independently verified. Continuation
+`3684d63a-f8c6-4f07-aadf-e82efbf3e3a6` required this copy, unchanged snapshots/
+runtime/CA/images and a one-use marker before recording `failed → snapshotted`.
+It retained `prior_failure`, authority, UUID/time and before/after receipt hashes,
+then used the unchanged guarded install/deploy helpers. No blind rerun or evidence
+reset. Preserve the original receipt, continuation receipts and rollback snapshots.
+
+Accepted serving digests (repository prefix `ghcr.io/ipanga/teka-rdc/`):
+
+| Service | Digest |
+| --- | --- |
+| api | `sha256:b7ba5b16f1d0b492c828ddef80842b6e311f05ede14060f692765cacc060b267` |
+| buyer-web | `sha256:4e9633cbf14f79f865da3f233ed94171d83916bf5ed1a644d72bee33a69217dd` |
+| seller-web | `sha256:e56362b4e9fce28d314b416c63f96c0f1d6125690b5a99adc1ae7bf12001a162` |
+| admin-web | `sha256:ce1b2cd5d47dfb28a932c3fddda1a380b54e3ade6525930f51535682efa86556` |
+
+Existing acceptance verified all four healthy with zero restarts, exact full
+SENTRY_RELEASE, preserved non-release environments and protected runtime, strict
+Hetzner TLS and pinned read-only CA. SQL check was **READ ONLY: 0 applied /
+16 verified**; independent ledger 51, WAL 351 archived / 0 failed. Six public
+health checks passed; Nginx container identity was preserved. Old c076c061 images
+remain tagged `teka-rdc-rollback/<service>:pre-6fb1ceb68a91d3dc596b824c8d5847c877755154`.
+DB units/timers/disk were healthy; the full protected monitor receipt retained
+its real 08:34:54 UTC timestamp. No new backup, restore or PITR was performed.
+Sanitized receipt chain: `/private/tmp/teka-release-continuation-20261022/final-acceptance.json`.
+This PR reuses that accepted evidence; it does not refresh or requalify Production.
+
+### Root cause and bounded correction
+
+The [pinned SCP entrypoint](https://github.com/appleboy/scp-action/blob/ff85246acaad7bdce478db94a363cd2bf7c90345/entrypoint.sh)
+selects drone-scp 1.8.0. Its [exact archive/extraction source](https://github.com/appleboy/drone-scp/blob/110008c84a51a423d053f3e3dc2615493bd79f47/plugin.go)
+constructs `tar -zcf` from six explicit file paths, then remote
+`tar -zxf <archive> -C /home/deploy/teka-rdc-staging`. No directory headers are
+included for those file-only sources. Only root had been pre-created; remote
+umask 0002 caused missing parents to become 0775. Setting umask in a different
+SSH session does not control that later extraction.
+
+The existing pre-SCP step now creates/verifies only these parents, in order:
+
+- `scripts`
+- `apps`
+- `apps/api`
+- `apps/api/prisma`
+- `apps/api/prisma/migrations`
+
+Root stays exactly 0700; new children use explicit 0755 (a more restrictive umask
+may reduce access). Every path must be an actual directory owned by the deploy
+caller; existing group/world-writable modes, symlinks and unexpected types fail
+closed. Safe existing modes are preserved. No recursive chmod, ownership/ACL
+change, automatic repair, protected-runtime edit or `STAGED_UNSAFE` relaxation.
+The later hardened installer independently rechecks the staged tree after SCP.
+
+The existing release regression executes the full shell/heredoc preparation against
+disposable paths and archives the exact six files with the pinned source's tar
+flags. It checks the unprepared umask-0002 failure, safe pre-creation/repetition,
+file-only headers, post-extraction modes/hashes and rejection of unsafe paths.
+The local platform uses BSD tar; the normal Ubuntu Release Config job exercises
+GNU tar. Only the foreign-owner rejection uses an injected lstat UID (no privileged
+chown); all other filesystem/tar cases are real. This verifies extraction, not a complete SSH/SCP
+action or a green production deployment. No disposable app-host test is included
+in this authorization. If the action's binary/default archive flags change or the
+GNU tar check cannot establish preservation, stop and propose a separately
+approved disposable transfer before any future deployment.
+
+### Publication and next authorization boundary
+
+This focused PR targets main with only deploy.yml, its existing regression and
+STATUS.md/PROGRESS.md/this guide. The owner expressly permits the existing CI-only
+Docker build validations (`push: false`); no application image publication or
+Production action is authorized. Keep workflow 265250843 **disabled_manually**,
+all SQL/seed/backfill/mobile holds active, PR #841 Draft/unmerged/no-auto, PR #840
+unchanged and main/develop synchronization held. The production environment
+already exists with its approved human gate; do not recreate or alter it.
+
+Before a later **separately authorized code-only merge**, recheck the final PR
+head/current main, required CI and genuine CodeQL, exact five-file diff, disabled
+deployment workflow and absence of active deployment runs. Use a merge commit
+without bypass or auto-merge; verify main CI/CodeQL and disabled workflow afterward.
+Do not resume normal deployments automatically. A future controlled deployment
+and permanent workflow resumption require separate authorization and retain all
+runtime/TLS/digest/read-only-SQL/rollback/environment-approval guards.
+
+## Earlier closure and publication — historical (2026-10-21)
 
 **Infrastructure CLOSED / accepted PASS.** P1, P2, backup/full restore/PITR,
 migration rehearsal, durable PostgreSQL/TLS activation, GitHub promotion and the

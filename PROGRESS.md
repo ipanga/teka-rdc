@@ -1,5 +1,30 @@
 # Teka RDC — Development Progress
 
+## Durable SCP staging fix prepared; host continuation retained — 2026-10-22
+
+The owner accepted the supervised host continuation as PASS, serving main
+`6fb1ceb68a91d3dc596b824c8d5847c877755154` since 10:37:56 UTC. Original GitHub
+run 39749631613 remains failed at install/STAGED_UNSAFE, attempt 1. The recorded
+continuation UUID is `3684d63a-f8c6-4f07-aadf-e82efbf3e3a6`; its prior failure,
+immutable original copy, protected snapshots and four rollback tags are retained.
+Accepted functional/health/TLS/environment/SQL evidence is reused without repeating
+migration, backup, restore, PITR or deployment tests.
+
+The prior workflow prepared only root 0700. Pinned SCP uses a six-file tar archive;
+remote umask 0002 made its five missing intermediate directories 0775. This
+focused main-based PR changes only the existing pre-SCP preparation and its
+existing release regression, plus these three continuity documents. Exactly five
+parents are created safely before extraction; unsafe existing ownership, modes,
+types or symlinks stop execution. No chmod repair or relaxed staging guard.
+
+The owner authorized the existing non-publishing CI Docker build checks after
+clarifying the no-image-publication boundary. No production host access, image
+publication, workflow dispatch/rerun, SQL or service modification occurs here.
+Deployment workflow 265250843 stays disabled_manually. PR #840 remains unchanged;
+#841 remains Draft/unmerged/no-auto; operational and main/develop holds persist.
+This PR is review/CI only. Source/test limits and accepted host evidence:
+[deployment handoff](docs/deployment.md#durable-scp-staging-permissions--review-only-2026-10-22).
+
 ## Infrastructure closure and Package 1 publication — 2026-10-21
 
 Owner accepted migration and the first post-migration production deployment as

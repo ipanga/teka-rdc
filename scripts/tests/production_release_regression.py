@@ -32,6 +32,10 @@ only; no network, no Docker daemon, no database, no GitHub calls).
    non-release settings match the protected copy, staging is exact/0700.
    deploy.yml references the environment only from the deploy job, after
    environment-preflight, and prepares the staging dir before the scp.
+7. The exact inline staging prep + real tar (scp-action flags, umask 0002):
+   root 0700 + parents 0755 survive extraction (root-only prep leaves 0775
+   parents → STAGED_UNSAFE); unsafe modes, symlinks, wrong types and a foreign
+   owner are rejected unmodified.
 """
 import hashlib
 import importlib.util
@@ -42,7 +46,9 @@ import re
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
+import textwrap
 import urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -553,6 +559,120 @@ def snapshot_guard_tests(tmp):
         pr.pc.docker_capture, pr.image_info, pr.pc.CONF_DIR, pr.STAGING_DIR = saved
 
 
+def staging_prep_tests(tmp):
+    """The EXACT inline 'Prepare staging directory on VPS' script (root constant
+    swapped for a temp dir) + the real system tar with scp-action's flags
+    (drone-scp: `tar -zcf` on the six explicit paths, `tar -zxf -C target`)
+    under the host umask 0002. Only the foreign-uid case mocks os.lstat's uid
+    (a real foreign owner needs privilege); everything else is real."""
+    with open(os.path.join(ROOT, '.github/workflows/deploy.yml')) as f:
+        step = f.read().split('Prepare staging directory on VPS', 1)[1].split('Stage production', 1)[0]
+    script = textwrap.dedent(step.split('script: |\n', 1)[1].split('\n\n', 1)[0])
+    head, rest = script.split('\n', 1)
+    opener, body = rest.split('\n', 1)
+    body, closer = body.rsplit('\n', 1)
+    constant = f"root = '{pr.STAGING_DIR}'"
+    check('staging prep step is exactly `set -eu` + one python3 heredoc on the helper staging root',
+          (head, opener, closer) == ('set -eu', "python3 -I -B - <<'PY'", 'PY') and body.count(constant) == 1)
+    children = ('scripts', 'apps', 'apps/api', 'apps/api/prisma', 'apps/api/prisma/migrations')
+
+    def prep(root, prelude=''):
+        run_script = script.replace(constant, f'root = {root!r}').replace(opener + '\n', opener + '\n' + prelude, 1)
+        r = subprocess.run(['/bin/sh', '-eu'], input=run_script, capture_output=True, text=True)
+        return r.returncode, r.stderr
+
+    def modes(root):
+        return [stat.S_IMODE(os.lstat(os.path.join(root, rel) if rel else root).st_mode) for rel in ('',) + children]
+
+    def sha(path):
+        with open(path, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+
+    unsafe = (1, 'production-release: FAIL STAGING_DIR_UNSAFE\n')
+    archive = os.path.join(tmp, 'scp.tar.gz')
+    saved_umask, saved_staging = os.umask(0o002), pr.STAGING_DIR
+    try:
+        # macOS bsdtar would add ._ AppleDouble entries for xattrs; GNU tar ignores this.
+        subprocess.run(['tar', '-zcf', archive, *pr.SYNC_FILES], cwd=ROOT, check=True,
+                       env={**os.environ, 'COPYFILE_DISABLE': '1'})
+        with tarfile.open(archive, 'r:gz') as t:
+            members = t.getmembers()
+        check('scp archive = the six explicit files, no directory headers',
+              all(m.isfile() for m in members) and sorted(m.name for m in members) == sorted(pr.SYNC_FILES))
+
+        pr.STAGING_DIR = os.path.join(tmp, 'unprepared')
+        os.mkdir(pr.STAGING_DIR, 0o700)  # what the old step left: root only
+        subprocess.run(['tar', '-zxf', archive, '-C', pr.STAGING_DIR], check=True)
+        check('root-only prep: tar creates parents 0775 under umask 0002 → STAGED_UNSAFE',
+              modes(pr.STAGING_DIR)[1:] == [0o775] * 5 and fail_code(
+                  lambda: pr.check_staged(os.path.join(pr.STAGING_DIR, pr.SYNC_FILES[3]))) == 'STAGED_UNSAFE')
+
+        pr.STAGING_DIR = os.path.join(tmp, 'prepared')
+        first, again = prep(pr.STAGING_DIR), prep(pr.STAGING_DIR)
+        check('prep creates root 0700 + five children 0755 topologically; repeat run accepts them unchanged',
+              first == again == (0, '') and modes(pr.STAGING_DIR) == [0o700] + [0o755] * 5)
+        subprocess.run(['tar', '-zxf', archive, '-C', pr.STAGING_DIR], check=True)
+        check('after real extraction: modes persist, six files staged safely, SHA256 preserved',
+              modes(pr.STAGING_DIR) == [0o700] + [0o755] * 5 and fail_code(pr.staged_files) is None
+              and all(fail_code(lambda: pr.check_staged(os.path.join(pr.STAGING_DIR, rel))) is None
+                      for rel in pr.SYNC_FILES)
+              and all(sha(os.path.join(ROOT, rel)) == sha(os.path.join(pr.STAGING_DIR, rel)) for rel in pr.SYNC_FILES))
+
+        def case(name):
+            root = os.path.join(tmp, name)
+            check(f'{name}: fresh prep', prep(root) == (0, ''))
+            return root
+
+        root = case('existing-0750-child')
+        os.chmod(os.path.join(root, 'apps'), 0o750)
+        check('existing non-writable child (0750) accepted unchanged',
+              prep(root) == (0, '') and modes(root)[2] == 0o750)
+        for name, rel, mode in (('root-0750', '', 0o750), ('root-0711', '', 0o711),
+                                ('child-group-w', 'apps/api', 0o775), ('child-world-w', 'scripts', 0o757)):
+            root = case(name)
+            target = os.path.join(root, rel) if rel else root
+            os.chmod(target, mode)
+            check(f'unsafe mode {name} rejected, never modified',
+                  prep(root) == unsafe and stat.S_IMODE(os.lstat(target).st_mode) == mode)
+
+        elsewhere = os.path.join(tmp, 'elsewhere')
+        os.mkdir(elsewhere, 0o755)
+        os.symlink(elsewhere, os.path.join(tmp, 'root-symlink'))
+        check('symlinked root rejected', prep(os.path.join(tmp, 'root-symlink')) == unsafe
+              and os.listdir(elsewhere) == [])
+        root = case('child-symlink')
+        os.rmdir(os.path.join(root, 'apps/api/prisma/migrations'))
+        os.rmdir(os.path.join(root, 'apps/api/prisma'))
+        os.rmdir(os.path.join(root, 'apps/api'))
+        os.rmdir(os.path.join(root, 'apps'))
+        os.symlink(elsewhere, os.path.join(root, 'apps'))
+        check('symlinked child to a safe dir rejected, nothing created through it',
+              prep(root) == unsafe and os.listdir(elsewhere) == [])
+        root = case('dangling-symlink')
+        os.rmdir(os.path.join(root, 'apps/api/prisma/migrations'))
+        os.symlink(os.path.join(tmp, 'missing'), os.path.join(root, 'apps/api/prisma/migrations'))
+        check('dangling symlink child rejected, target not created',
+              prep(root) == unsafe and not os.path.lexists(os.path.join(tmp, 'missing')))
+        open(os.path.join(tmp, 'root-file'), 'w').close()
+        root = case('child-file')
+        os.rmdir(os.path.join(root, 'scripts'))
+        open(os.path.join(root, 'scripts'), 'w').close()
+        check('wrong type (regular file) rejected for root and child',
+              prep(os.path.join(tmp, 'root-file')) == unsafe and prep(root) == unsafe
+              and stat.S_ISREG(os.lstat(os.path.join(root, 'scripts')).st_mode))
+
+        root = case('foreign-uid')
+        foreign = os.path.join(root, 'apps')
+        mock_uid = ('import os\n_lstat = os.lstat\n'
+                    f'os.lstat = lambda p: (lambda s: os.stat_result(s[:4] + (s.st_uid + 1,) + s[5:10]) '
+                    f'if p == {foreign!r} else s)(_lstat(p))\n')
+        check('foreign-owned child rejected (lstat uid mocked; no privilege to chown)',
+              prep(root, mock_uid) == unsafe and prep(root) == (0, ''))
+    finally:
+        os.umask(saved_umask)
+        pr.STAGING_DIR = saved_staging
+
+
 def workflow_tests():
     with open(os.path.join(ROOT, '.github/workflows/deploy.yml')) as f:
         lines = f.read().splitlines()
@@ -591,6 +711,7 @@ if __name__ == '__main__':
         recover_tests()
         run_group_interrupt_tests(tmp)
         snapshot_guard_tests(tmp)
+        staging_prep_tests(tmp)
         workflow_tests()
     print('OK' if not failures else f'{len(failures)} FAILED')
     raise SystemExit(1 if failures else 0)
