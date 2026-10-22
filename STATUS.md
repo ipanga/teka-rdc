@@ -1,6 +1,186 @@
-# Status — 2026-10-21
+# Status — 2026-10-22
 
-## Active initiative
+## Current handoff — main → develop synchronization PR prepared (2026-10-22)
+
+**Synchronization proposal for review/CI only; no merge into develop or main.**
+`codex/main-to-develop-sync` merges approved main `e73b0599435045f4e4fc34e93982872dedf493b9`
+into develop `ebab9d671593f86782a231080223cc5659be1be7` to prepare ONE
+develop-targeted PR. The proposed merge preserves develop as first parent, then main.
+
+- **main `e73b0599`** carries the accepted release hardening plus the durable SCP
+  staging fix. Main CI **15/15** checks and all **3** CodeQL analyses are
+  confirmed SUCCESS.
+- **develop `ebab9d67`** retains unapproved functionality (order/inventory, API,
+  delivery, Buyer Web, native apps). The sync preserves it but approves nothing.
+- **Fresh sync-PR CI and CodeQL are pending.** Acceptance needs an actual CodeQL
+  aggregate SUCCESS on this PR. PR #848's one-time genuine app 57789 aggregate
+  NEUTRAL acceptance does not transfer. No other exception transfers either.
+
+**Production unchanged:** serves `6fb1ceb6`; Hetzner is the sole DB authority.
+GitHub run 39749631613 remains **FAILED, attempt 1**. Separate host continuation
+`3684d63a-f8c6-4f07-aadf-e82efbf3e3a6` PASS; immutable failed receipt preserved
+(hash `58b1111580ae684bc196291e7c5590abebfeed8c8d4463fc5ec90b230579301d`).
+
+**Holds unchanged:** deploy workflow 265250843 `disabled_manually`; SQL, seed,
+backfill and mobile-release holds remain. PR #840 untouched; PR #841 Draft,
+unmerged, no auto-merge. No production contact, config, SQL, image or deployment
+change. No branch merge into develop or main. No normal resumption.
+Sections below are historical.
+
+## Earlier handoff (superseded above) — host release PASS; durable SCP fix in review (2026-10-22)
+
+Infrastructure migration and deployment remain **CLOSED / accepted PASS**.
+Production serves `6fb1ceb68a91d3dc596b824c8d5847c877755154` after the separately
+supervised host continuation completed at **2026-10-22T10:37:56Z**. Hetzner is the
+sole database authority. Do not repeat P1/P2, rehearsal, backup, restore or PITR.
+
+[GitHub run 39749631613](https://github.com/ipanga/teka-rdc/actions/runs/39749631613)
+remains **FAILED, attempt 1**, at `install / STAGED_UNSAFE`; host success does not
+change that historical result. Continuation `3684d63a-f8c6-4f07-aadf-e82efbf3e3a6`
+retained the original immutable failure receipt and recorded the guarded resume
+from its completed snapshot. All four approved digests, strict TLS/read-only CA,
+non-release settings, read-only SQL (0 applied / 16 verified), public health and
+retained rollback images passed existing acceptance. No retest is needed.
+
+The focused `codex/scp-staging-permissions` PR prepares exactly five safe staging
+parents before SCP. It refuses unsafe existing paths without chmod or repairs;
+root remains 0700 and the unchanged `STAGED_UNSAFE` guard remains mandatory.
+See [current deployment handoff](docs/deployment.md#durable-scp-staging-permissions--review-only-2026-10-22)
+for source analysis, focused filesystem/tar evidence and remaining limits.
+
+This authorization covers branch/commit/push/one main-targeted PR and CI only.
+The owner explicitly permits the existing CI-only Docker build checks
+(`push: false`); no application image is published or deployed by this task.
+Workflow **265250843 remains disabled_manually**. A future code-only merge,
+production deployment or permanent workflow resumption needs separate approval.
+The GitHub production environment already exists; do not recreate or change it.
+Independent SQL/seed/backfill/mobile controls remain held. PR #841 stays Draft,
+unmerged and without auto-merge; PR #840 and its historical evidence are untouched.
+Main/develop synchronization remains held. No production access or configuration
+change is part of this fix; current protected runtime, CA, credentials, immutable
+failure evidence, rollback tags and release metadata are preserved.
+
+## Earlier Package 1 publication — historical, superseded above
+
+**Infrastructure CLOSED / accepted PASS (2026-10-21).** P1, P2, encrypted
+backup/full restore/PITR, migration rehearsal, durable PostgreSQL/TLS activation,
+GitHub promotion and the first post-migration deployment are complete. Accepted
+[run 39649498062](https://github.com/ipanga/teka-rdc/actions/runs/39649498062)
+serves main `c076c0613f5958859dbec3899b043588d710c215`. Hetzner `teka_prod`
+is the sole authoritative database. Alwaysdata is a stale source, never a fallback.
+No completed provisioning, export, backup, restore, PITR or activation needs repeating.
+
+Production workflow **265250843 remains disabled_manually** after the one accepted
+release. CI and CodeQL remain available. Deployment, manual SQL, seed, backfill
+and mobile-release holds remain independent. PR #841 stays Draft, unmerged and
+without auto-merge; PR #840 and its unique historical evidence remain unchanged.
+
+**Package 1 is authorized for two main-targeted PRs only:** this three-file
+closure documentation and a separate focused CI/CD hardening implementation.
+Publication tracking: documentation [PR #846](https://github.com/ipanga/teka-rdc/pull/846); hardening is isolated on `codex/production-release-hardening`. These proposals are not active production guarantees.
+No merge, environment creation/configuration, workflow enablement, deployment,
+SQL execution or main/develop synchronization is authorized by Package 1.
+
+The hardening proposal consumes four build-produced digests, pins/verifies the
+rollout helper, gates API replacement on DB readiness, preserves release/rollback
+receipts, refuses pending SQL read-only, and wires an independently configured
+production approval gate. The environment must not be silently created or bypassed.
+The current deployment/runtime configuration remains the accepted c076c061 release.
+
+Main/develop history diverges (accepted assessment: 10 main-only / 20 develop-only
+commits at main c076c061 / develop ebab9d67). Later synchronize main into a
+separate develop-based PR preserving features; do not release all develop or
+cherry-pick equivalent infrastructure. This task performs no synchronization.
+
+Residuals remain visible: the unsuppressed CodeQL URL warning; six unresolved
+Sentry/OpenTelemetry moderates risk-accepted through **2026-11-17**; owner-private
+Sentry release-health review still required; and the existing app-review flag
+pending the owner's store-review-window decision. No security acceptance or
+runtime flag changed. See [closure evidence and release boundaries](docs/deployment.md#post-migration-closure-and-publication--2026-10-21).
+
+## Accepted closure evidence — historical, do not rerun
+
+- **QA and migration proof, October 19:** encrypted full `20261019-050244F`,
+  isolated full restore and persisted PITR completion at 17:24:16 UTC; original
+  target 05:03:41.764223 UTC, M1 present/M2 absent, baseline match and isolated
+  shutdown. Rehearsal run `dbee8bb4-7394-4f0e-bb4e-bb05a16d3156` passed 21/21
+  essential checks and stopped its separate instance. The original failed receipts,
+  collation limitation and owner-attested S3 recovery/full-IAM limits remain.
+- **P1, October 20:** private production cluster/TLS/SCRAM, encrypted backups,
+  continuous WAL, retention configured for four weekly full chains, daily
+  differential timers and
+  existing Resend monitoring accepted; SMTP submission plus owner inbox delivery
+  confirmed. The empty-cluster backup was configuration proof only.
+- **P2, October 20:** one encrypted final export/restore, fresh production full
+  `20261020-195212F` and WAL protection before writers. Public reopen 20:03:55 UTC;
+  measured outage 28m11s; 30-minute observation and final DB receipt passed.
+- **Durable TLS activation:** 22:07:16 UTC October 20; only API recreated using
+  its existing immutable image. Full environment/Hetzner/TLS/pinned read-only CA
+  and unchanged web/nginx verified. Original stopped-attempt evidence preserved.
+- **Main promotion, October 21:** PR #843 merge `c076c0613f5958859dbec3899b043588d710c215`
+  at 16:51:09 UTC after 21/21 PR checks and 13/13 required contexts, including
+  genuine CodeQL app 57789. Main CI 12/12 and three accepted CodeQL analyses passed.
+- **First deployment:** run 39649498062, 18:04:56–18:10:45 UTC; four serving
+  digests match build outputs; healthy containers/restarts 0, HTTP 200, TLS/CA,
+  preserved environment except intended SENTRY_RELEASE. SQL **0 applied / 16 skipped**,
+  ledger **51**, rollback tags/snapshots retained. No rollback or second dispatch.
+- **Final DB acceptance 18:24:26 UTC:** owner-attended sanitized receipt reviewed,
+  10/10 PASS; WAL 65 archived/0 failed/0 ready/stale, 33.22 GiB free; successful
+  differential, full 20261020-195212F retained, timers/monitor healthy/no alerts.
+  This was status evidence, not another restore proof. Sentry dashboard was not
+  checked; the inspected API log segment contained only the known review-login
+  startup marker and no unclassified ERROR/FATAL or DB/TLS marker.
+
+## Prior active initiative — pre-merge snapshot (historical)
+
+**CodeQL Advanced Setup PASS; PR #843 ready for final-head review. Production remains held.**
+The owner-authorized replacement is `.github/workflows/codeql.yml`: normal PRs
+and pushes to develop/main, all3 languages(Actions, JavaScript/TypeScript,
+Python), default query suite/remote threat model, weekly analysis and supported
+manual dispatch. Official signed pins: checkout7.0.1 and CodeQL4.39.0; no app
+build/install, secrets, filters, suppressions or downstream deployment trigger.
+
+[PR #845](https://github.com/ipanga/teka-rdc/pull/845) merged ONLY the workflow
+into develop with merge commit `ebab9d671593f86782a231080223cc5659be1be7`,
+parents ad611bc7/ca756d44, after all16checks/all13required and all3 accepted PR
+analyses passed. [Develop push CI39595934967](https://github.com/ipanga/teka-rdc/actions/runs/39595934967)
+and [CodeQL39595934951](https://github.com/ipanga/teka-rdc/actions/runs/39595934951)
+pass at that merge SHA; all3 uploads accepted on refs/heads/develop and genuine
+CodeQL app57789 aggregate succeeds. Alert27 remains fixed, never dismissed.
+
+PR843 carries the byte-identical workflow in implementation commit
+`a714933dd9fdec4bf61e2ae06e09bae6a9ad539e`, independently based on main60d70ace.
+Its first accepted normal-PR analysis39595497971 scanned actual merge candidate
+`3e1104ef82d9ea6c5ea4101d5303e7ab2cd53569` at refs/pull/843/merge: all3languages,
+0results/no errors, plus genuine required CodeQL check119206897518(app57789)
+SUCCESS. CI39595498005(12/12) and PRvalidation39595497965(5/5 incl4Dockerbuilds)
+passed,21 successful checks total. This documentation follow-up changes the
+head; [current exact-head checks](https://github.com/ipanga/teka-rdc/pull/843/checks)
+must also pass before any separately authorized merge. No earlier-head result
+may substitute for final acceptance. Source scope is24 paths, adding only this
+one workflow to the accepted23; no full develop/PR841 business import.
+
+Default Setup was switched to not-configured through the supported API before
+Advanced uploads. Before-state/rollback are retained. Both rulesets,13 required
+contexts and CodeQL app57789 remain unchanged with no bypass actors. Authenticated
+UI verifies unchanged failure thresholds: Security High or higher; Standard Only
+errors. Original Default-trigger cause remains unproven. Actual successful PR
+comparison required no separate main baseline; none was fabricated or borrowed.
+
+Security patches/exceptions are preserved: enforced production audit passes,
+6 Sentry/OTel moderates unresolved/risk-accepted through2026-11-17,2 existing high
+ignores unchanged. Informational full-tree tooling findings remain unresolved
+(including2critical Handlebars advisories); no new acceptance/suppression.
+
+Main remains60d70ace; PR843 unmerged/no-auto-merge. PR840's unique history remains
+separate; PR841 stays Draft/unmerged/no-auto-merge(its develop head advances
+naturally). All deploy/SQL/seed/backfill/mobile-release holds remain. No production
+contact, container/DB/runtime/CA/credential/backup/WAL change or P1/P2 repeat.
+Main push deploy.yml is active and runs apply-auto: separate main-release and
+operational-hold authorization remains essential. Hetzner-only rollback remains
+mandatory; never reconnect to stale Alwaysdata.
+
+## Previous context (historical; current facts above)
 
 **Durable PostgreSQL/TLS integration published for review — PR #842.**
 [PR #842](https://github.com/ipanga/teka-rdc/pull/842) targets `develop` from
@@ -1635,3 +1815,44 @@ Surfaced by a 2026-05-21 code-rot audit. Not yet picked up.
 - `~/.claude/plans/archive/partitioned-nibbling-spark.shipped.md` — Rakuten redesign, executed in PRs #67–#73. **Do not re-execute.** Plan files in `~/.claude/plans/archive/` with `.shipped.md` are historical — read for context only.
 
 > Other untouched files in `~/.claude/plans/` (e.g. `calm-soaring-emerson.md`, `fix-ios-push-mighty-nebula.md`) have unknown status. They are not necessarily in-flight — cross-reference against git log + this file before treating one as a backlog item.
+
+## Package 1 CI/CD release hardening — implementation for review
+
+Implemented on `codex/production-release-hardening` (base main `c076c061`), prepared for independent review and publication. The changes cover immutable four-digest
+releases, the read-only `production` environment preflight + post-approval
+recheck, receipt/snapshots before sync/pull, a pinned+verified docker-rollout,
+the API `/health/ready` healthcheck, and a default read-only migration ledger
+check. Runbook: `docs/deployment.md` (Package 1 release hardening section). Production deploys stay held;
+no environment/settings, SQL, manifest or dependency changes.
+
+Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
+
+## Earlier main Seller Catalogue snapshot — historical, superseded
+
+Retained verbatim from main’s September release history. Test results and store
+actions below describe that earlier snapshot; current release holds above take
+precedence and do not authorize repeating those actions.
+
+**Seller Catalogue Speed-up — RELEASED TO PRODUCTION (2026-09-27); seller-mobile store round in progress.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
+
+**Production release**
+- Release PR **#818** merged as **`860b740`**.
+- Deploy run **36335462366** succeeded (17:02:46 → 17:08:58 UTC). All four images were built and the rolling swap completed.
+
+**Migrations**
+- Each ran **exactly once**. The deploy log shows « 2 applied, 14 skipped ».
+- `_manual_migrations` rows: `2026-09-27_category_search_keywords.sql` at 17:08:13Z, and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql` at 17:08:14Z. The ledger went from 49 to **51**.
+- Production counts match the expected state exactly: categories 356 · product_attributes 590 · brands 72 · brand_categories 345 · products 505 · product_specifications 353. 10 leaves carry aliases.
+- `taxonomy:diff:prod` (read-only): **additive 0 · judgement 0 · historical 1**, exit 0.
+
+**Health and smoke tests**
+- The API `/v1/cities`, teka.cd, seller.teka.cd and admin.teka.cd all return 200. Seller and admin keep `noindex, nofollow`, and buyer `robots.txt` is unchanged.
+- Search: « omo » and « boom » → Lessive (brand); « savon poudre » → Lessive (alias); « cerelac » → Alimentation bébé; « détergent » → Détergents, then Lessive. All results are leaves. Latency is about 0.7 s.
+- Aliases are absent from the buyer tree, category detail and product page. The product page includes the full category row **without** `searchKeywords`, which confirms the global omit works.
+- Lessive serves Volume, Date d'expiration, Type de lessive and Poids.
+- **Sentry NOT checked:** no `sentry-cli` or auth token is available in this environment.
+
+**Seller-mobile store round**
+- The bump `0.1.10+12 → 0.1.11+13` is on `chore/seller-mobile-0.1.11-13` (PR into `develop`, then a `develop → main` release).
+- Next, dispatch `release-mobile-ipa.yml` and `release-mobile-aab.yml` with **`app=seller`** from `main`. Both stop at the `ios-testflight` and `android-play` approval environments, which **need the owner**.
+- No buyer build. No public track.

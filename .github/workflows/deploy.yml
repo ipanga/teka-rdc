@@ -1,6 +1,18 @@
-# Runs on every push to main (i.e. after a PR merges).
-# Builds all 4 images in parallel, pushes them to ghcr.io/ipanga/teka-rdc/*,
-# then SSHes to the server and performs a zero-downtime rolling update.
+# Runs on every push to main (i.e. after a PR merges) or a manual dispatch on
+# main. Jobs:
+#   environment-preflight  read-only REST check that the `production`
+#                          environment exists and is protected exactly as
+#                          expected — BEFORE any job references it (GitHub
+#                          silently auto-creates an UNPROTECTED environment
+#                          when a job names a missing one).
+#   build-and-push         builds the 4 images in parallel and pushes them to
+#                          ghcr.io/ipanga/teka-rdc/* (publication only; it never
+#                          activates anything). Each leg uploads its own
+#                          build-produced digest as a separate artifact.
+#   release-images         validates exactly four digests for this SHA.
+#   deploy                 owner approval (environment), protection recheck,
+#                          then the receipt-bound host release
+#                          (scripts/production-release.py).
 name: Deploy to production
 
 on:
@@ -23,7 +35,27 @@ env:
   IMAGE_PREFIX: ${{ github.repository }}   # resolves to: ipanga/teka-rdc
 
 jobs:
+  # Never references the environment itself. Missing environment, 401/403 on
+  # the GET, admin bypass, unexpected reviewers, prevent_self_review with a
+  # sole approver, or any branch policy other than exactly `main` (type
+  # branch) fails closed with a fixed code, so `deploy` never starts.
+  environment-preflight:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Validate production environment protection (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I -B scripts/production-release.py env-gate
+
   build-and-push:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -116,6 +148,7 @@ jobs:
           esac
 
       - name: Build and push ${{ matrix.name }}
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
@@ -129,174 +162,179 @@ jobs:
           # so the secret is silently ignored for that job.
           secrets: |
             sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Tags are published for humans; deploy selects ONLY the digest.
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
 
-  deploy:
+      # Matrix job outputs overwrite each other, so each leg records its own
+      # digest in its own artifact; release-images validates all four.
+      - name: Record ${{ matrix.name }} digest
+        env:
+          SERVICE: ${{ matrix.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: >-
+          python3 -I -B scripts/production-release.py record-digest
+          --service "$SERVICE" --image "$REGISTRY/$IMAGE_PREFIX/$SERVICE"
+          --sha "$GITHUB_SHA" --digest "$DIGEST"
+          --out "$RUNNER_TEMP/release-digest/$SERVICE.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-digest-${{ matrix.name }}
+          path: ${{ runner.temp }}/release-digest/${{ matrix.name }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  release-images:
     needs: build-and-push
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.collect.outputs.images }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-digest-*
+          path: ${{ runner.temp }}/release-digests
+      # Exactly api/buyer-web/seller-web/admin-web, each once, this SHA,
+      # repository prefix ghcr.io/ipanga/teka-rdc/, sha256:<64hex>.
+      - name: Validate the four build digests
+        id: collect
+        run: >-
+          python3 -I -B scripts/production-release.py collect-digests
+          --dir "$RUNNER_TEMP/release-digests" --sha "$GITHUB_SHA"
+
+  deploy:
+    needs: [environment-preflight, release-images]
+    if: github.ref == 'refs/heads/main' && needs.environment-preflight.result == 'success' && needs.release-images.result == 'success'
+    runs-on: ubuntu-latest
+    # Owner approval happens here, before any step (and so before any scp or
+    # host modification). Only reached after environment-preflight passed.
+    environment: production
+    permissions:
+      contents: read
+      actions: read
       packages: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # Sync docker-compose.prod.yml to the VPS BEFORE the rolling deploy.
-      # The VPS's /home/deploy/teka-rdc/ is a flat directory, not a git
-      # checkout, so any change to the compose file in this repo never
-      # reaches prod unless someone manually scp's it. That gap caused the
-      # 2026-05-24 outage: PR #208 added `env_file: .env.production` to the
-      # 3 web services in compose, but the VPS still had the pre-PR-208
-      # file. When the operator updated `.env.production` for the Sentry
-      # rollout, the new env vars were never read by the webs, and a
-      # follow-up `up -d` recreated the api container with a stripped
-      # `.env.production` (Orange creds removed by the operator) — api
-      # crash-looped on config validation.
-      #
-      # Scope: public repo files only — compose base + DB-TLS layer, the
-      # validated Compose helper, the host SQL wrapper and the shared psql
-      # runner (paths preserved under the target). Other VPS config (nginx,
-      # certbot data, .env.production, the canonical api runtime + CA under
-      # /home/deploy/.config/teka-rdc/) stays operator-managed.
-      - name: Sync production compose files and helpers to VPS
-        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.prod.yml,docker-compose.db-tls.yml,scripts/production-compose.py,scripts/run-prod-sql.sh,apps/api/prisma/migrations/production-psql.cjs
-          target: /home/deploy/teka-rdc/
+          persist-credentials: false
+      # First step after approval (checkout only reads the runner workspace):
+      # catch protection drift between preflight and approval before ANY
+      # host write.
+      - name: Recheck production environment protection (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I -B scripts/production-release.py env-gate
+      - name: Revalidate release images
+        env:
+          RELEASE_IMAGES: ${{ needs.release-images.outputs.images }}
+        run: >-
+          python3 -I -B -c 'import importlib.util as u, os, sys;
+          s = u.spec_from_file_location("pr", "scripts/production-release.py");
+          m = u.module_from_spec(s); s.loader.exec_module(m);
+          m.parse_images(os.environ["RELEASE_IMAGES"]); print("release images OK")'
 
-      - name: SSH rolling deploy
+      # Public repo files go to a STAGING dir first: the host helper writes the
+      # receipt + protected snapshots (current files, api runtime, running
+      # image IDs) BEFORE they are promoted into /home/deploy/teka-rdc/.
+      # Background: the VPS's /home/deploy/teka-rdc/ is a flat directory, not
+      # a git checkout; the 2026-05-24 outage came from a compose file that
+      # never reached prod. Other VPS config (nginx, certbot data,
+      # .env.production, the canonical api runtime + CA under
+      # /home/deploy/.config/teka-rdc/) stays operator-managed.
+      # Owned 0700 staging dir before any copy, plus the parent dirs of the
+      # staged files (scp extracts explicit file paths only, so tar would
+      # otherwise create them 0775 under the host's umask 0002). Missing
+      # children are created 0755 (umask may only narrow that). An existing
+      # entry that is a symlink, not a dir, not ours, root not exactly 0700
+      # or a child group/world-writable stops here; its mode is never changed.
+      - name: Prepare staging directory on VPS
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          command_timeout: 10m
+          script: |
+            set -eu
+            python3 -I -B - <<'PY'
+            import os, stat, sys
+            root = '/home/deploy/teka-rdc-staging'
+            for rel in ('', 'scripts', 'apps', 'apps/api', 'apps/api/prisma', 'apps/api/prisma/migrations'):
+                p = os.path.join(root, rel) if rel else root
+                try:
+                    os.mkdir(p, 0o755 if rel else 0o700)
+                except FileExistsError:
+                    pass
+                st = os.lstat(p)
+                mode = stat.S_IMODE(st.st_mode)
+                if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid()
+                        or (mode != 0o700 if not rel else mode & 0o022)):
+                    print('production-release: FAIL STAGING_DIR_UNSAFE', file=sys.stderr)
+                    sys.exit(1)
+            PY
+
+      - name: Stage production compose files and helpers on VPS
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.prod.yml,docker-compose.db-tls.yml,scripts/production-compose.py,scripts/production-release.py,scripts/run-prod-sql.sh,apps/api/prisma/migrations/production-psql.cjs
+          target: /home/deploy/teka-rdc-staging/
+
+      - name: SSH release (receipt-bound rolling deploy)
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_IMAGES: ${{ needs.release-images.outputs.images }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
+          envs: RELEASE_SHA,RELEASE_IMAGES,GHCR_USER,GHCR_TOKEN
           script: |
             set -euo pipefail
-
+            trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             cd /home/deploy/teka-rdc
 
-            # ------------------------------------------------------------------
-            # Authenticate to GHCR and pull all new images. `pull` does NOT
-            # restart anything — containers keep serving the old image.
-            # ------------------------------------------------------------------
-            echo "${{ secrets.GITHUB_TOKEN }}" \
-              | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # 1. Receipt + protected snapshots BEFORE sync/pull (staged helper;
+            #    reads live state only, tags the running image IDs as
+            #    teka-rdc-rollback/<svc>:pre-<sha>). Any absent service stops.
+            python3 -I -B /home/deploy/teka-rdc-staging/scripts/production-release.py \
+              snapshot --sha "$RELEASE_SHA" --images "$RELEASE_IMAGES"
+            # 2. Promote the staged public files.
+            python3 -I -B /home/deploy/teka-rdc-staging/scripts/production-release.py \
+              install --sha "$RELEASE_SHA"
 
-            # Export SENTRY_RELEASE so the 3 web services' `${SENTRY_RELEASE:-}`
-            # interpolation picks up the deploy SHA (Sentry Releases tab).
-            # The api's whole environment comes from the host canonical
-            # runtime. Its release is stamped through --set-release below;
-            # PostHog/review secrets remain private protected runtime edits.
-            export SENTRY_RELEASE="${{ github.sha }}"
-            export SENTRY_ENVIRONMENT="production"
+            printf '%s' "$GHCR_TOKEN" \
+              | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1
 
-            # Every Compose/rollout call goes through the validated helper:
-            # fixed `--env-file .env.production -f docker-compose.prod.yml`,
-            # project teka-rdc, and the api runtime/DB target/TLS/CA checked
-            # before each operation (fail closed, no secrets printed).
-            COMPOSE="python3 scripts/production-compose.py"
-            $COMPOSE --check
-            $COMPOSE pull
+            # 3. Pull the four digests (never `latest`), READ-ONLY migration
+            #    ledger check in the new api image, pinned+verified
+            #    docker-rollout, api SENTRY_RELEASE stamp, rollout
+            #    api → buyer-web → seller-web → admin-web, live acceptance.
+            #    Stops on the first failure (no retry, no whole-stack rollback,
+            #    no DB change); the receipt records what is serving.
+            #    Recovery is explicit and owner-run: docs/deployment.md.
+            python3 -I -B scripts/production-release.py deploy --sha "$RELEASE_SHA"
 
-            # ------------------------------------------------------------------
-            # EXPAND phase — apply auto-listed DB migrations BEFORE the rolling
-            # swap, using a one-off container from the freshly-pulled NEW api
-            # image (its prisma/ dir carries the SQL + the runner). This does
-            # NOT touch the still-running OLD api container.
-            #
-            # Why here (industry-standard expand → deploy): some new columns are
-            # read on every authenticated request (e.g. jwt.strategy selects the
-            # whole users row), so the schema MUST exist before the new code
-            # serves traffic — and the healthcheck is /health/live (no DB check),
-            # so a rolling swap would NOT catch a missing-column 500. The listed
-            # migrations are additive + idempotent, so the old code tolerates the
-            # new columns and keeps serving while this runs.
-            #
-            # apply-auto.sh reads prisma/migrations/manual/auto-apply.list and
-            # applies each un-applied file once (recorded in `_manual_migrations`),
-            # exiting non-zero on the first SQL error. `set -e` then aborts the
-            # deploy HERE — before any swap — so the old containers keep serving:
-            # no downtime, and the new code never runs against a missing column.
-            # Anything not in the manifest (destructive / contract steps) is still
-            # applied by hand via the "Apply prod migration" workflow.
-            # ------------------------------------------------------------------
-            echo "▶ applying auto-apply DB migrations (expand phase)…"
-            $COMPOSE run --rm --no-deps -T api sh prisma/migrations/apply-auto.sh
-
-            # ------------------------------------------------------------------
-            # Install the `docker rollout` CLI plugin. Idempotent — we always
-            # (re)write the file and verify afterwards. The conditional form
-            # failed silently when a prior run left a partial/broken plugin
-            # that made `--help` return 0 while the real invocation blew up.
-            #
-            # User-home install avoids needing passwordless sudo on the VPS.
-            # Docker scans $HOME/.docker/cli-plugins the same as the system
-            # path.
-            # ------------------------------------------------------------------
-            mkdir -p "$HOME/.docker/cli-plugins"
-            curl -fsSL \
-              https://raw.githubusercontent.com/Wowu/docker-rollout/v0.9/docker-rollout \
-              -o "$HOME/.docker/cli-plugins/docker-rollout"
-            chmod +x "$HOME/.docker/cli-plugins/docker-rollout"
-            # Clean up any stale system-wide install from earlier attempts so
-            # we never mix versions.
-            sudo rm -f /usr/local/lib/docker/cli-plugins/docker-rollout 2>/dev/null || true
-            # Fail loudly if the install is bad — better here than 60s into a
-            # rolling swap.
-            docker rollout --help >/dev/null
-
-            # ------------------------------------------------------------------
-            # Stamp the api's SENTRY_RELEASE (ONLY that key) in the protected
-            # canonical runtime right before the api swap. The helper keeps a
-            # 0600 backup of the previous runtime under ~/.config/teka-rdc/,
-            # replaces atomically and restores on failed validation.
-            # FAILURE PROCEDURE: if the rollout below fails, keep the deployment
-            # and SQL holds in place and reconcile SENTRY_RELEASE with the image
-            # that is still serving (use the saved protected previous runtime /
-            # printed previous release, via `--set-release <old-sha>`) BEFORE any
-            # manual recreation. Never restore a DB URL/config from an old
-            # environment file.
-            # ------------------------------------------------------------------
-            $COMPOSE --set-release "${{ github.sha }}"
-
-            # ------------------------------------------------------------------
-            # Zero-downtime rolling updates. Order matters:
-            #   1. api first — web apps depend on it via the private network.
-            #   2. buyer-web, seller-web, admin-web afterwards (independent).
-            # On a fresh host a service has no running container yet, so
-            # `docker rollout` would have nothing to swap — in that case we
-            # just `up -d` once. Otherwise rollout starts a NEW container
-            # beside the old one, waits for its healthcheck to report healthy,
-            # then stops and removes the old. If health never goes green,
-            # rollout exits non-zero and this step fails — the old container
-            # keeps serving.
-            # ------------------------------------------------------------------
-            for svc in api buyer-web seller-web admin-web; do
-              echo "▶ rolling $svc …"
-              running="$($COMPOSE ps --services --filter status=running | grep -Fx "$svc" || true)"
-              if [ -z "$running" ]; then
-                echo "  no running container for $svc — starting fresh"
-                $COMPOSE up -d --no-deps "$svc"
-              else
-                # = docker rollout --env-file .env.production
-                #   -f docker-compose.prod.yml -t 180 --wait 10 "$svc"
-                $COMPOSE --rollout "$svc"
-              fi
-            done
-
-            # ------------------------------------------------------------------
-            # nginx: reload if the config file changed, otherwise leave alone.
+            # nginx: reload if the config is valid, otherwise leave alone.
             # Recreating nginx would drop in-flight TCP connections, so we
             # never `up -d nginx` during a normal deploy.
-            # ------------------------------------------------------------------
+            COMPOSE="python3 scripts/production-compose.py"
             if $COMPOSE exec nginx nginx -t >/dev/null 2>&1; then
-              $COMPOSE exec nginx nginx -s reload || true
+              $COMPOSE exec nginx nginx -s reload >/dev/null 2>&1 || true
             fi
 
-            docker logout ghcr.io
-            docker image prune -f
+            # Dangling layers only; rollback tags keep the prior images.
+            docker image prune -f >/dev/null

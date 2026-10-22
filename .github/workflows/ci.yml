@@ -267,3 +267,14 @@ jobs:
         run: |
           python3 -B scripts/tests/production_compose_regression.py
           python3 -B scripts/tests/production_metadata_regression.py
+      # Release helper (digests, environment gate, read-only ledger check,
+      # verified plugin install) + the reviewed docker-rollout at its pinned
+      # commit against a fake docker CLI. The test checks the SHA256 before
+      # executing the download.
+      - name: Production release regression
+        run: |
+          mkdir "$RUNNER_TEMP/rollout"
+          curl -fsSL --proto '=https' -o "$RUNNER_TEMP/rollout/docker-rollout" \
+            https://raw.githubusercontent.com/Wowu/docker-rollout/93a733199a4a02d183ef84d494611ac12ac99024/docker-rollout
+          TEKA_REVIEWED_ROLLOUT="$RUNNER_TEMP/rollout/docker-rollout" \
+            python3 -B scripts/tests/production_release_regression.py
