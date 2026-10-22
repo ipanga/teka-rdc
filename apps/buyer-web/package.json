@@ -12,10 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.53.1",
+    "@sentry/nextjs": "10.75.2",
     "@teka/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "next": "15.5.27",
+    "next": "15.5.28",
     "posthog-js": "^1.378.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
