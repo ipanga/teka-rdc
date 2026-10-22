@@ -101,6 +101,24 @@ def compose_tests(tmp):
     except pc.Fail as e:
         check(f'effective api env == runtime ({e})', False)
 
+    # Deploy pins all four services to build digests; each must render as-is.
+    pinned = {var: f'ghcr.io/ipanga/teka-rdc/{svc}@sha256:' + str(i + 1) * 64
+              for i, (svc, var) in enumerate(pc.IMAGE_VARS.items())}
+    saved = dict(os.environ)
+    os.environ.update(pinned)
+    try:
+        pc.validate()
+        check('all four digest pins render into effective config', True)
+    except pc.Fail as e:
+        check(f'all four digest pins render into effective config ({e})', False)
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+    expect_fail(pc, 'tag-only TEKA_BUYER_WEB_IMAGE rejected', 'WEB_IMAGE',
+                {'TEKA_BUYER_WEB_IMAGE': 'ghcr.io/ipanga/teka-rdc/buyer-web:latest'})
+    expect_fail(pc, 'cross-service web digest rejected', 'WEB_IMAGE',
+                {'TEKA_ADMIN_WEB_IMAGE': 'ghcr.io/ipanga/teka-rdc/seller-web@sha256:' + '1' * 64})
+
     # Unsafe parents of the protected runtime: group-writable, symlinked.
     os.chmod(tmp, 0o770)
     expect_fail(pc, 'group-writable runtime parent rejected', 'RUNTIME_DIR_PARENT')

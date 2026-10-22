@@ -44,8 +44,11 @@ services:
       - backend
     restart: unless-stopped
     mem_limit: 512m
+    # Readiness (DB reachable), not liveness: `docker rollout` only retires the
+    # old api once the replacement is healthy, so a replacement that cannot
+    # reach Postgres stays unhealthy and the old api keeps serving.
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5050/api/v1/health/live"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5050/api/v1/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -58,7 +61,8 @@ services:
 
   # === Buyer Web (Next.js) — served at https://teka.cd ===
   buyer-web:
-    image: ghcr.io/ipanga/teka-rdc/buyer-web:latest
+    # Deploy pins TEKA_*_WEB_IMAGE to the build digest (production-release.py).
+    image: ${TEKA_BUYER_WEB_IMAGE:-ghcr.io/ipanga/teka-rdc/buyer-web:latest}
     env_file: .env.production
     environment:
       - NODE_ENV=production
@@ -86,7 +90,7 @@ services:
 
   # === Seller Web (Next.js) — served at https://seller.teka.cd ===
   seller-web:
-    image: ghcr.io/ipanga/teka-rdc/seller-web:latest
+    image: ${TEKA_SELLER_WEB_IMAGE:-ghcr.io/ipanga/teka-rdc/seller-web:latest}
     env_file: .env.production
     environment:
       - NODE_ENV=production
@@ -110,7 +114,7 @@ services:
 
   # === Admin Web (Next.js) — served at https://admin.teka.cd ===
   admin-web:
-    image: ghcr.io/ipanga/teka-rdc/admin-web:latest
+    image: ${TEKA_ADMIN_WEB_IMAGE:-ghcr.io/ipanga/teka-rdc/admin-web:latest}
     env_file: .env.production
     environment:
       - NODE_ENV=production
