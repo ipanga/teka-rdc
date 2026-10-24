@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DRC_PHONE_REGEX } from '../constants/phone';
+import { emailSchema as emailFormatSchema } from './common.validator';
 
 // ---------------------------------------------------------------------------
 // Email + password — auth surface for sellers and admins.
@@ -21,7 +22,7 @@ const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .email('Adresse email invalide');
+  .pipe(emailFormatSchema);
 
 export const emailLoginSchema = z.object({
   email: emailSchema,

@@ -1,5 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import multer from 'multer';
+import { createServer } from 'node:http';
+import { AddressInfo, connect } from 'node:net';
+import { deflateSync, gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { createTestApp, mockPrismaService, resetMocks } from './test-utils';
 
@@ -16,6 +20,10 @@ import { createTestApp, mockPrismaService, resetMocks } from './test-utils';
  *
  * No request in this file reaches Cloudinary: every body is refused by
  * multer, by the guards, or by Teka's byte-level validation first.
+ *
+ * Extended for the multer 2.5.0 / body-parser 2.4.0 pins: the JSON parser
+ * (plain, gzip, deflate) in front of every route, and an upload interrupted
+ * while an async fileFilter is still deciding.
  */
 const BUYER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const SELLER = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -296,6 +304,208 @@ describe('Multipart boundary (e2e) — multer 2.3.0 pin', () => {
       expect(mockPrismaService.product.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ id: PRODUCT, sellerId: SELLER }) }),
       );
+    });
+  });
+
+  describe('JSON body parser (body-parser 2.4.0 pin) — the real Nest parser in front of every route', () => {
+    // These assertions pin the ESTABLISHED external behaviour, identical on
+    // body-parser 2.3.0 and 2.4.0 behind the unchanged HttpExceptionFilter:
+    //   - malformed JSON          → 400 carrying the parser's SyntaxError message
+    //   - decodable gzip/deflate  → reaches the route (avatar: « Aucun fichier reçu »)
+    //   - over the limit, corrupt/truncated compressed stream, unsupported
+    //     Content-Encoding        → the generic French 500 envelope.
+    // That last group is a PRE-EXISTING gap, not a regression of this pin and
+    // not newly accepted risk: body-parser raises plain http-errors (413 /
+    // 415 / 400 on `err.status`), which are not Nest HttpExceptions, so the
+    // filter's catch-all answers 500 (and reports them to Sentry as
+    // unhandled). The process survives and nothing internal leaks — asserted
+    // below. Mapping them to French 4xx changes external statuses and belongs
+    // in a separate HTTP-error-handling remediation, not this security PR.
+    const JSON_BODY = Buffer.from(JSON.stringify({ image: 'data:image/png;base64,AAAA' }));
+    // Nest's default JSON limit (100 kB) applies to the DECODED bytes.
+    const OVER_LIMIT = Buffer.from(JSON.stringify({ a: ' '.repeat(150 * 1024) }));
+    const GENERIC_500 = { success: false, error: { status: 500, message: 'Erreur interne du serveur' } };
+
+    // superagent runs its application/json serializer over any non-string
+    // body (Buffers included), so the exact bytes are pinned with an identity
+    // serializer — otherwise the server would receive `{"type":"Buffer",…}`.
+    // (Typed as returning string; at runtime superagent writes a Buffer as-is.)
+    const rawJson = (req: request.Test, body: Buffer) =>
+      req
+        .set('Content-Type', 'application/json')
+        .serialize(() => body as unknown as string)
+        .send(body);
+
+    const postJson = (body: Buffer, headers: Record<string, string> = {}) =>
+      rawJson(request(server()).post(AVATAR).set(asBuyer()).set(headers), body);
+
+    const expectGeneric500 = (res: request.Response) => {
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual(GENERIC_500);
+    };
+
+    const expectReachedRoute = (res: request.Response) => {
+      expectRejected(res, 400);
+      expect(res.body.error.message).toBe('Aucun fichier reçu');
+    };
+
+    const expectAlive = async () => {
+      expectReachedRoute(await request(server()).post(AVATAR).set(asBuyer()).send({ hello: 'world' }));
+    };
+
+    it('the raw-byte path itself reaches the route: plain JSON bytes are the route\'s 400', async () => {
+      expectReachedRoute(await postJson(JSON_BODY));
+    });
+
+    it('malformed JSON is the parser\'s 400 envelope, and the server keeps answering', async () => {
+      for (const raw of ['{"image":', '[' + '['.repeat(64)]) {
+        const res = await postJson(Buffer.from(raw));
+        expectRejected(res, 400);
+        expect(res.body).toEqual({ success: false, error: { status: 400, message: 'Unexpected end of JSON input' } });
+      }
+      for (const raw of ['{"a":1}}', '\u0000\u0001']) {
+        const res = await postJson(Buffer.from(raw));
+        expectRejected(res, 400);
+        expect(res.body.error.message).not.toBe('Aucun fichier reçu');
+        expect(res.body.error.message).not.toBe(GENERIC_500.error.message);
+      }
+      await expectAlive();
+    });
+
+    it('a body over the JSON limit is refused by the parser before auth is consulted (established generic 500)', async () => {
+      expectGeneric500(await postJson(OVER_LIMIT));
+
+      // No session: still the parser's answer, not the guard's 401.
+      expectGeneric500(await rawJson(request(server()).post(AVATAR), OVER_LIMIT));
+
+      // Small body, no session: the guard answers.
+      const small = await request(server()).post(AVATAR).send({ hello: 'world' });
+      expect(small.status).toBe(401);
+      expect(small.body).toMatchObject({ success: false, error: { status: 401 } });
+      await expectAlive();
+    });
+
+    it('gzip and deflate bodies are inflated and reach the route', async () => {
+      for (const [encoding, bytes] of [
+        ['gzip', gzipSync(JSON_BODY)],
+        ['deflate', deflateSync(JSON_BODY)],
+      ] as const) {
+        expectReachedRoute(await postJson(bytes, { 'Content-Encoding': encoding }));
+      }
+    });
+
+    it('a gzip body with an invalid trailer is the established generic 500 and never takes the process down', async () => {
+      for (const bytes of [
+        // Garbage after the member: zlib tries it as a second member and fails.
+        Buffer.concat([gzipSync(JSON_BODY), Buffer.from('trailing-bytes-after-the-stream')]),
+        // A second member that starts and never finishes.
+        Buffer.concat([gzipSync(JSON_BODY), Buffer.from([0x1f, 0x8b, 0x08, 0x00])]),
+      ]) {
+        expectGeneric500(await postJson(bytes, { 'Content-Encoding': 'gzip' }));
+      }
+      await expectAlive();
+    });
+
+    it('a deflate body with trailing bytes is decoded up to the stream end and reaches the route', async () => {
+      // Node's inflate stops at the end of the deflate stream and drops the rest.
+      const res = await postJson(Buffer.concat([deflateSync(JSON_BODY), Buffer.from('trailing-bytes')]), {
+        'Content-Encoding': 'deflate',
+      });
+      expectReachedRoute(res);
+    });
+
+    it('a truncated or corrupt gzip body, or one that inflates past the limit, is the established generic 500', async () => {
+      const gz = gzipSync(JSON_BODY);
+      for (const bytes of [gz.subarray(0, gz.length - 8), gz.subarray(0, 12), Buffer.from('pas du gzip du tout')]) {
+        expectGeneric500(await postJson(bytes, { 'Content-Encoding': 'gzip' }));
+      }
+
+      const inflatesPastLimit = gzipSync(OVER_LIMIT);
+      expect(inflatesPastLimit.length).toBeLessThan(4096);
+      expectGeneric500(await postJson(inflatesPastLimit, { 'Content-Encoding': 'gzip' }));
+      await expectAlive();
+    });
+
+    it('an unsupported Content-Encoding is the established generic 500', async () => {
+      expectGeneric500(await postJson(JSON_BODY, { 'Content-Encoding': 'compress' }));
+      await expectAlive();
+    });
+  });
+
+  describe('multer 2.5.0 — an upload interrupted while an async fileFilter is pending', () => {
+    // Isolated fixture on the same multer the API ships: none of Teka's
+    // FileInterceptors use a fileFilter, so the edge is driven directly
+    // through multer on a local ephemeral port.
+    it('never crashes the process, never delivers a partial file, and the next upload succeeds', async () => {
+      const outcomes: Array<{ url: string | undefined; err: unknown; file: unknown }> = [];
+      let reachFilter!: () => void;
+      const filterReached = new Promise<void>((resolve) => (reachFilter = resolve));
+
+      const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 64 * 1024, files: 1 },
+        fileFilter: (_req, _file, cb) => {
+          reachFilter();
+          setTimeout(() => cb(null, true), 50);
+        },
+      }).single('image');
+
+      const fixture = createServer((req, res) => {
+        upload(req as any, res as any, (err?: unknown) => {
+          outcomes.push({ url: req.url, err, file: (req as any).file });
+          if (res.destroyed || res.headersSent) return;
+          res.statusCode = err ? 400 : 200;
+          res.end();
+        });
+      });
+      await new Promise<void>((resolve) => fixture.listen(0, '127.0.0.1', resolve));
+      const { port } = fixture.address() as AddressInfo;
+
+      try {
+        const boundary = 'teka-boundary';
+        const full = multipart(boundary, [
+          { name: 'image', filename: 'a.png', type: 'image/png', bytes: Buffer.concat([PNG_HEAD, Buffer.alloc(2048)]) },
+        ]);
+        // Part headers plus a few file bytes, then the client vanishes.
+        const partial = full.subarray(0, full.indexOf('\r\n\r\n') + 4 + 8);
+
+        const socket = connect(port, '127.0.0.1');
+        socket.on('error', () => undefined);
+        await new Promise<void>((resolve) => socket.once('connect', () => resolve()));
+        socket.write(
+          `POST /interrupted HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\n` +
+            `Content-Type: multipart/form-data; boundary=${boundary}\r\n` +
+            `Content-Length: ${full.length}\r\n\r\n`,
+        );
+        socket.write(partial);
+        await filterReached;
+        socket.destroy();
+
+        // Let the pending fileFilter callback fire against the dead request.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        const interrupted = outcomes.filter((o) => o.url === '/interrupted');
+        expect(interrupted.length).toBeLessThanOrEqual(1);
+        for (const o of interrupted) {
+          expect(o.err).toBeTruthy();
+        }
+
+        const ok = await request(fixture)
+          .post('/complete')
+          .attach('image', PNG_HEAD, { filename: 'a.png', contentType: 'image/png' });
+        expect(ok.status).toBe(200);
+        const complete = outcomes.filter((o) => o.url === '/complete');
+        expect(complete).toHaveLength(1);
+        expect(complete[0].err).toBeFalsy();
+        expect((complete[0].file as { size: number }).size).toBe(PNG_HEAD.length);
+      } finally {
+        fixture.closeAllConnections();
+        await new Promise<void>((resolve) => fixture.close(() => resolve()));
+      }
+
+      // And the API itself is untouched.
+      const after = await request(server()).post(AVATAR).set(asBuyer()).send({ hello: 'world' });
+      expectRejected(after, 400);
     });
   });
 });

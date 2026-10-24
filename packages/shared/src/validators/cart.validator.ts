@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const addToCartSchema = z.object({
-  productId: z.string().uuid('Identifiant produit invalide'),
+  productId: z.guid('Identifiant produit invalide'),
   quantity: z
     .number()
     .int('La quantité doit être un nombre entier')
@@ -21,7 +21,7 @@ export const mergeCartSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().uuid('Identifiant produit invalide'),
+        productId: z.guid('Identifiant produit invalide'),
         quantity: z
           .number()
           .int()

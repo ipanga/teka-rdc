@@ -1,5 +1,31 @@
 # Teka RDC — Development Progress
 
+## Bounded Zod4 / parser remediation locally validated — 2026-10-24
+
+After the owner's explicit compatibility decisions, official Claude Code Opus5.5
+implemented scoped manifests/validators/tests using verified Max authentication,
+with provider API environment excluded. Codex independently reviewed every source
+and dependency change, generated the minimal lockfile and validated on Node20.20.2.
+Zod4.6.7/body-parser2.4.0/multer2.5.0 resolve on actual API/shared parent paths;
+Nest/Express and all other direct framework pins/exception policy remain unchanged.
+
+Before/after checks preserve53 exports, French messages, GUIDs, empty PATCH,
+creation defaults, verbatim URLs, legitimate stock values and monetary strings.
+Safe-integer rejection above2^53 is the approved change; v4 issue metadata is allowed.
+API uses class-validator; no Zod error adapter or API runtime/error-filter change.
+All local frozen-install/type/build/audit gates pass; existing unit/Web regressions
+and final49 shared-contract/23 multipart/parser cases pass. Initial new parser-test
+assumptions were corrected against old/new raw HTTP evidence, preserving rather
+than changing the pre-existing generic500 fallback and all older security assertions.
+
+One main-targeted security PR is prepared for fresh CI/genuine CodeQL, not merge.
+#841's earlier audit failure remains historical; its merge is not reverted.
+Production6f7d292e/Hetzner/review flagfalse and deploy/SQL/mobile holds remain.
+No Production contact, image publication, SQL or infrastructure retest. Existing
+exceptions and six moderate findings/review2026-11-17 are unchanged; fast-uri,
+legacy raw-parser500, Sentry coverage and CodeQL residuals remain documented.
+[Current security scope](docs/deployment.md#bounded-zod4-and-request-parser-security-remediation-2026-10-24).
+
 ## Main → develop synchronization prepared — 2026-10-22
 
 Verified baselines: main `e73b0599435045f4e4fc34e93982872dedf493b9`, develop
