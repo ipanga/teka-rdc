@@ -1,5 +1,77 @@
 # Status — 2026-10-24
 
+## Minimal fast-uri security patch — local validation, PR review required (2026-10-24)
+
+Accepted main is `f69152c091b91dd8455f2462724e11275a2a5b10`; #841 and #852
+are merged code-only. Production remains `6f7d292e` / accepted run39861554373.
+This separate main-based PR changes only the obsolete root fast-uri pin, its
+lockfile resolution, one focused regression file and these three continuity docs.
+No business logic, workflow, schema, direct framework upgrade or new audit exception.
+
+Official Claude Code Opus5.5 used verified claude.ai Max authentication with
+provider API environment excluded. Codex independently reviewed the diff and actual
+18 production paths: all three Web apps → Sentry/webpack → schema-utils/Ajv8.18.0
+→ fast-uri3.1.9, compatible with Ajv's existing ^3.0.1. The obsolete3.1.8 override
+is removed; normal resolution works, so no replacement override is needed.
+All four fast-uri advisories are absent from the production audit. Malformed-input
+rejection is the intended security fix; legitimate URL/Ajv contracts are preserved.
+
+Node20 frozen install, shared contracts, Web regressions and TypeScript pass.
+See deployment handoff for production-mode build and fresh PR CI/CodeQL evidence.
+Production audit PASS:0 unignored critical/high,6 historical moderate findings,
+1 low serialize-javascript finding and2 unchanged ignored highs. Only the six
+OT/Sentry moderates retain the2026-11-17 review deadline. Source CodeQL warning,
+Sentry PARTIAL/ATTENTION/Web telemetry gap and legacy raw-parser500 remain open.
+
+No merge or deployment authorization: deploy265250843 stays disabled_manually;
+SQL/seed/backfill/mobile holds and protected runtime/review flagfalse remain.
+Production is not contacted. Future release requires separately authorized merge,
+successful main CI, then owner-approved one-run API-first/Web deployment with
+Nginx refresh, compatible immutable rollback and30+ minutes observation.
+[Scope and validation](docs/deployment.md#minimal-fast-uri-security-patch-2026-10-24).
+Earlier pending-merge instructions below are historical.
+
+## PR #852 merged code-only — COMPLETE / PASS (2026-10-24)
+
+Explicit owner authorization and all final guards passed: exact head98182537,
+base0dcf0221/candidate d526d1c4, unchanged18-file scope,21/21 relevant checks,
+13/13 app-bound required contexts and genuine CodeQL120976999242/app57789 SUCCESS.
+Protections/policy unchanged, no bypass/auto-merge. ONLY #852 merged normally at
+21:07:17 UTC (23:07:17 Lubumbashi): remote main
+**`f69152c091b91dd8455f2462724e11275a2a5b10`**, ordered parents
+`0dcf022182ff5099fcfa571896709112aa0b6cfc` and
+`98182537526eecbaf09d1ae47bddb806ff1c6f2a`. Tree
+`c19058db9118eef1f53f2cfe4954e5c971489fae` exactly matches the reviewed tree;
+#841 application features and infrastructure safeguards are preserved.
+
+Fresh actual-main [CI40132815416](https://github.com/ipanga/teka-rdc/actions/runs/40132815416)
+SUCCESS:12/12 jobs,1384 unit/331 endpoint tests and enforced production audit PASS.
+[CodeQL40132815418](https://github.com/ipanga/teka-rdc/actions/runs/40132815418)
+SUCCESS: all3 main analyses accepted without processing errors/warnings.
+JS/TS2020186215 retains the existing Buyer Web source warning; Actions2020184843
+and Python2020184421 have0 findings. All15 main checks SUCCESS; no branch-push
+aggregate was generated or invented. The genuine SUCCESS aggregate above belongs
+to the reviewed PR head, not this main push. No manual CI rerun.
+
+Frozen-tested resolutions remain Zod4.6.7/body-parser2.4.0/multer2.5.0 in the
+identical tree. Actual main audit:3 low/8 moderate/2 high(all2 already ignored),
+0 unignored critical/high. Six historical OT/Sentry moderates retain2026-11-17;
+**the two fast-uri moderates are outside that historical acceptance**, open for
+separate triage with no new acceptance/deadline extension. Existing source warning,
+Sentry PARTIAL/ATTENTION/Web coverage gap and raw-parser500 mapping remain unresolved.
+
+Deploy265250843 disabled_manually; run inventory unchanged, only CI/CodeQL push
+workflows followed the merge. No Production/SQL/seed/backfill/mobile/image release.
+Production was not contacted or modified: accepted6f7d292e/Hetzner/runtime flagfalse,
+TLS/CA/backups/WAL/rollback preserved. Develop6c7e509c, #840, unrelated branches and
+local work unchanged. Only local continuity edited; no local commit/push or sync.
+**STOP after code-only acceptance.** Future API-first/Web deployment, owner approval,
+Nginx upstream refresh and compatible-cohort rollback require separate authorization.
+[Acceptance, residual classification and minimal next package](docs/deployment.md#pr-852-code-only-merge-acceptance--pass-2026-10-24).
+Evidence: `/private/tmp/teka-pr852-merge-20261024/final-acceptance.json`.
+Earlier review-ready/pending-merge headings below are historical.
+
+
 ## Current security remediation — local validation PASS, PR review required (2026-10-24)
 
 Main is `0dcf022182ff5099fcfa571896709112aa0b6cfc`: #841 was merged code-only;

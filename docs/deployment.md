@@ -1,5 +1,183 @@
 # Teka RDC — Deployment Guide
 
+## Minimal fast-uri security patch (2026-10-24)
+
+One narrowly scoped security PR starts from accepted main
+`f69152c091b91dd8455f2462724e11275a2a5b10` after the accepted #841/#852 merges.
+Production remains accepted `6f7d292e` / run39861554373, with Hetzner as sole DB
+and APP_REVIEW_LOGIN_ENABLED=false. Earlier main/release/merge instructions below
+are historical; neither this PR nor its checks authorize a Production operation.
+
+### Exact dependency correction
+
+Remove only the obsolete root override `fast-uri@>=3.0.0 <3.1.8: 3.1.8`.
+Ajv8.18.0 already requests ^3.0.1, so natural resolution selects published3.1.9.
+The committed lockfile retains only pnpm-generated fast-uri package/integrity and
+Ajv snapshot changes; unrelated resolver churn is excluded and frozen install passes.
+No replacement override, direct dependency, framework upgrade,2.x/4.x coercion,
+exception, suppression, business logic or workflow change.
+
+All18 production paths (six per Web app) converge through @sentry/nextjs10.75.2 →
+@sentry/webpack-plugin5.3.0 → webpack5.104.1 → schema-utils4.3.3, directly or via
+terser-webpack-plugin5.3.16 → Ajv8.18.0 (direct, ajv-formats or ajv-keywords) →
+fast-uri3.1.9. Actual installed paths and Ajv's exact URI-resolver instance are
+verified. No direct application fast-uri import was found; this dependency graph
+alone establishes neither application exploitability nor absence of risk.
+
+| Official advisory | Specific correction verified on3.1.9 |
+| --- | --- |
+| [GHSA-w74x-v6f9-j3xg](https://github.com/advisories/GHSA-w74x-v6f9-j3xg) | Encoded scheme is marked malformed rather than decoded into an active scheme; resolve rejects it |
+| [GHSA-wjr9-j795-jxcr](https://github.com/advisories/GHSA-wjr9-j795-jxcr) | Double-@ and TAB hosts remain malformed rather than normalized into a trusted clean host |
+| [GHSA-xhq7-xmqj-769h](https://github.com/advisories/GHSA-xhq7-xmqj-769h) | Parent-relative normalization retains ../ and its resolution semantics |
+| [GHSA-333x-w4r6-6crp](https://github.com/advisories/GHSA-333x-w4r6-6crp) | No-authority suffix serialization escapes a colon or prefixes ./ under skipEscape |
+
+Fast-uri is not a general URL sanitizer. Its documented suffix/authority ambiguity
+remains; the regression does not claim that explicit javascript: inputs become safe.
+Teka's existing URL/host guards and shared schema contracts are unchanged.
+
+### Focused validation and residuals
+
+Official Claude Code Opus5.5 used verified Max/claude.ai authentication with provider
+API variables excluded; Codex independently reviewed code, resolution and results.
+Node20.20.2/pnpm9.15.9 frozen install passes. The14 advisory/legitimate-URI/Ajv tests
+pass with patched3.1.9; the baseline3.1.8 fails the advisory assertions while ordinary
+controls pass. The initial test assumed resolve returned a string; actual3.1.9
+rejects malformed schemes, so only that assertion was corrected to expect the
+specific error. No application behavior was loosened to pass a test.
+
+Workspace TypeScript and49 shared-contract tests pass; Web Buyer278/Seller53/
+Admin119 pass. All three production-mode Web builds PASS using synthetic loopback configuration,
+not Production credentials or data. Fresh final-head CI, four non-publishing PR
+Docker checks, Release Config and genuine app57789 CodeQL SUCCESS are required
+before a later merge authorization. Existing infrastructure/native QA is not repeated.
+
+Exact production gate `pnpm audit --prod --audit-level=high` exits0:9 reported
+findings =6 moderate/1low/2high(both existing ignores),0 critical and0 unignoredhigh.
+All four fast-uri IDs are absent. Six OT/Sentry findings GHSA-qqmp-wf37-98f9 retain
+only their historical2026-11-17 review; low serialize-javascript GHSA-m5mm-p8h7-m29v
+remains separately reported. Existing high exceptions GHSA-38f7-945m-qr2g and
+GHSA-ggr8-5vv4-36mx remain identical. No new risk acceptance or deadline extension.
+The inherited CodeQL source warning, Sentry PARTIAL/ATTENTION/Web coverage gap and
+raw-parser generic500 mapping remain unresolved and unchanged.
+
+### Publication and next authorization boundary
+
+One PR targets main, unmerged/no auto-merge. Deploy265250843 remains
+disabled_manually. No Production host/container/database/runtime/CA/credential
+contact, GHCR publication, SQL, seed/backfill, mobile release or branch sync.
+Primary-checkout unrelated work, #840 history and all failed-run/host-continuation/
+immutable rollback evidence are preserved. Task-local sanitized validation evidence:
+`/private/tmp/teka-fast-uri-security-20261024/`.
+
+After final-head CI/genuine CodeQL pass, request separate normal code-only merge
+approval with exact head/base/candidate. Only after that merge and actual-main CI
+success prepare the one-run Production proposal for its exact main SHA: volatile
+read-only readiness/16-ledger verification, protected runtime/CA/flagfalse and four
+rollback digests, immutable builds, owner production-environment approval, API-first
+replacement, required Nginx upstream refresh/origin/public readiness, compatible
+API/Web rollback (no old API with new Seller Web), and at least30 minutes observation.
+Any pending SQL is NO-GO; no automatic apply. Return deploy.yml to disabled after
+that separately authorized run. No deployment is authorized by this task.
+
+## PR #852 code-only merge acceptance — PASS (2026-10-24)
+
+[#852](https://github.com/ipanga/teka-rdc/pull/852) merged normally after the owner's
+explicit authorization and immediate exact-SHA/check/deployment guards. No squash,
+rebase, force, auto-merge, administrator bypass or source correction. Main/develop
+rulesets remained active with no bypass actors and no protection/security change.
+
+| Item | Actual verified value |
+| --- | --- |
+| Remote main merge SHA | `f69152c091b91dd8455f2462724e11275a2a5b10` |
+| First parent / approved prior main | `0dcf022182ff5099fcfa571896709112aa0b6cfc` |
+| Second parent / approved #852 head | `98182537526eecbaf09d1ae47bddb806ff1c6f2a` |
+| Reviewed candidate | `d526d1c4dce35c1262995b017259a29ac706b498` |
+| Actual/reviewed tree | `c19058db9118eef1f53f2cfe4954e5c971489fae` |
+| Merge time |2026-10-24T21:07:17Z /23:07:17 Lubumbashi |
+| Pre-merge acceptance |Exact18files,21/21 relevant checks,13/13 required contexts SUCCESS |
+| Genuine PR CodeQL aggregate |[120976999242](https://github.com/ipanga/teka-rdc/runs/120976999242), app57789, SUCCESS on approved head |
+| Actual-main CI |[40132815416](https://github.com/ipanga/teka-rdc/actions/runs/40132815416), all12jobs SUCCESS |
+| Actual-main CodeQL |[40132815418](https://github.com/ipanga/teka-rdc/actions/runs/40132815418), all3jobs SUCCESS |
+
+All15 main check runs succeed. Main CI confirms1384unit/331endpoint tests and
+production Dependency Audit PASS. Accepted main analyses: JS/TS2020186215,
+Actions2020184843, Python2020184421, all0 processing errors/warnings. JS has1
+inherited `js/incomplete-url-substring-sanitization` source result at Buyer Web
+product `page.tsx:41`; no SARIF suppression added and source remains unresolved.
+Other languages have0 results. No branch-push genuine aggregate was observed;
+the pre-merge PR aggregate is not presented as a newly generated main aggregate.
+No manual job rerun or issue dismissal/suppression was performed.
+
+Exact main tree equals the accepted frozen-installed/path-verified tree, retaining
+Zod4.6.7/body-parser2.4.0/multer2.5.0, all #841 application features, durable
+Hetzner/TLS/CA/read-only SQL/immutable-image/rollback safeguards and policy. Fresh
+main frozen-install/audit also pass. No unrelated branch rewrite or dependency fix.
+
+### Current production audit residuals — separate acceptance scopes
+
+Main's enforced `pnpm audit --prod --audit-level=high` succeeds with0unignored
+critical/high. It reports13 total:3low,8moderate,2high(both already ignored).
+No new ignore, exception, threshold change, suppression or bypass.
+
+| Group | Classification / owner boundary |
+| --- | --- |
+| Existing2 ignored high advisories |GHSA-38f7-945m-qr2g/GHSA-ggr8-5vv4-36mx, unchanged policy |
+| Six historical OT/Sentry moderates |GHSA-qqmp-wf37-98f9 across instrumentation-pg/mysql2/knex/mysql/mongoose/tedious; retain only their existing2026-11-17 review/acceptance |
+| Additional2 fast-uri moderates |GHSA-w74x-v6f9-j3xg and GHSA-wjr9-j795-jxcr at3.1.8, reported via Web Sentry/webpack schema-validation dependency paths; **not covered by the six-finding acceptance**, no new risk acceptance or deadline extension; separate triage/remediation/owner decision required |
+|3 low findings |serialize-javascript GHSA-m5mm-p8h7-m29v and fast-uri GHSA-xhq7-xmqj-769h/GHSA-333x-w4r6-6crp; remain reported |
+
+Dependency-path classification does not prove runtime exploitability or absence
+of risk. Existing full-tree dev/build report-only findings remain under the
+unchanged policy. The inherited CodeQL source warning, Sentry PARTIAL/ATTENTION /
+unverified Web coverage and raw-parser HTTP500 mapping are not resolved by this
+merge. The previous bounded old/new parser comparison and external API error
+contracts remain preserved; no application error-handler change is made here.
+
+### Production unchanged; scope ends here
+
+Final read21:11:10 UTC verifies deploy265250843 `disabled_manually` and the same
+completed deployment-run inventory. Only CI and CodeQL push runs followed this
+merge. No deployment, GHCR publication, SQL, seed/backfill or mobile workflow was
+triggered. No Production host/container/PostgreSQL/runtime/credential/CA access
+or modification. Accepted serving release remains6f7d292e; these main fixes are
+not deployed. Review loginfalse, strict Hetzner TLS/pinned read-only CA, backup/WAL,
+monitoring and immutable compatible API/Web rollback artifacts are preserved by
+no operational changes. No stale Alwaysdata restoration or configuration.
+
+Develop6c7e509c and #840's head/history/update remain unchanged. No branch deletion,
+synchronization, local source commit/push or unrelated dirty-work loss. Original
+failed run39749631613, host continuation and immutable receipts remain historical,
+not rewritten. Earlier PR-ready/merge-pending sections below are superseded here.
+
+### Smallest later controlled API/Web release — separate authorization only
+
+1. Authorize one release of exact mainf69152c0, explicitly addressing the two
+   additional moderates separately from the historical six. Refresh only volatile
+   read-only readiness: current health, backup/WAL/disk, owner Sentry observations
+   and all16 migration-ledger entries. Unexpected pending SQL is NO-GO; no apply.
+2. Preserve protected runtime/CA, flagfalse, complete non-DB settings and all four
+   serving immutable rollback digests. Build/publish four exact release digests
+   only after that future authorization; require the existing owner environment
+   approval before host synchronization or service modification.
+3. Roll API first with database readiness before old healthy-instance retirement.
+   Include the tested static Nginx upstream refresh/graceful reload in the approved
+   package: verify identity/config and `nginx -t`, then origin/public readiness.
+   Keep strict Hetzner target/TLS/CA and read-only ledger verification throughout.
+4. Roll compatible Buyer/Seller/Admin Web images from the approved digests; verify
+   actual serving identities, SENTRY_RELEASE, protected values and final-artifact
+   smoke checks. No mobile distribution or implicit migration/seed/backfill grant.
+5. Observe at least30minutes and refresh existing monitoring status. On failure,
+   contain affected stock writers and restore a compatible immutable API/Web cohort,
+   never old API alone with new Seller Web, never Alwaysdata or database restore.
+   Return deploy.yml to disabled after the single run or safe stop; keep other holds.
+
+No step above is executed or authorized by this code-only acceptance. Evidence:
+`/private/tmp/teka-pr852-merge-20261024/` →`premerge-acceptance.json`,
+`immediate-premerge.json`, `merge-command-result.json`, `postmerge-initial.json`,
+`postmerge-latest.json`, `main-audit.log`, `final-github.json`, `final-acceptance.json`.
+Only local continuity updated; no unrelated content committed.
+
+
 ## Bounded Zod4 and request-parser security remediation (2026-10-24)
 
 This candidate is a security-only PR based on main

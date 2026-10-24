@@ -1,5 +1,48 @@
 # Teka RDC — Development Progress
 
+## Minimal fast-uri remediation prepared — 2026-10-24
+
+Owner authorized one isolated main-based security PR, not merge or deployment.
+Verified official advisories/registry and all18 affected Web Sentry/webpack/Ajv
+production paths. Claude Code Opus5.5 Max removed the obsolete root3.1.8 override
+and added14 focused URI/Ajv regressions. Codex independently checked parent ranges,
+package integrity, minimal lockfile and real installed3.1.9 paths. No other package
+resolution, audit exception, workflow or application business rule changes.
+
+The tests expose all four bugs on3.1.8; patched malformed-scheme resolution throws
+as intended, with legitimate URIs and schema $refs preserved. Node20 frozen install,
+workspace types,49 shared contracts and Web Buyer278/Seller53/Admin119 pass.
+The enforced production audit passes:6 historical moderates/1low/2ignored highs;
+all four fast-uri findings removed. Historical six-finding review remains2026-11-17.
+Fresh PR CI/genuine CodeQL acceptance is required; see current deployment handoff.
+No Production contact, image publication, SQL, infrastructure retest, merge or sync.
+Production6f7d292e/Hetzner/review flagfalse and all operational holds remain.
+
+## PR #852 normal merge and actual-main acceptance PASS — 2026-10-24
+
+Owner-authorized exact-head/base/candidate/scope/check/deployment guards all passed.
+Merged only #852 at23:07:17 Lubumbashi with a normal merge commit, no bypass or
+history rewrite: `f69152c091b91dd8455f2462724e11275a2a5b10`, ordered parents
+0dcf0221/98182537, exact reviewed treec19058db. Main retains all #841 features and
+accepted infrastructure/security safeguards. No other branch/PR operation.
+
+Post-main CI40132815416 all12jobs PASS (1384 unit/331 endpoint tests, production
+audit0unignoredcritical/high). CodeQL40132815418/all3 accepted analyses PASS,
+0 processing errors; inherited JS source warning remains.15 main checks succeed;
+no main-push aggregate observed, PR aggregate120976999242 remains correctly scoped
+as pre-merge evidence. No job rerun. Exact Zod4.6.7/body-parser2.4.0/multer2.5.0
+resolutions/exception policy retained by identical tree and fresh frozen main CI.
+
+Two ignored highs,8 moderates/3 lows remain. Only the six OT/Sentry findings carry
+the historical2026-11-17 acceptance; two fast-uri moderates remain separately open,
+not newly accepted. Sentry partial coverage/source warning/raw-parser500 persist.
+Deploy disabled/no new production run; no host contact or Production change.
+Develop/#840/unrelated work preserved; local handoff only, no commit/push/sync.
+Future release is separately authorized, API-first with compatible API/Web rollback
+and Nginx upstream/origin checks; no automatic deployment or mobile publication.
+[Final evidence and next package](docs/deployment.md#pr-852-code-only-merge-acceptance--pass-2026-10-24).
+
+
 ## Bounded Zod4 / parser remediation locally validated — 2026-10-24
 
 After the owner's explicit compatibility decisions, official Claude Code Opus5.5
