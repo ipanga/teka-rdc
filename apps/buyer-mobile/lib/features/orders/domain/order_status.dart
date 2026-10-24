@@ -77,6 +77,17 @@ String paymentStatusLabel(String? status) {
   }
 }
 
+/// Whether to OFFER « Annuler la commande ». Mirrors the API (and
+/// `canBuyerCancelOrder` in `@teka/shared`): before Teka custody — PENDING,
+/// CONFIRMED, PROCESSING — and never once the cash is collected or refunded.
+/// The API re-checks it; this only avoids a button that is sure to fail.
+bool canBuyerCancelOrder(String status, String? paymentStatus) {
+  const cancellable = {'PENDING', 'CONFIRMED', 'PROCESSING'};
+  const paid = {'COMPLETED', 'REFUNDED'};
+  return cancellable.contains(status.trim().toUpperCase()) &&
+      !paid.contains((paymentStatus ?? '').trim().toUpperCase());
+}
+
 /// The status filter chips on « Mes commandes », in workflow order.
 ///
 /// `null` = « Toutes ». Every status a buyer's order can reach is offered —

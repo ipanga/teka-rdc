@@ -20,6 +20,10 @@ import {
   isWithinReturnWindow,
   RETURN_WINDOW_DAYS,
 } from '../orders/order-workflow.constants';
+import {
+  lockOrderForUpdate,
+  releaseOrderStockHold,
+} from '../orders/order-inventory';
 
 @Injectable()
 export class ReturnsService {
@@ -147,17 +151,20 @@ export class ReturnsService {
    * (or flagged if already paid out), and a REFUND transaction recorded.
    */
   async approveReturn(returnId: string, adminId: string, note?: string) {
+    // Fast path only — both rows are re-validated inside the transaction.
     const ret = await this.loadPendingReturn(returnId);
     const order = ret.order;
-    if (order.status !== OrderStatus.DELIVERED) {
-      throw new BadRequestException(
-        'Seule une commande livrée peut être retournée',
-      );
-    }
+    this.assertReturnable(order.status);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      await tx.returnRequest.update({
-        where: { id: returnId },
+      // Claim the request (REQUESTED → APPROVED) conditionally: a concurrent
+      // approve/reject of the same request updates 0 rows and stops here.
+      const claimed = await tx.returnRequest.updateMany({
+        where: {
+          id: returnId,
+          status: ReturnStatus.REQUESTED,
+          deletedAt: null,
+        },
         data: {
           status: ReturnStatus.APPROVED,
           reviewedById: adminId,
@@ -165,6 +172,24 @@ export class ReturnsService {
           reviewNote: note,
         },
       });
+      if (claimed.count === 0) {
+        throw new BadRequestException(
+          'Cette demande de retour a déjà été traitée',
+        );
+      }
+
+      // Lock the order and re-check it is still DELIVERED (not forced or
+      // cancelled meanwhile).
+      const locked = await lockOrderForUpdate(tx, order.id);
+      if (!locked) {
+        throw new NotFoundException('Commande non trouvée');
+      }
+      this.assertReturnable(locked.status);
+
+      // Restore stock — at most once in the order's life: an order whose
+      // history already shows a CANCELLED/RETURNED entry (legacy forced
+      // rewind) is not restocked a second time. Before this move's own log.
+      await releaseOrderStockHold(tx, order.id);
 
       await tx.orderStatusLog.create({
         data: {
@@ -180,18 +205,6 @@ export class ReturnsService {
         where: { id: order.id },
         data: { status: OrderStatus.RETURNED, returnedAt: new Date() },
       });
-
-      // Restore stock for every line item.
-      const items = await tx.orderItem.findMany({
-        where: { orderId: order.id },
-        select: { productId: true, quantity: true },
-      });
-      for (const it of items) {
-        await tx.product.update({
-          where: { id: it.productId },
-          data: { quantity: { increment: it.quantity } },
-        });
-      }
 
       // Reverse the seller earning auditably (row kept, stamped reversedAt);
       // flags a manual clawback when it is already reserved in a payout.
@@ -233,14 +246,23 @@ export class ReturnsService {
   /** Admin rejects a return: the order stays DELIVERED, payout proceeds normally. */
   async rejectReturn(returnId: string, adminId: string, note?: string) {
     const ret = await this.loadPendingReturn(returnId);
-    const updated = await this.prisma.returnRequest.update({
-      where: { id: returnId },
+    // Conditional on REQUESTED, so it can't overwrite a concurrent approval.
+    const claimed = await this.prisma.returnRequest.updateMany({
+      where: { id: returnId, status: ReturnStatus.REQUESTED, deletedAt: null },
       data: {
         status: ReturnStatus.REJECTED,
         reviewedById: adminId,
         reviewedAt: new Date(),
         reviewNote: note,
       },
+    });
+    if (claimed.count === 0) {
+      throw new BadRequestException(
+        'Cette demande de retour a déjà été traitée',
+      );
+    }
+    const updated = await this.prisma.returnRequest.findUniqueOrThrow({
+      where: { id: returnId },
     });
 
     this.notificationService
@@ -250,6 +272,14 @@ export class ReturnsService {
       );
 
     return updated;
+  }
+
+  private assertReturnable(status: OrderStatus): void {
+    if (status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException(
+        'Seule une commande livrée peut être retournée',
+      );
+    }
   }
 
   private async loadPendingReturn(returnId: string) {

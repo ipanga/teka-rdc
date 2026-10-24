@@ -1,5 +1,8 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import { ProductsService } from './products.service';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 const APPROVED_SELLER = { userId: 'seller1', applicationStatus: 'APPROVED', cityId: null };
 
@@ -127,6 +130,7 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
     const updateMock = jest
       .fn()
       .mockResolvedValue({ id: 'p1', status: product.status });
+    const stockWrite = jest.fn().mockResolvedValue({ count: 1 });
     const prisma = {
       category: {
         findUnique: jest
@@ -149,7 +153,12 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
       productStatusLog: { create: jest.fn() },
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) =>
         cb({
-          product: { update: updateMock },
+          // Conditional stock write (optimistic snapshot) — succeeds here.
+          product: {
+            update: updateMock,
+            updateMany: stockWrite,
+            findUnique: jest.fn().mockResolvedValue({ quantity: 7 }),
+          },
           productSpecification: {
         deleteMany: jest.fn(),
         // 2026-09-11: update() now reconciles foreign specifications first.
@@ -167,11 +176,11 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
       { capture: jest.fn() } as never,
       { create: jest.fn() } as never,
     );
-    return { service, updateMock };
+    return { service, updateMock, stockWrite };
   }
 
   it('allows price/discount/stock edits on a published (ACTIVE) product', async () => {
-    const { service, updateMock } = makeUpdateService(ACTIVE);
+    const { service, updateMock, stockWrite } = makeUpdateService({ ...ACTIVE, quantity: 4 });
     await service.update('seller1', 'p1', {
       priceCDF: '40000000',
       discountPriceCDF: '30000000',
@@ -180,7 +189,12 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
     const data = updateMock.mock.calls[0][0].data;
     expect(data.priceCDF).toBe(40000000n);
     expect(data.discountPriceCDF).toBe(30000000n);
-    expect(data.quantity).toBe(10);
+    // Stock goes through the conditional (snapshot) write, not the plain update.
+    expect(data.quantity).toBeUndefined();
+    expect(stockWrite).toHaveBeenCalledWith({
+      where: { id: 'p1', sellerId: 'seller1', deletedAt: null, quantity: 4 },
+      data: { quantity: 10 },
+    });
   });
 
   it('re-reviews (ACTIVE → PENDING_REVIEW) when a content field is edited on a published product', async () => {
@@ -229,6 +243,77 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
       discountPriceCDF: null,
     } as never);
     expect(updateMock.mock.calls[0][0].data.discountPriceCDF).toBeNull();
+  });
+
+// Stock is an absolute edit racing checkout/cancellation deltas (I1): it is
+// written only if the stored stock still equals the snapshot it was based on.
+describe('stock snapshot (optimistic concurrency)', () => {
+  const ACTIVE = {
+    id: 'p1', sellerId: 'seller1', status: 'ACTIVE', priceCDF: 38000000n,
+    priceUSD: null, discountPriceCDF: null, discountPriceUSD: null,
+    categoryId: 'cat1', quantity: 4,
+  };
+
+  it('modern client: the form snapshot (expectedQuantity) is the write condition', async () => {
+    const { service, stockWrite } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { quantity: 9, expectedQuantity: 6 } as never);
+    expect(stockWrite).toHaveBeenCalledWith({
+      where: { id: 'p1', sellerId: 'seller1', deletedAt: null, quantity: 6 },
+      data: { quantity: 9 },
+    });
+  });
+
+  it('modern client, stock left untouched (quantity === expectedQuantity): nothing written, no conflict', async () => {
+    const { service, stockWrite, updateMock } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { priceCDF: '40000000', quantity: 6, expectedQuantity: 6 } as never);
+    expect(stockWrite).not.toHaveBeenCalled();
+    expect(updateMock.mock.calls[0][0].data).toMatchObject({ priceCDF: 40000000n });
+    expect(updateMock.mock.calls[0][0].data.quantity).toBeUndefined();
+  });
+
+  it('installed client without a snapshot: guarded from the server read (legacy-compatible)', async () => {
+    const { service, stockWrite } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { quantity: 9 } as never);
+    expect(stockWrite.mock.calls[0][0].where.quantity).toBe(4);
+  });
+
+  it('stale snapshot → French 409 naming the current stock; the rest of the edit is not written', async () => {
+    const { service, stockWrite, updateMock } = makeUpdateService(ACTIVE);
+    stockWrite.mockResolvedValue({ count: 0 });
+    const err = await service
+      .update('seller1', 'p1', { priceCDF: '40000000', quantity: 9, expectedQuantity: 4 } as never)
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ConflictException);
+    expect((err as ConflictException).getStatus()).toBe(409);
+    expect((err as Error).message).toContain('Le stock de ce produit a changé');
+    expect((err as Error).message).toContain('7 disponible(s)');
+    expect(updateMock).not.toHaveBeenCalled(); // thrown before any other write
+  });
+
+  it('an edit without quantity never touches stock', async () => {
+    const { service, stockWrite } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { priceCDF: '40000000' } as never);
+    expect(stockWrite).not.toHaveBeenCalled();
+  });
+});
+});
+
+describe('UpdateProductDto.expectedQuantity validation (same integer rules as quantity)', () => {
+  const check = (body: Record<string, unknown>) =>
+    validateSync(plainToInstance(UpdateProductDto, body)).map((e) => e.property);
+
+  it('optional — legacy payloads stay valid', () => {
+    expect(check({ quantity: 3 })).toEqual([]);
+  });
+
+  it('accepts a non-negative integer (also as a numeric string from forms)', () => {
+    expect(check({ quantity: 3, expectedQuantity: 0 })).toEqual([]);
+    expect(check({ quantity: 3, expectedQuantity: '5' })).toEqual([]);
+  });
+
+  it('rejects negative or fractional values', () => {
+    expect(check({ expectedQuantity: -1 })).toEqual(['expectedQuantity']);
+    expect(check({ expectedQuantity: 1.5 })).toEqual(['expectedQuantity']);
   });
 });
 
@@ -395,7 +480,7 @@ function makeUpdateService(over: Record<string, any> = {}) {
       update: jest.fn(),
       delete: jest.fn(),
     },
-    product: { update: productUpdate },
+    product: { update: productUpdate, updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     productStatusLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const prisma = {

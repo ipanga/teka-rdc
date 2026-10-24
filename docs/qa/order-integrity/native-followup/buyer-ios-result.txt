@@ -1,0 +1,10 @@
+[QA] démarrage en cours : auth=unknown ville{chargement=true choisie=false villes=0 erreur=false} route=(routeur non monté)
+[QA] démarrage résolu : auth=unauthenticated ville{chargement=false choisie=false villes=1 erreur=false} route=(routeur non monté)
+[QA] ▶ Acheteur 1/3 — connexion, fiche produit, commande COD
+[QA] ville choisie : auth=unauthenticated ville{chargement=false choisie=true villes=1 erreur=false} route=/
+[QA] ✔ Acheteur 1/3 — connexion, fiche produit, commande COD
+[QA] ▶ Acheteur 2/3 — annulation
+[QA] ✔ Acheteur 2/3 — annulation
+[QA] ▶ Acheteur 3/3 — échec de lecture, annulation refusée
+[QA] ✔ Acheteur 3/3 — échec de lecture, annulation refusée
+All tests passed.

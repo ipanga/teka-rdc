@@ -43,4 +43,24 @@ describe('admin-web middleware (D4 headers + existing gate)', () => {
     expect(res.headers.get('location')).toBeNull();
     expect(res.headers.get('cache-control')).toBe('private, no-store');
   });
+
+  // P1: the printable « Bon de livraison » lives outside /dashboard (no admin
+  // chrome on paper) but is just as protected.
+  it('the printable document route needs a session and is noindex + private no-store', () => {
+    const anon = middleware(req('/documents/bon-de-livraison/70000000-0000-4000-8000-000000000042'));
+    expect(anon.headers.get('location')).toContain('/login');
+    expect(anon.headers.get('location')).toContain('redirect=%2Fdocuments%2Fbon-de-livraison');
+    expect(anon.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+    expect(anon.headers.get('cache-control')).toBe('private, no-store');
+
+    const authed = middleware(req('/documents/bon-de-livraison/x', 'teka_admin_access_token=live'));
+    expect(authed.headers.get('location')).toBeNull();
+    expect(authed.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+    expect(authed.headers.get('cache-control')).toBe('private, no-store');
+  });
+
+  it('a look-alike path is not treated as the protected prefix', () => {
+    const res = middleware(req('/documentsX'));
+    expect(res.headers.get('location')).toBeNull();
+  });
 });

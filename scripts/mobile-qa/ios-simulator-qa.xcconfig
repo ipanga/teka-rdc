@@ -1,0 +1,25 @@
+// Opt-in LOCAL override for iOS SIMULATOR QA builds only (native integration
+// harness). Applied ONLY by exporting it for one explicit command:
+//
+//   XCODE_XCCONFIG_FILE="<repo>/scripts/mobile-qa/ios-simulator-qa.xcconfig" \
+//     flutter drive -d <booted simulator> --keep-app-running …
+//
+// Xcode includes the file named by XCODE_XCCONFIG_FILE in every target of
+// that one build and lets its settings override project / target values. The
+// tracked Runner project, Podfile, Podfile.lock, Pods versions and signing
+// are untouched; without the variable every build is exactly as before.
+//
+// Why: Xcode 27 turns a deployment target below 15.0 into a hard "Target
+// Integrity" error. The generated Pods targets of the LOCKED pods (libwebp,
+// Mantle, SDWebImage, SDWebImageWebPCoder, flutter_image_compress_common)
+// still carry their podspecs' 9.0 / 13.0 — Flutter's podhelper only drops the
+// setting (inheriting Runner's 15.0) for pods that depend on Flutter. The app
+// itself already targets 15.0 (Podfile `platform :ios, '15.0'`), so raising
+// those pods to 15.0 changes nothing about the minimum OS of the app.
+//
+// Scoped by the [sdk=iphonesimulator*] condition: a device / archive build
+// that inherits this variable by mistake ignores it. Architecture settings are
+// deliberately NOT overridden — a `flutter drive -d <simulator>` build already
+// targets the booted simulator's active architecture.
+
+IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator*] = 15.0

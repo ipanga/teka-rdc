@@ -1,6 +1,33 @@
 # Status — 2026-10-22
 
-## Current handoff — host release PASS; durable SCP fix in review (2026-10-22)
+## Current handoff — main → develop synchronization PR prepared (2026-10-22)
+
+**Synchronization proposal for review/CI only; no merge into develop or main.**
+`codex/main-to-develop-sync` merges approved main `e73b0599435045f4e4fc34e93982872dedf493b9`
+into develop `ebab9d671593f86782a231080223cc5659be1be7` to prepare ONE
+develop-targeted PR. The proposed merge preserves develop as first parent, then main.
+
+- **main `e73b0599`** carries the accepted release hardening plus the durable SCP
+  staging fix. Main CI **15/15** checks and all **3** CodeQL analyses are
+  confirmed SUCCESS.
+- **develop `ebab9d67`** retains unapproved functionality (order/inventory, API,
+  delivery, Buyer Web, native apps). The sync preserves it but approves nothing.
+- **Fresh sync-PR CI and CodeQL are pending.** Acceptance needs an actual CodeQL
+  aggregate SUCCESS on this PR. PR #848's one-time genuine app 57789 aggregate
+  NEUTRAL acceptance does not transfer. No other exception transfers either.
+
+**Production unchanged:** serves `6fb1ceb6`; Hetzner is the sole DB authority.
+GitHub run 39749631613 remains **FAILED, attempt 1**. Separate host continuation
+`3684d63a-f8c6-4f07-aadf-e82efbf3e3a6` PASS; immutable failed receipt preserved
+(hash `58b1111580ae684bc196291e7c5590abebfeed8c8d4463fc5ec90b230579301d`).
+
+**Holds unchanged:** deploy workflow 265250843 `disabled_manually`; SQL, seed,
+backfill and mobile-release holds remain. PR #840 untouched; PR #841 Draft,
+unmerged, no auto-merge. No production contact, config, SQL, image or deployment
+change. No branch merge into develop or main. No normal resumption.
+Sections below are historical.
+
+## Earlier handoff (superseded above) — host release PASS; durable SCP fix in review (2026-10-22)
 
 Infrastructure migration and deployment remain **CLOSED / accepted PASS**.
 Production serves `6fb1ceb68a91d3dc596b824c8d5847c877755154` after the separately
@@ -155,31 +182,110 @@ mandatory; never reconnect to stale Alwaysdata.
 
 ## Previous context (historical; current facts above)
 
-**Seller Catalogue Speed-up — RELEASED TO PRODUCTION (2026-09-27); seller-mobile store round in progress.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
+**Durable PostgreSQL/TLS integration published for review — PR #842.**
+[PR #842](https://github.com/ipanga/teka-rdc/pull/842) targets `develop` from
+`codex/durable-postgres-tls`, based directly on
+`41f684d827b05f656b512d00b8c99186975ed94e`. It contains only the reviewed durable
+runtime/TLS, deployment/SQL guards, focused tests and scoped activation handoff.
+PR #840 remains a separate documentation PR; draft release PR #841 is untouched.
+The original checkout and unrelated local infrastructure/history remain preserved.
 
-**Production release**
-- Release PR **#818** merged as **`860b740`**.
-- Deploy run **36335462366** succeeded (17:02:46 → 17:08:58 UTC). All four images were built and the rolling swap completed.
+Implementation commit `17f8b646c67beeb3f4bdf7cb3658910ec6b66973` passed all
+**15 GitHub checks, including all 13 required contexts**, Release Config and
+both CodeQL analyses. Codex inspected the actual Release Config regression and
+Dependency Audit steps. [CI run](https://github.com/ipanga/teka-rdc/actions/runs/39507233275),
+[CodeQL run](https://github.com/ipanga/teka-rdc/actions/runs/39507228913).
+The high-severity production audit gate passed; the informational full-tree
+report and six unresolved Sentry/OpenTelemetry moderate findings are not erased
+by a green gate. The accepted review deadline remains2026-11-17.
+The final documentation-only commit is subject to the same required checks;
+[latest publication-head results](https://github.com/ipanga/teka-rdc/pull/842/checks)
+are authoritative for that commit. No checks were weakened or manually bypassed.
 
-**Migrations**
-- Each ran **exactly once**. The deploy log shows « 2 applied, 14 skipped ».
-- `_manual_migrations` rows: `2026-09-27_category_search_keywords.sql` at 17:08:13Z, and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql` at 17:08:14Z. The ledger went from 49 to **51**.
-- Production counts match the expected state exactly: categories 356 · product_attributes 590 · brands 72 · brand_categories 345 · products 505 · product_specifications 353. 10 leaves carry aliases.
-- `taxonomy:diff:prod` (read-only): **additive 0 · judgement 0 · historical 1**, exit 0.
+No merge, deployment or operational hold release is authorized. Normal deploy,
+SQL migration, seed/backfill and PR #841 holds remain. Next: obtain separate merge
+approval, promote the guarded integration through an approved release to `main`,
+then explicitly authorize resumption of the relevant workflows. This publication
+has not contacted production or changed runtime, database, backups or credentials.
 
-**Health and smoke tests**
-- The API `/v1/cities`, teka.cd, seller.teka.cd and admin.teka.cd all return 200. Seller and admin keep `noindex, nofollow`, and buyer `robots.txt` is unchanged.
-- Search: « omo » and « boom » → Lessive (brand); « savon poudre » → Lessive (alias); « cerelac » → Alimentation bébé; « détergent » → Détergents, then Lessive. All results are leaves. Latency is about 0.7 s.
-- Aliases are absent from the buyer tree, category detail and product page. The product page includes the full category row **without** `searchKeywords`, which confirms the global omit works.
-- Lessive serves Volume, Date d'expiration, Type de lessive and Poids.
-- **Sentry NOT checked:** no `sentry-cli` or auth token is available in this environment.
+Durable production activation is independently verified PASS: only the API was
+recreated using its existing immutable image, with the complete environment
+preserved, strict Hetzner TLS, pinned canonical read-only CA and public HTTP200.
+The saved receipt completed2026-10-20 22:07:16UTC (2026-10-21 00:07:16 local),
+SHA256 `dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`.
+Hetzner `16/teka-prod`, `teka_prod`,10.77.0.3:5433 is the sole authority;
+Alwaysdata is stale and must never be selected as rollback. Original NO-GO,
+protected runtime/CA, backups and Hetzner-only configuration rollback remain intact.
 
-**Seller-mobile store round**
-- The bump `0.1.10+12 → 0.1.11+13` is on `chore/seller-mobile-0.1.11-13` (PR into `develop`, then a `develop → main` release).
-- Next, dispatch `release-mobile-ipa.yml` and `release-mobile-aab.yml` with **`app=seller`** from `main`. Both stop at the `ios-testflight` and `android-play` approval environments, which **need the owner**.
-- No buyer build. No public track.
+This PR changes only deployment/runtime wiring, strict libpq SQL execution,
+focused tests and this handoff. It executes no production operations. All normal
+deployment, SQL migration, seed/backfill and PR #841 holds persist. No merge or
+hold release is authorized. Six moderate Sentry/OpenTelemetry findings remain
+unresolved and temporarily accepted through2026-11-17; existing QA/device
+limitations, collation warning and unproven nine-unit stock issue are unchanged.
+[Activation evidence, metadata updates and rollback](docs/deployment.md#post-p2-durable-database-integration--2026-10-20).
 
-**Still pending:** real-device validation, and the T1–T5 follow-ups.
+## Prior project history (superseded by the current handoff)
+
+**Six local review commits prepared on `codex/order-integrity-release-review`**, based on develop `9e6bd60`.
+[Commit/handoff record](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
+All accepted source/tests/tools preserved byte-for-byte. Codex performed selective
+Git staging and independent review; no new implementation was needed. Local branch,
+staging and six commits are authorized. **No push, PR, merge, deploy, signed upload
+or production write is authorized or performed.** GitHub was not contacted.
+
+Fresh focused verification: frozen install/shared build/types PASS; API 135 unit/48
+endpoint; web 278/53/105; Flutter 91/67; analyzers unchanged 7/6 infos. Exact high-severity
+CI audit exit 0; JSON exit 1 with six unresolved moderates and two pre-existing
+excepted highs. Six Sentry/OTel findings remain temporarily risk-accepted through
+**November 17, 2026**, not resolved; full informational tree remains vulnerable.
+Affected drivers absent; tracing can inherit sampled parents. No new exception.
+
+Earlier full API/PG/Node 20 Docker/standalone Sharp/native/browser/PDF evidence
+remains valid because source/dependency bytes did not change during Git preparation.
+Physical store/open-app/native Safari printing, signed mobile distribution and
+exact-candidate remote CI remain outstanding. No schema/env/workflow/signing change.
+Historical nine units remain unproven and untouched. Next: verify clean status and
+six commits; obtain explicit authorization to push the review branch and open its
+PR into develop. Main merge automatically deploys and requires separate approval.
+
+## Previous initiative — Seller Catalogue Speed-up
+
+**Seller Catalogue Speed-up — RELEASED (2026-09-27); PHASE CLOSED.** Physical iPhone validation by the owner: 2 real products cropped and published on Seller 0.1.11. Remaining P2 manual checks: iPhone photo reuse, and one Android phone crop + publish. Tracker: `docs/seller-catalogue-speedup.md`. No implementation work is in flight.
+
+**Production**
+- Release #818 → `860b740`; deploy run 36335462366 succeeded.
+- Both migrations were applied **exactly once** (ledger 49 → 51).
+- Counts are exactly as expected: categories 356 · product_attributes 590 · brands 72 · brand_categories 345 · products 505 · product_specifications 353.
+- `taxonomy:diff:prod` is additive 0 · judgement 0 · historical 1.
+- Smoke searches: omo, boom and savon poudre → Lessive; cerelac → Alimentation bébé; détergent → Détergents, then Lessive. All results are leaf categories.
+- Aliases are absent from buyer payloads, and seller and admin remain `noindex`.
+- **Sentry was NOT checked** (no access).
+
+**Released `main`:** `60d70ac` (#821, the seller-mobile `0.1.11+13` bump). Redeploy 36337328372 succeeded with « 0 applied, 16 skipped ».
+
+**Store builds from `60d70ac`**
+
+| Platform | Run | Build | Store response | Distribution |
+|---|---|---|---|---|
+| Seller iOS | 36337679322 | `0.1.11 (1790530851)`; match AppStore profile, team YK6Z393A4D; 15 dSYMs uploaded to Sentry | « Successfully finished processing the build 0.1.11 - 1790530851 for IOS » | « Verified: 0.1.11 (1790530851) is available to 'Testers Teka RDC' » (internal group) |
+| Seller Android | 36337681264 | `0.1.11+13`, versionCode **13**, production-signed AAB 67.4 MB | « Preparing mapping … version code 13 », « Updating track 'internal' », « Successfully finished the upload to Google Play » | track `internal`, `release_status completed`, `validate_only false`; metadata, images, screenshots and changelogs skipped |
+
+- **Native symbols:** 9/18 `.sym`, the known pre-stripped-AAR limit (see #806).
+- **Scope of the run:** no buyer workflow ran, and nothing was promoted beyond internal testing.
+
+**Mobile release matrix**
+
+| App | iOS | Android |
+|---|---|---|
+| Buyer | TestFlight `0.1.8` (1789243959) | Play internal `0.1.8+11` |
+| Seller | TestFlight **`0.1.11` (1790530851)** | Play internal **`0.1.11+13`** |
+
+**Open**
+- **Physical-device checklist:** classified in the tracker. Items 1–2 are VERIFIED on a physical iPhone; items 4–17 are covered by automated, runtime or browser validation. Still to do, P2 and not blocking: #3 (iPhone photo reuse) and Android physical parity.
+- Catalogue decisions **T1–T5**: deferred follow-ups.
+- **Sentry check:** needs owner access.
+- Known non-blocking CI warnings: Node 20 / setup-java deprecations, Flutter notices about Kotlin/Gradle/AGP versions, and the Swift Package Manager notice for plugins.
 
 ## Previous snapshot (2026-09-12)
 
@@ -1720,3 +1826,33 @@ check. Runbook: `docs/deployment.md` (Package 1 release hardening section). Prod
 no environment/settings, SQL, manifest or dependency changes.
 
 Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
+
+## Earlier main Seller Catalogue snapshot — historical, superseded
+
+Retained verbatim from main’s September release history. Test results and store
+actions below describe that earlier snapshot; current release holds above take
+precedence and do not authorize repeating those actions.
+
+**Seller Catalogue Speed-up — RELEASED TO PRODUCTION (2026-09-27); seller-mobile store round in progress.** Tracker: `docs/seller-catalogue-speedup.md` → « Release ».
+
+**Production release**
+- Release PR **#818** merged as **`860b740`**.
+- Deploy run **36335462366** succeeded (17:02:46 → 17:08:58 UTC). All four images were built and the rolling swap completed.
+
+**Migrations**
+- Each ran **exactly once**. The deploy log shows « 2 applied, 14 skipped ».
+- `_manual_migrations` rows: `2026-09-27_category_search_keywords.sql` at 17:08:13Z, and `2026-09-27_taxonomy_laundry_babyfood_keywords.sql` at 17:08:14Z. The ledger went from 49 to **51**.
+- Production counts match the expected state exactly: categories 356 · product_attributes 590 · brands 72 · brand_categories 345 · products 505 · product_specifications 353. 10 leaves carry aliases.
+- `taxonomy:diff:prod` (read-only): **additive 0 · judgement 0 · historical 1**, exit 0.
+
+**Health and smoke tests**
+- The API `/v1/cities`, teka.cd, seller.teka.cd and admin.teka.cd all return 200. Seller and admin keep `noindex, nofollow`, and buyer `robots.txt` is unchanged.
+- Search: « omo » and « boom » → Lessive (brand); « savon poudre » → Lessive (alias); « cerelac » → Alimentation bébé; « détergent » → Détergents, then Lessive. All results are leaves. Latency is about 0.7 s.
+- Aliases are absent from the buyer tree, category detail and product page. The product page includes the full category row **without** `searchKeywords`, which confirms the global omit works.
+- Lessive serves Volume, Date d'expiration, Type de lessive and Poids.
+- **Sentry NOT checked:** no `sentry-cli` or auth token is available in this environment.
+
+**Seller-mobile store round**
+- The bump `0.1.10+12 → 0.1.11+13` is on `chore/seller-mobile-0.1.11-13` (PR into `develop`, then a `develop → main` release).
+- Next, dispatch `release-mobile-ipa.yml` and `release-mobile-aab.yml` with **`app=seller`** from `main`. Both stop at the `ios-testflight` and `android-play` approval environments, which **need the owner**.
+- No buyer build. No public track.

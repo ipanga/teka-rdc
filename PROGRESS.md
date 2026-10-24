@@ -1,5 +1,18 @@
 # Teka RDC — Development Progress
 
+## Main → develop synchronization prepared — 2026-10-22
+
+Verified baselines: main `e73b0599435045f4e4fc34e93982872dedf493b9`, develop
+`ebab9d671593f86782a231080223cc5659be1be7` (17 main-only / 20 develop-only).
+The proposed merge on `codex/main-to-develop-sync` preserves both ancestries,
+main's hardened deployment and develop's application code, including `test:pg`.
+Both committed histories are retained below. No feature release is approved.
+Fresh required CI and genuine CodeQL aggregate SUCCESS remain prerequisites for
+this synchronization PR; PR #848's NEUTRAL exception does not transfer.
+Production remains 6fb1ceb6/Hetzner; deploy 265250843 and independent SQL/mobile
+holds remain, #840 untouched and #841 Draft/unmerged/no-auto. Current scope and
+accepted failure/host-continuation records: [deployment handoff](docs/deployment.md#current-synchronization-proposal--2026-10-22).
+
 ## Durable SCP staging fix prepared; host continuation retained — 2026-10-22
 
 The owner accepted the supervised host continuation as PASS, serving main
@@ -207,7 +220,64 @@ Production deploy.yml is still active on main pushes and runs apply-auto:
 future main merge requires an explicit deployment/SQL hold plan first.
 [Compatibility and proposed release/rollback procedure](docs/deployment.md#isolated-main-integration--review-and-ci-only).
 
+## Durable PostgreSQL/TLS publication — 2026-10-21
+
+**Durable PostgreSQL/TLS integration published for review — PR #842.**
+[PR #842](https://github.com/ipanga/teka-rdc/pull/842) targets `develop` from
+`codex/durable-postgres-tls`, based directly on
+`41f684d827b05f656b512d00b8c99186975ed94e`. It contains only the reviewed durable
+runtime/TLS, deployment/SQL guards, focused tests and scoped activation handoff.
+PR #840 remains a separate documentation PR; draft release PR #841 is untouched.
+The original checkout and unrelated local infrastructure/history remain preserved.
+
+Implementation commit `17f8b646c67beeb3f4bdf7cb3658910ec6b66973` passed all
+**15 GitHub checks, including all 13 required contexts**, Release Config and
+both CodeQL analyses. Codex inspected the actual Release Config regression and
+Dependency Audit steps. [CI run](https://github.com/ipanga/teka-rdc/actions/runs/39507233275),
+[CodeQL run](https://github.com/ipanga/teka-rdc/actions/runs/39507228913).
+The high-severity production audit gate passed; the informational full-tree
+report and six unresolved Sentry/OpenTelemetry moderate findings are not erased
+by a green gate. The accepted review deadline remains2026-11-17.
+The final documentation-only commit is subject to the same required checks;
+[latest publication-head results](https://github.com/ipanga/teka-rdc/pull/842/checks)
+are authoritative for that commit. No checks were weakened or manually bypassed.
+
+No merge, deployment or operational hold release is authorized. Normal deploy,
+SQL migration, seed/backfill and PR #841 holds remain. Next: obtain separate merge
+approval, promote the guarded integration through an approved release to `main`,
+then explicitly authorize resumption of the relevant workflows. This publication
+has not contacted production or changed runtime, database, backups or credentials.
+
+Durable production activation is independently verified PASS: only the API was
+recreated using its existing immutable image, with the complete environment
+preserved, strict Hetzner TLS, pinned canonical read-only CA and public HTTP200.
+The saved receipt completed2026-10-20 22:07:16UTC (2026-10-21 00:07:16 local),
+SHA256 `dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`.
+Hetzner `16/teka-prod`, `teka_prod`,10.77.0.3:5433 is the sole authority;
+Alwaysdata is stale and must never be selected as rollback. Original NO-GO,
+protected runtime/CA, backups and Hetzner-only configuration rollback remain intact.
+
+This PR changes only deployment/runtime wiring, strict libpq SQL execution,
+focused tests and this handoff. It executes no production operations. All normal
+deployment, SQL migration, seed/backfill and PR #841 holds persist. No merge or
+hold release is authorized. Six moderate Sentry/OpenTelemetry findings remain
+unresolved and temporarily accepted through2026-11-17; existing QA/device
+limitations, collation warning and unproven nine-unit stock issue are unchanged.
+[Activation evidence, metadata updates and rollback](docs/deployment.md#post-p2-durable-database-integration--2026-10-20).
+
 ## Prior project history (preserved)
+
+## Current phase — 2026-10-18
+
+**Six local review commits prepared**, branch `codex/order-integrity-release-review`,
+base develop `9e6bd60`. Accepted source preserved; focused frozen-install/type/API/
+web/Flutter/audit checks pass, with six moderate unresolved risk acceptances due
+November 17, 2026 and two unchanged prior exceptions. Documentation commit records
+five literal hashes and resolves its own sixth hash from the review-branch tip.
+No remote/release/production action authorized or performed. See
+[local handoff](docs/order-integrity-printing-app-promotion.md#local-review-branch-and-structured-commits--2026-10-18).
+
+Historical September 10 status snapshot below (retained for context; current facts above and in STATUS.md):
 
 ## Current Phase: Production at `main` `9a89249`; `develop` `3b099db`. MS1-MS7 COMPLETE and merged (#727, #728, #729, docs #730). Branch protection APPLIED to both branches with 13 required checks. Nothing deployed, no version bumped, no store build created. Only blocker: the highest Google Play versionCode per app.
 ## Last completed: iOS keychain P1 CLOSED on a physical device; taxonomy PR #740 open (ordinary milk, alcohol branch, deodorant dedup, two product moves).
@@ -216,6 +286,12 @@ future main merge requires an explicit deployment/SQL hold plan first.
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
 
+- **Oct 18, 2026 — Local six-commit review preparation:** created `codex/order-integrity-release-review` from develop `9e6bd60`; selectively separated security, integrity, printing, promotion, native QA and documentation. All 195 accepted paths preserved; fresh focused API 135/48, web 278/53/105, Flutter 91/67, types/frozen install and exact CI audit pass. Six moderate residuals remain unresolved through Nov 17; no new exceptions. No push/PR/merge/deploy/upload/production data action. Exact history and next authorization boundary in the existing tracker.
+
+- **Oct 18, 2026 — Focused dependency remediation + independent review complete:** official Max-authenticated Opus 5.5 implemented minimal patches/overrides and 32 proxy regressions; Codex validated APIs, PG, web, relevant Flutter and all four Node 20 Docker builds plus standalone/Linux Sharp/Sentry privacy. Exact CI audit exit 0; six moderate residuals explicitly risk-accepted, unresolved until Nov 17; two prior exceptions unchanged, full informational tree still vulnerable, no new advisory/package pairs. Disk gate resolved with cache reuse/no pruning. CodeQL aggregate verified. READY FOR COMMIT/PR REVIEW; six proposed logical commits, no staging/branches/commits/remote/release/production-data action. Detailed evidence and remaining CI/physical/distribution/rollback gates in the existing tracker.
+
+- **Sep 27, 2026** — **Seller Catalogue Speed-up — physical iPhone validation + phase close.** The owner ran Seller 0.1.11 (TestFlight 1790530851) on a real iPhone against production: 2 real products, photo selection, the new crop screen (first real run of TOCropViewController) and publication all worked. The 17-item checklist is reclassified in `docs/seller-catalogue-speedup.md`: 1–2 physical iPhone; 5, 7–11 automated + emulator; 12–13 API/runtime (Cloudinary Admin API); 14–16 production API; 17 browser. Remaining P2, not blocking: iPhone photo reuse (#3) and one Android physical crop + publish.
+- **Sep 27, 2026** — **Seller Mobile 0.1.11 on TestFlight and Play internal testing** (from `main` `60d70ac`; bump #820 → #821; test-race fix #822). iOS run 36337679322: « Successfully finished processing the build 0.1.11 - 1790530851 », « Verified … available to 'Testers Teka RDC' », 15 dSYMs → Sentry. Android run 36337681264: « Preparing mapping … version code 13 », « Updating track 'internal' », « Successfully finished the upload to Google Play »; `release_status completed`, listing untouched; 9/18 native `.sym` (known pre-stripped AAR limit, #806). Both protected environments approved by the owner. No buyer build, no public track. Physical-device validation NOT performed.
 - **Sep 27, 2026** — **Seller Catalogue Speed-up RELEASED to production** (release #818 → `860b740`, deploy run 36335462366, success). EXPAND applied exactly the two new migrations (« 2 applied, 14 skipped »; ledger 49 → 51); production counts matched the pre-computed expectation exactly (categories 356 · attributes 590 · brands 72 · links 345 · products 505 · specs 353); `taxonomy:diff:prod` additive 0 · judgement 0 · historical 1. Smoke: omo/boom → Lessive, savon poudre → Lessive, cerelac → Alimentation bébé, détergent → Détergents then Lessive — all leaves; aliases absent from buyer tree, category detail and product page. Sentry not checked (no access). Seller-mobile bumped to 0.1.11+13 for the store round.
 - **Sep 27, 2026** — **Seller Catalogue Speed-up, PR C+D: category search with invisible aliases and linked brands; « Type de lessive »; Bébé › Alimentation bébé** (`feat/category-search-keywords`; PR A+B merged as #814 `6d66323`). `GET /v1/browse/categories/search` ranks LEAVES by name, path, the new `Category.searchKeywords` (omitted from every other payload by `PrismaService`) and linked brand names — « omo »/« boom » → Lessive, « savon poudre » → Lessive only, « cerelac » → Alimentation bébé — accent/case/plural-insensitive; both seller pickers use it with a local offline fallback (mobile no longer offers intermediate nodes). Admin: « Mots-clés de recherche / Synonymes » on the category editor and a « Synonymes de recherche » page for the #797 API. Taxonomy: LAUNDRY template (appended slots, ids stable), leaf …010505, brands Boom/Cerelac, curated aliases on ten leaves — additive, generated-SQL migration with refusal-first guards, applied to the dev DB only. Five catalogue decisions (T1–T5, incl. the « Nintendo » leaf) reported, not changed. Merged to `develop` as PR #817 after full green CI (CodeQL flagged a type confusion on a repeated `?q=` — fixed + e2e). Tests: API unit 1280 · e2e 274 · seller-mobile 505 · seller-web 48 · admin-web 68 · type-check clean. Browser-validated on admin-web and seller-web, emulator-validated on seller-mobile, against dev data. Not released: the two migrations auto-apply only with the next approved `develop → main` release; seller-mobile needs a store build.
 - **Sep 27, 2026** — **Seller Catalogue Speed-up, PR A+B: in-app photo crop with shelf-photo reuse, the shared-Cloudinary-asset delete fix, and « Ajouter un autre produit similaire »** (`feat/seller-crop-similar-product`; tracker `docs/seller-catalogue-speedup.md`). Phase 0 reconciled search/sales analytics, CSV, autocomplete, synonyms, characteristics and brand relevance as COMPLETE (synonym CRUD: API only, admin-web page missing → PR C). **Defect fixed:** `duplicate()` copies `cloudinaryId`, so deleting an image (or hard-deleting either product, admin hard delete, catalogue reset) destroyed a file the other product still displayed; all four paths now delete DB rows first and destroy only ids no `ProductImage` still references (`common/uploads/shared-product-assets.ts`). **Seller-mobile:** `image_cropper` (uCrop/TOCropViewController) — pick → copy into `tmp/teka_source` → native crop to a NEW file → existing WebP compress + upload; « Recadrer à nouveau la photo précédente » reuses the same source for the next product; nothing uploaded before a crop is confirmed; a failed upload keeps the crop for an explicit « Réessayer »; 24 h start-up sweep. No API contract, schema or migration change. **PR B (same branch):** « Ajouter un autre produit similaire » on the product detail — prefills category, brand and still-offered SELECT/MULTISELECT values only; price empty with a « Prix du produit précédent » hint + « Reprendre »; creation via the normal POST (no API change, source never written). Tests: API unit 1247 · e2e 271 · seller-mobile 501 · type-check clean · debug APK builds with uCrop. Runtime/emulator and real-device validation pending.
@@ -1553,3 +1629,99 @@ healthcheck is `/api/v1/health/ready`. Regression:
 remains held pending review/merge authorization. See `docs/deployment.md`.
 
 Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
+
+
+## 2026-10-17 — Order integrity / printing / app promotion: discovery baseline
+
+Started owner-requested incremental initiative; see `docs/order-integrity-printing-app-promotion.md` for plan, decisions, QA and handoff. Clean `develop` at `9e6bd60`. Confirmed force-status CANCELLED bypasses stock/COD release; dedicated cancellation and checkout have concurrency gaps. Baseline: API 1,280 unit tests, buyer web 193, seller web 48, admin web 68, workspace type checks pass. Official Claude Code 2.1.302: Keychain-backed claude.ai Max login verified with inherited API key excluded; safe-mode tool-free Opus 5.5 probe succeeded (session `e1c33b32-21a9-4ff3-91da-b01f6f65580f`). Bare mode failed login and is not suitable here. No feature accepted, no deployment, no database writes.
+
+
+## 2026-10-17 — Inventory lifecycle: first independently verified milestone
+
+Official Claude Code Opus 5.5 implemented guarded stock/cancellation/fulfillment/return transactions, atomic checkout/COD creation, and conservative history-based release without schema changes. Independent Codex review requested and received seller stock optimistic guards plus optional expectedQuantity and client parity updates. Real PostgreSQL: 17 suite tests + 15 independent actual-service checks pass, including stock-edit races. Reconciliation SQL: 7 independent synthetic era fixtures pass; configured production aggregate in verified READ ONLY transaction shows 2 cancelled orders / 9 units restoration-unproven, not confirmed discrepancies; no production changes. Client visual checks and a mutation-success/refresh-failure state correction remain; P1 printable document delegation begins. See initiative tracker for full QA/limitations. No commits, push or deployment.
+
+
+## 2026-10-17 — Protected delivery note independently verified
+
+Claude Code Opus 5.5 implemented the standalone ADMIN Bon de livraison plus authoritative web mutation-state merging. Codex verified actual Docker build/CSS, 320–1440px Chromium previews, private/noindex/guest protection, exact money/address snapshots and collected/unpaid states. A4 short/80-line PDFs are 1/5 pages, all pages visually inspected. Real local HTTP/API/PostgreSQL integration passes two-seller checkout/replay, live-data snapshot isolation, admin access/preview/print with zero writes, confirmed buyer cancellation/retry and seller status with stock restored only once. API regression 1,335 unit/290 endpoint, admin105/seller53 web tests pass. M1 phone promotion delegated through freshly verified Max authentication; API key excluded. Full Flutter regression investigation ongoing. No commits/deployment/production writes.
+
+
+## 2026-10-17 — Local feature review complete; release gates documented
+
+Claude Code Opus 5.5 completed M1 phone promotion and Codex-requested blocked-storage homepage correction through verified Max-only auth. Independent final tests: API 1,335 unit/290 endpoint; web buyer 278 / admin 105 / seller 53; all workspace types; buyer Flutter 527 / seller 509 (bounded concurrency, two original photo-I/O flakes reproduced only under high parallel load), unchanged analyzer infos. Four Dockerfiles build. Real buyer/admin/seller + API/PG workflows, Chromium/WebKit promotion matrix and A4 PDFs pass. Real seller stale-stock form returns 409, refetches 10 and preserves price; buyer cancellation remains truthful after follow-up GET 503. Public SSR/canonical/JSON-LD and six local CLS 0 samples pass. Actual buyer iOS17 renders captured; seller native launch blocked by pre-existing missing CocoaPods manifest. Physical store handoff/device flows, native Safari pagination, CI and existing API lint debt remain release gates. Production read-only aggregate remains 2 orders / 9 units unproven; no stock correction. No commit/push/deployment/env/schema/native setting changes. Full readiness/rollback/handoff in initiative tracker.
+
+## 2026-10-18 — Native follow-up builds and first real client/server journeys
+
+Owner authorized simulator-only adb/simctl QA while preserving both booted devices and existing apps/data. Official Opus 5.5/Max (API key excluded on every call) implemented guarded native integration targets and local build scaffolding. Locked seller pod install repaired the missing sandbox without dependency upgrades; Xcode27 needed a simulator-only iOS15 target override, leaving shipping project/Podfile/signing unchanged. Seller iOS now builds/launches: real login, rejection/once-only restoration/retry and stock409 preserving edits passed; two list cases need actual refresh. Buyer iOS passed actual town selection, mock-OTP auth, PDP/cart/COD checkout; backend cancellation is correct but UI invalidation/retry stalled across separate testWidgets, so a continuous app-lifetime harness is being prepared before classifying a product defect. Android buyer rendered/connected but cold-start town wait failed; initialization diagnostics were added. Signing conflict was safely refused with no uninstall; separate QA package IDs built/installed. Native Firebase was observed using stale generated Google resources, so both new Android QA packages were stopped and build-only output isolation added, pending rebuilt verification. Existing owner apps untouched. Fresh isolated web workflows and Chromium/WebKit promotion matrix pass again; actual 80-line delivery note has exact COD and zero print/view writes. Existing lint debt corrected to non-blocking CI maintenance debt. No commits/push/deployment/production writes. Current exact runs, evidence and resume paths remain in the existing initiative tracker.
+
+
+### 2026-10-18 — Native follow-up independently accepted
+
+Codex completed independent native client/server QA after official Claude Code
+Opus 5.5/Max implemented the isolated harness and targeted build corrections.
+Buyer 3/3 and Seller 6/6 named scenarios PASS on both iOS27 and Android14, one
+continuous mounted journey per app: real authentication/COD/order cancellation,
+rejection, once-only stock restoration/audit, retry400, stale status recovery,
+stock409 preserving edits and authoritative refetch, loading/error/retry and actual
+empty Retournées response. All 44 final native app screenshots captured; critical
+states inspected independently and sanitized pass logs persisted. The earlier
+cross-test stale UI was a harness teardown artefact, not a confirmed product defect.
+
+Seller locked CocoaPods sandbox repaired without an upgrade. QA-only Xcode27
+simulator override, staged iOS bundle without Firebase plist and separate Android
+codexqa.dev packages preserve owner apps, credentials and shipping configuration.
+Existing pubspec package blocks and Podfile.lock unchanged; SDK test entries and
+first compatible TOCropViewController 3.2.0 pin are explicitly documented. Final
+analyzers: buyer 7 / seller 6 existing infos only; new QA utilities clean.
+
+Fresh isolated real web workflows/promotion matrix PASS again. Actual 80-line admin
+delivery note: correct 10.005.000 FC COD and zero inventory/financial/audit writes;
+seeded directly, not an 80-item UI checkout. Native Safari promotion/document
+previews inspected. Physical installation/open-app and native Safari A4 pagination
+remain unverified. Android Chrome final promotion hit recurring system ANR and UI
+dump timeout; retained as environment-failure evidence, not a feature pass. All
+native application journeys had already passed, including final Android seller 6/6.
+No new product regression confirmed. Existing lint is non-blocking CI maintenance;
+photo-I/O flakes retain prior isolated/bounded passes. GitHub CI, signed/physical
+device checks remain gates. Both owner simulators and original Android apps retained,
+no reset/uninstall/production write/commit/push/deploy. Current exact evidence,
+limitations and restart action are in the existing initiative tracker and QA README.
+
+
+### 2026-10-18 — Final Git review and release preparation (no release executed)
+
+Codex reviewed the full working tree against current/remote develop 9e6bd60,
+including untracked source and durable QA evidence; remote main/last recorded
+successful deployment 60d70ac differs by five already committed documentation
+changes only. Complete path inventory and sanitized preflight evidence added to
+the existing QA folder. No unrelated source/deletion, secret material, schema,
+migration/env/infrastructure/workflow/signing change found. Explicit fake test URL
+candidates classified; all original modifications and synthetic evidence preserved.
+No staging, branch creation or commit performed.
+
+A fresh production dependency audit now fails (exit 1; metadata 11 high/1 critical)
+on unchanged dependency versions, including proxy-addr/compression; official
+advisories verified. This is an enforced release blocker, distinct from non-blocking
+lint debt. No dependency updates or exception changes made; focused Opus5.5/Max
+remediation proposed. Narrow release guards passed: TestFlight 10 tests/36 assertions,
+Play 21/76, unchanged migration manifest 16 entries. No repeat of completed functional
+suites. Live effective main/develop rulesets are active, with PR/merge-commit/CI
+requirements and no bypass actors; corrected the outdated deployment-guide claim.
+Required CodeQL context mapping must resolve on the release PR. Main merge triggers
+production deployment automatically; no separate pause in its API→buyer→seller→admin
+rollout. This preparation authorizes none of those mutations.
+
+Android retained DropBox reports show two system-process ANRs, Chrome/SystemUI
+input timeouts and one earlier buyer QA focus timeout, under high CPU scheduling/
+emulator graphics pressure. The buyer trace capture failed, so no Teka call-site
+root cause established and no speculative application patch made. Prior successful
+final native runs stand; native Chrome promotion remains a simulator limitation.
+
+API rollout must precede new seller clients; old API strict validation rejects the
+new expectedQuantity field, constraining rollback after mobile distribution.
+Current Android version codes 11/13 were already used; unique versions and signed
+release/physical-device gates remain. Mobile environment reviewer protections
+verified read-only, no dispatch/upload. Logical five-commit plan, security blocker,
+rollback asymmetry, staged deployment and exact separate approvals are recorded
+in the existing initiative tracker. No commit/push/merge/deploy/publish/production
+write, and no historical stock adjustment.

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/layout/responsive.dart';
+import '../../../../core/network/dio_error_messages.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -100,28 +102,24 @@ class OrderDetailScreen extends ConsumerWidget {
                       ? reasonController.text
                       : null,
                 );
-                ref.invalidate(orderDetailProvider(orderId));
-                ref.read(ordersProvider.notifier).refresh();
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text("Commande annulée"),
-                      backgroundColor: TekaColors.success,
-                    ),
-                  );
+                  showAppSnackbar(context,
+                      message: "Commande annulée",
+                      tone: AppSnackbarTone.success);
                 }
               } catch (e) {
+                // The API's French reason (e.g. the parcel was just handed to
+                // Teka), or the standard network wording.
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        "Une erreur est survenue. Veuillez réessayer.",
-                      ),
-                      backgroundColor: TekaColors.destructive,
-                    ),
-                  );
+                  showAppSnackbar(context,
+                      message: friendlyErrorMessage(e),
+                      tone: AppSnackbarTone.error);
                 }
               }
+              // Either way, show the order (and the list) as the server now
+              // has it — stock and payment are never recomputed here.
+              ref.invalidate(orderDetailProvider(orderId));
+              ref.read(ordersProvider.notifier).refresh();
             },
             style: FilledButton.styleFrom(
               backgroundColor: TekaColors.destructive,
@@ -228,7 +226,7 @@ class _OrderDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateStr = _formatDate(order.createdAt);
-    final isPending = order.status.toUpperCase() == 'PENDING';
+    final canCancel = canBuyerCancelOrder(order.status, order.paymentStatus);
     final canReturn = _canRequestReturn(order);
 
     return SingleChildScrollView(
@@ -544,7 +542,7 @@ class _OrderDetailBody extends StatelessWidget {
           ],
 
           // Cancel button
-          if (isPending) ...[
+          if (canCancel) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

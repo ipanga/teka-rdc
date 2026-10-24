@@ -91,13 +91,14 @@ class _Repo extends SellerOrdersRepository {
 }
 
 SellerOrderModel _order(OrderStatus status,
-        {List<OrderStatusLogModel> logs = const []}) =>
+        {List<OrderStatusLogModel> logs = const [], String? paymentStatus}) =>
     SellerOrderModel(
       id: 'order-1',
       orderNumber: 'TK-20260908-QA01',
       status: status,
       paymentMethod: 'COD',
-      paymentStatus: status == OrderStatus.delivered ? 'COMPLETED' : 'PENDING',
+      paymentStatus: paymentStatus ??
+          (status == OrderStatus.delivered ? 'COMPLETED' : 'PENDING'),
       totalCDF: '8800000',
       subtotalCDF: '8500000',
       deliveryFeeCDF: '300000',
@@ -276,6 +277,24 @@ void main() {
             status == OrderStatus.pending ? findsOneWidget : findsNothing);
       });
     }
+
+    // I2: the API refuses to reject a paid order (legacy rewinds only), so
+    // the button is not offered; confirming stays available.
+    testWidgets('a paid pending order offers no « Refuser »', (tester) async {
+      await _pump(tester,
+          order: _order(OrderStatus.pending, paymentStatus: 'COMPLETED'));
+      expect(find.widgetWithText(ElevatedButton, 'Confirmer la commande'),
+          findsOneWidget);
+      expect(find.text('Refuser'), findsNothing);
+    });
+
+    test('canSellerReject mirrors the API rule', () {
+      expect(_order(OrderStatus.pending).canSellerReject, isTrue);
+      expect(_order(OrderStatus.confirmed).canSellerReject, isFalse);
+      expect(
+          _order(OrderStatus.pending, paymentStatus: 'REFUNDED').canSellerReject,
+          isFalse);
+    });
 
     testWidgets('ready for pickup: neutral waiting line, no button',
         (tester) async {

@@ -1,0 +1,13 @@
+[QA] ▶ Vendeur 1/6 — connexion
+[QA] ✔ Vendeur 1/6 — connexion
+[QA] ▶ Vendeur 2/6 — refus
+[QA] ✔ Vendeur 2/6 — refus
+[QA] ▶ Vendeur 3/6 — annulations acheteur et admin
+[QA] ✔ Vendeur 3/6 — annulations acheteur et admin
+[QA] ▶ Vendeur 4/6 — stock périmé (409)
+[QA] ✔ Vendeur 4/6 — stock périmé (409)
+[QA] ▶ Vendeur 5/6 — liste en échec puis réessai
+[QA] ✔ Vendeur 5/6 — liste en échec puis réessai
+[QA] ▶ Vendeur 6/6 — chargement puis liste vide (Retournées)
+[QA] ✔ Vendeur 6/6 — chargement puis liste vide (Retournées)
+All tests passed.

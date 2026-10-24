@@ -17,8 +17,20 @@ export function groupThousands(intDigits: string): string {
  * separators, no decimals, and the " FC" label (how DRC users say the franc).
  * Null/undefined/empty/non-finite → "—". Example: 5295700 → "52.957 FC".
  */
-export function formatFC(centimes: number | string | null | undefined): string {
+export function formatFC(centimes: number | string | bigint | null | undefined): string {
   if (centimes === null || centimes === undefined || centimes === '') return '—';
+  // Integer centimes (the API serialises BigInt money as digit strings) are
+  // formatted with BigInt arithmetic so amounts beyond 2^53 stay exact. Same
+  // rounding as the Number path below: Math.round = floor(x + 0.5).
+  const digits =
+    typeof centimes === 'bigint' ? centimes.toString() : String(centimes).trim();
+  if (/^-?\d+$/.test(digits)) {
+    const n = BigInt(digits) + BigInt(50);
+    let fc = n / BigInt(100);
+    if (n < BigInt(0) && n % BigInt(100) !== BigInt(0)) fc -= BigInt(1); // floor
+    const negative = fc < BigInt(0);
+    return `${negative ? '-' : ''}${groupThousands((negative ? -fc : fc).toString())} FC`;
+  }
   const n = Number(centimes);
   if (!Number.isFinite(n)) return '—';
   const fc = Math.round(n / 100);

@@ -50,6 +50,7 @@ function makeService(opts: {
     category: { count: jest.fn().mockResolvedValue(opts.childCount ?? 0) },
     productAttribute: { findMany: jest.fn().mockResolvedValue(ownAttributes) },
     product: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }), // stock snapshot write
       update: jest.fn().mockResolvedValue({
         id: 'p1',
         categoryId: productCategoryId,

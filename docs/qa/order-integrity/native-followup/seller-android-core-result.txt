@@ -1,0 +1,11 @@
+[QA] ▶ Vendeur 1/5 — connexion
+[QA] ✔ Vendeur 1/5 — connexion
+[QA] ▶ Vendeur 2/5 — refus
+[QA] ✔ Vendeur 2/5 — refus
+[QA] ▶ Vendeur 3/5 — annulations acheteur et admin
+[QA] ✔ Vendeur 3/5 — annulations acheteur et admin
+[QA] ▶ Vendeur 4/5 — stock périmé (409)
+[QA] ✔ Vendeur 4/5 — stock périmé (409)
+[QA] ▶ Vendeur 5/5 — liste en échec puis réessai
+[QA] ✔ Vendeur 5/5 — liste en échec puis réessai
+All tests passed.

@@ -16,7 +16,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PostHogService } from '../analytics/posthog.service';
 import { PaymentsService } from '../payments/payments.service';
 import { SellerOrderQueryDto } from './dto/seller-order-query.dto';
-import { OrderStatus, PaymentMethod } from '@prisma/client';
+import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+  isPaymentBlockingCancellation,
+  lockOrderForUpdate,
+  releaseOrderStockHold,
+} from './order-inventory';
 
 /**
  * Maps an order's new status to its PostHog event name. Attributed to the
@@ -315,18 +320,11 @@ export class SellerOrdersService {
    * Confirms a pending order: PENDING -> CONFIRMED.
    */
   async confirmOrder(sellerId: string, orderId: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
+    const updatedOrder = await this.transitionOrder(
+      sellerId,
+      orderId,
       [OrderStatus.PENDING],
       OrderStatus.CONFIRMED,
-    );
-
-    const updatedOrder = await this.transitionOrder(
-      orderId,
-      order.status,
-      OrderStatus.CONFIRMED,
-      sellerId,
     );
 
     // Fire-and-forget: notify buyer of confirmation
@@ -343,15 +341,18 @@ export class SellerOrdersService {
    * Rejects a pending order: PENDING -> CANCELLED with reason.
    */
   async rejectOrder(sellerId: string, orderId: string, reason: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
-      [OrderStatus.PENDING],
-      OrderStatus.CANCELLED,
-    );
+    // Fast path only — re-validated on the locked row inside the transaction.
+    const preRead = await this.findAndValidateSellerOrder(sellerId, orderId);
+    this.validateRejection(preRead);
 
-    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
-    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+    const { updatedOrder, paymentFailed } = await this.prisma.$transaction(async (tx) => {
+      const order = await lockOrderForUpdate(tx, orderId);
+      this.assertSellerOwns(order, sellerId);
+      this.validateRejection(order);
+
+      // Restore stock held since checkout — before this transition's own log.
+      await releaseOrderStockHold(tx, orderId);
+
       await this.createStatusLog(
         tx,
         orderId,
@@ -361,37 +362,26 @@ export class SellerOrdersService {
         `Rejetée par le vendeur : ${reason}`,
       );
 
-      // D7: unpaid COD → the COD transaction fails in the same transaction;
-      // the order's paymentStatus flips inside the update below.
-      if (paymentFailed) {
-        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
-      }
+      // D7: unpaid COD → the order payment and its COD transaction fail in
+      // the same transaction, decided on the locked row.
+      const paymentFailed = await this.paymentsService.failUnpaidCodPayment(
+        orderId,
+        tx,
+      );
 
-      // Restore stock held since checkout.
-      const heldItems = await tx.orderItem.findMany({
-        where: { orderId },
-        select: { productId: true, quantity: true },
-      });
-      for (const it of heldItems) {
-        await tx.product.update({
-          where: { id: it.productId },
-          data: { quantity: { increment: it.quantity } },
-        });
-      }
-
-      return tx.order.update({
+      const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
           status: OrderStatus.CANCELLED,
           cancellationReason: reason,
           cancelledBy: sellerId,
-          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: true,
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
       });
+      return { updatedOrder, paymentFailed };
     }, { timeout: 15_000 });
 
     // Fire-and-forget: notify buyer and seller of rejection/cancellation
@@ -416,18 +406,11 @@ export class SellerOrdersService {
    * Moves order to processing: CONFIRMED -> PROCESSING.
    */
   async processOrder(sellerId: string, orderId: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
+    return this.transitionOrder(
+      sellerId,
+      orderId,
       [OrderStatus.CONFIRMED],
       OrderStatus.PROCESSING,
-    );
-
-    return this.transitionOrder(
-      orderId,
-      order.status,
-      OrderStatus.PROCESSING,
-      sellerId,
     );
   }
 
@@ -436,18 +419,11 @@ export class SellerOrdersService {
    * This is the seller's last step — Teka/admin drives everything after.
    */
   async markReadyForPickup(sellerId: string, orderId: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
+    const updatedOrder = await this.transitionOrder(
+      sellerId,
+      orderId,
       [OrderStatus.PROCESSING],
       OrderStatus.READY_FOR_TEKA_PICKUP,
-    );
-
-    const updatedOrder = await this.transitionOrder(
-      orderId,
-      order.status,
-      OrderStatus.READY_FOR_TEKA_PICKUP,
-      sellerId,
     );
 
     // Fire-and-forget: notify buyer the parcel is ready for Teka pickup.
@@ -504,14 +480,27 @@ export class SellerOrdersService {
     });
   }
 
-  /**
-   * Finds an order and validates it belongs to the seller.
-   */
-  private async findAndValidateSellerOrder(sellerId: string, orderId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId, deletedAt: null },
-    });
+  /** A seller rejects only a PENDING order, and never a paid one. */
+  private validateRejection(order: {
+    status: OrderStatus;
+    paymentStatus: PaymentStatus;
+  }): void {
+    this.validateTransition(
+      order,
+      [OrderStatus.PENDING],
+      OrderStatus.CANCELLED,
+    );
+    if (isPaymentBlockingCancellation(order.paymentStatus)) {
+      throw new BadRequestException(
+        'Cette commande a déjà été encaissée et ne peut pas être rejetée.',
+      );
+    }
+  }
 
+  private assertSellerOwns<T extends { sellerId: string }>(
+    order: T | null,
+    sellerId: string,
+  ): asserts order is T {
     if (!order) {
       throw new NotFoundException('Commande non trouvée');
     }
@@ -519,29 +508,40 @@ export class SellerOrdersService {
     if (order.sellerId !== sellerId) {
       throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
+  }
 
+  /**
+   * Finds an order and validates it belongs to the seller.
+   */
+  private async findAndValidateSellerOrder(sellerId: string, orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, deletedAt: null },
+    });
+    this.assertSellerOwns(order, sellerId);
     return order;
   }
 
   /**
-   * Performs a simple status transition with log entry.
+   * Performs a simple status transition with log entry. The pre-read is a
+   * fast path; the transition is re-validated on the LOCKED row, so it can
+   * never overwrite a cancellation (or another transition) that committed in
+   * between — the loser gets the usual "Transition de statut invalide" 400.
    */
   private async transitionOrder(
+    sellerId: string,
     orderId: string,
-    fromStatus: OrderStatus,
+    expectedStatuses: OrderStatus[],
     toStatus: OrderStatus,
-    changedBy: string,
-    note?: string,
   ) {
+    const preRead = await this.findAndValidateSellerOrder(sellerId, orderId);
+    this.validateTransition(preRead, expectedStatuses, toStatus);
+
     const updated = await this.prisma.$transaction(async (tx) => {
-      await this.createStatusLog(
-        tx,
-        orderId,
-        fromStatus,
-        toStatus,
-        changedBy,
-        note,
-      );
+      const order = await lockOrderForUpdate(tx, orderId);
+      this.assertSellerOwns(order, sellerId);
+      this.validateTransition(order, expectedStatuses, toStatus);
+
+      await this.createStatusLog(tx, orderId, order.status, toStatus, sellerId);
 
       return tx.order.update({
         where: { id: orderId },

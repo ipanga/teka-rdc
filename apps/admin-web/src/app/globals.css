@@ -68,3 +68,245 @@
     @apply outline-2 outline-offset-2 outline-primary;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * « Bon de livraison » (P1) — printable A4 order/delivery document.
+ * Route: /documents/bon-de-livraison/[id] (outside the dashboard chrome).
+ * Screen: centred sheet, readable from 320 px. Print: A4, toolbar hidden,
+ * table header repeated on every page, rows and the totals/payment/signature
+ * block never split across pages.
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .bdl-page {
+    @apply min-h-screen bg-muted px-2 py-4 sm:px-6 sm:py-8;
+  }
+  .bdl-toolbar {
+    @apply mx-auto mb-4 flex max-w-[210mm] flex-wrap items-center justify-between gap-2;
+  }
+  .bdl-toolbar-actions {
+    @apply mt-4 flex flex-wrap justify-center gap-2;
+  }
+  .bdl-status {
+    @apply mx-auto max-w-md p-8 text-center text-muted-foreground;
+  }
+  .bdl-sheet {
+    @apply mx-auto max-w-[210mm] rounded-lg border border-border bg-white p-4 text-[13px] leading-snug text-foreground shadow-sm sm:p-8 lg:p-[14mm];
+  }
+  .bdl-head {
+    @apply flex flex-col gap-3 border-b-2 border-primary pb-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+  .bdl-head-text {
+    @apply sm:text-right;
+  }
+  .bdl-logo {
+    @apply h-[30px] w-auto;
+  }
+  .bdl-title {
+    @apply text-xl font-bold tracking-tight text-foreground;
+  }
+  .bdl-ref {
+    @apply text-sm;
+  }
+  .bdl-muted {
+    @apply text-xs text-muted-foreground;
+  }
+  .bdl-strong {
+    @apply font-semibold;
+  }
+  .bdl-wrap {
+    overflow-wrap: anywhere;
+  }
+  .bdl-pre {
+    white-space: pre-line;
+  }
+  .bdl-h2 {
+    @apply mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+  .bdl-meta {
+    @apply my-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2;
+  }
+  .bdl-meta div {
+    @apply flex justify-between gap-2 border-b border-dashed border-border py-1;
+  }
+  .bdl-meta dt {
+    @apply text-muted-foreground;
+  }
+  .bdl-meta dd {
+    @apply text-right font-medium;
+  }
+  .bdl-parties {
+    @apply my-3 grid grid-cols-1 gap-3 sm:grid-cols-2;
+  }
+  .bdl-box {
+    @apply mb-3 rounded-md border border-border p-3;
+    break-inside: avoid;
+  }
+  .bdl-parties .bdl-box {
+    @apply mb-0;
+  }
+  .bdl-table-wrap {
+    @apply my-3 overflow-x-auto;
+  }
+  .bdl-table {
+    @apply w-full border-collapse text-[12px];
+  }
+  .bdl-table th {
+    @apply border-b-2 border-foreground/70 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide;
+  }
+  .bdl-table td {
+    @apply border-b border-border px-2 py-1.5 align-top;
+  }
+  .bdl-table tr {
+    break-inside: avoid;
+  }
+  .bdl-col-title {
+    @apply w-1/2;
+  }
+  .bdl-num {
+    @apply text-right whitespace-nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .bdl-list {
+    @apply block text-[10px] text-muted-foreground;
+  }
+  .bdl-bottom {
+    @apply mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2;
+    break-inside: avoid;
+  }
+  .bdl-avoid {
+    break-inside: avoid;
+  }
+  .bdl-totals {
+    @apply sm:col-start-2 sm:row-start-1;
+  }
+  .bdl-totals div {
+    @apply flex justify-between gap-4 py-1;
+  }
+  .bdl-totals dd {
+    @apply text-right whitespace-nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .bdl-grand {
+    @apply border-t-2 border-foreground/70 text-sm font-bold;
+  }
+  .bdl-pay {
+    @apply rounded-md border-2 p-3 sm:col-start-1 sm:row-start-1;
+  }
+  .bdl-pay-cod_to_collect {
+    @apply border-primary;
+  }
+  .bdl-pay-cod_collected {
+    @apply border-success;
+  }
+  .bdl-pay-non_cod {
+    @apply border-border;
+  }
+  .bdl-pay-headline {
+    @apply mt-1 text-sm font-semibold;
+  }
+  .bdl-pay-amount {
+    @apply mt-1 text-2xl font-bold whitespace-nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .bdl-sign {
+    @apply grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2;
+  }
+  .bdl-line {
+    @apply mt-8 border-t border-foreground/60 pt-1 text-[11px] text-muted-foreground;
+  }
+  .bdl-alert {
+    @apply mt-4 rounded-md border-2 border-destructive p-4 text-sm font-semibold;
+  }
+  .bdl-foot {
+    @apply mt-4 border-t border-border pt-2 text-center;
+  }
+  .bdl-sr {
+    @apply sr-only;
+  }
+  @media (max-width: 479px) {
+    /* Phones: let long amounts wrap at the space before « FC » rather than
+       overflow; the wrapper still scrolls if a single token is too wide. */
+    .bdl-num,
+    .bdl-totals dd {
+      white-space: normal;
+    }
+    .bdl-table th,
+    .bdl-table td {
+      @apply px-1;
+    }
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+  html,
+  body,
+  .bdl-page {
+    background: #fff !important;
+  }
+  .bdl-page {
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+  .bdl-toolbar,
+  .bdl-status {
+    display: none !important;
+  }
+  .bdl-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 10.5pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .bdl-head {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+  }
+  .bdl-head-text {
+    text-align: right;
+  }
+  .bdl-meta,
+  .bdl-parties,
+  .bdl-bottom,
+  .bdl-sign {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .bdl-pay {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .bdl-totals {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .bdl-sign {
+    grid-column: 1 / -1;
+  }
+  .bdl-table-wrap {
+    overflow: visible !important;
+  }
+  .bdl-table thead {
+    display: table-header-group; /* repeated on every printed page */
+  }
+  .bdl-table tr,
+  .bdl-box,
+  .bdl-avoid,
+  .bdl-bottom {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .bdl-table td,
+  .bdl-table th {
+    padding-left: 2mm;
+    padding-right: 2mm;
+  }
+}

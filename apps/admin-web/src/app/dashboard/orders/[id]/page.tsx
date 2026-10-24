@@ -1,6 +1,12 @@
 'use client';
 
-import { formatFC, formatUSD } from '@teka/shared';
+import {
+  adminForceStatusTargets,
+  canAdminCancelOrder,
+  formatFC,
+  formatUSD,
+  mergeOrderMutation,
+} from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -19,13 +25,17 @@ interface OrderItem {
   productImage?: string | null;
 }
 
+/** `deliveryAddress` as served by the API: the order's checkout snapshot. */
 interface OrderAddress {
   id: string;
   label?: string | null;
-  town: string;
+  province?: string | null;
+  town?: string | null;
   neighborhood?: string | null;
   avenue?: string | null;
-  details?: string | null;
+  reference?: string | null;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
 }
 
 interface OrderBuyer {
@@ -76,7 +86,8 @@ interface OrderDetail {
   returnedAt?: string | null;
   createdAt: string;
   items: OrderItem[];
-  address?: OrderAddress | null;
+  deliveryAddress?: OrderAddress | null;
+  buyerNote?: string | null;
   buyer?: OrderBuyer | null;
   seller?: OrderSeller | null;
   statusLogs: OrderStatusLog[];
@@ -102,6 +113,18 @@ const ALL_STATUSES = [
   'CANCELLED',
   'RETURNED',
 ];
+
+const FORCE_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  PROCESSING: 'En préparation',
+  READY_FOR_TEKA_PICKUP: 'Prête pour collecte',
+  RECEIVED_AT_TEKA: 'Reçue par Teka',
+  OUT_FOR_DELIVERY: 'En livraison',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+  RETURNED: 'Retournée',
+};
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -130,17 +153,23 @@ export default function OrderDetailPage() {
     setTimeout(() => setFeedback(null), 3000);
   };
 
-  const fetchOrder = useCallback(async () => {
-    setIsLoading(true);
+  // silent: re-read after an action — keeps the page (and its feedback) on
+  // screen; a failed re-read leaves the current view untouched.
+  const fetchOrder = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true);
     try {
       const res = await apiFetch<OrderDetail>(`/v1/admin/orders/${orderId}`);
       setOrder(res.data);
     } catch {
       // Error handled by apiFetch
     } finally {
-      setIsLoading(false);
+      if (!opts?.silent) setIsLoading(false);
     }
   }, [orderId]);
+
+  /** Shows a successful mutation's authoritative status/payment/timeline now. */
+  const applyMutation = (data: unknown) =>
+    setOrder((prev) => (prev ? mergeOrderMutation(prev, data) : prev));
 
   useEffect(() => {
     fetchOrder();
@@ -154,20 +183,24 @@ export default function OrderDetailPage() {
 
     setIsSubmittingStatus(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/status`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({
           status: newStatus,
           note: statusNote.trim() || undefined,
         }),
       });
+      applyMutation(res.data);
       showFeedback('success', "Statut mis à jour");
       setShowStatusModal(false);
       setNewStatus('');
       setStatusNote('');
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      // The API explains refusals in French (e.g. a cancelled order can no
+      // longer change status) — show that, and reload the real state.
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingStatus(false);
     }
@@ -180,13 +213,15 @@ export default function OrderDetailPage() {
     if (!order) return;
     setIsSubmittingManaged(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/${action}`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/${action}`, {
         method: 'PATCH',
       });
+      applyMutation(res.data);
       showFeedback('success', successLabel);
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingManaged(false);
     }
@@ -197,18 +232,20 @@ export default function OrderDetailPage() {
 
     setIsSubmittingCancel(true);
     try {
-      await apiFetch(`/v1/admin/orders/${order.id}/cancel`, {
+      const res = await apiFetch<unknown>(`/v1/admin/orders/${order.id}/cancel`, {
         method: 'POST',
         body: JSON.stringify({
           reason: cancelReason.trim() || undefined,
         }),
       });
+      applyMutation(res.data);
       showFeedback('success', "Commande annulée");
       setShowCancelModal(false);
       setCancelReason('');
-      fetchOrder();
-    } catch {
-      showFeedback('error', 'Erreur');
+      fetchOrder({ silent: true });
+    } catch (err) {
+      showFeedback('error', err instanceof Error ? err.message : 'Erreur');
+      fetchOrder({ silent: true });
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -241,6 +278,9 @@ export default function OrderDetailPage() {
   }
 
   const isTerminal = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'RETURNED';
+  // Same rules as the API (which re-checks them): which actions to offer.
+  const forceTargets = adminForceStatusTargets(order, ALL_STATUSES);
+  const canCancel = canAdminCancelOrder(order);
 
   return (
     <div className="p-8">
@@ -269,7 +309,7 @@ export default function OrderDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
             Détail de la commande — {order.orderNumber}
@@ -284,7 +324,20 @@ export default function OrderDetailPage() {
             })}
           </p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <OrderStatusBadge status={order.status} />
+          {/* Opens the printable A4 « Bon de livraison » (read-only preview;
+              the browser prints or saves it as PDF). */}
+          <Link
+            href={`/documents/bon-de-livraison/${order.id}`}
+            target="_blank"
+            rel="noopener"
+            className="admin-button-secondary"
+            aria-label={`Bon de livraison de la commande ${order.orderNumber} (s’ouvre dans un nouvel onglet)`}
+          >
+            Bon de livraison
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -516,16 +569,29 @@ export default function OrderDetailPage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Adresse de livraison
             </h2>
-            {order.address ? (
-              <div className="text-sm text-foreground space-y-0.5">
-                {order.address.label && (
-                  <p className="font-medium">{order.address.label}</p>
+            {/* The API serves the checkout SNAPSHOT under `deliveryAddress`
+                (resolveDeliveryAddress) — this card used to read a
+                non-existent `address` field and always showed « - ». */}
+            {order.deliveryAddress ? (
+              <div className="text-sm text-foreground space-y-0.5 break-words">
+                {order.deliveryAddress.recipientName && (
+                  <p className="font-medium">{order.deliveryAddress.recipientName}</p>
                 )}
-                <p>{order.address.town}</p>
-                {order.address.neighborhood && <p>{order.address.neighborhood}</p>}
-                {order.address.avenue && <p>{order.address.avenue}</p>}
-                {order.address.details && (
-                  <p className="text-muted-foreground">{order.address.details}</p>
+                {order.deliveryAddress.recipientPhone && (
+                  <p>{order.deliveryAddress.recipientPhone}</p>
+                )}
+                {order.deliveryAddress.avenue && <p>{order.deliveryAddress.avenue}</p>}
+                <p>
+                  {[order.deliveryAddress.neighborhood, order.deliveryAddress.town]
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+                {order.deliveryAddress.province && <p>{order.deliveryAddress.province}</p>}
+                {order.deliveryAddress.reference && (
+                  <p className="text-muted-foreground">Repère : {order.deliveryAddress.reference}</p>
+                )}
+                {order.deliveryAddress.label && (
+                  <p className="text-xs text-muted-foreground">{order.deliveryAddress.label}</p>
                 )}
               </div>
             ) : (
@@ -625,25 +691,33 @@ export default function OrderDetailPage() {
                       : "Confirmer la livraison + l'encaissement"}
                   </button>
                 )}
-                <button
-                  onClick={() => {
-                    setNewStatus(order.status);
-                    setStatusNote('');
-                    setShowStatusModal(true);
-                  }}
-                  className="w-full px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
-                >
-                  Changer le statut (manuel)
-                </button>
-                <button
-                  onClick={() => {
-                    setCancelReason('');
-                    setShowCancelModal(true);
-                  }}
-                  className="w-full px-4 py-2 text-sm font-medium text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors"
-                >
-                  Annuler la commande
-                </button>
+                {forceTargets.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setNewStatus('');
+                      setStatusNote('');
+                      setShowStatusModal(true);
+                    }}
+                    className="w-full px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+                  >
+                    Changer le statut (manuel)
+                  </button>
+                )}
+                {canCancel ? (
+                  <button
+                    onClick={() => {
+                      setCancelReason('');
+                      setShowCancelModal(true);
+                    }}
+                    className="w-full px-4 py-2 text-sm font-medium text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors"
+                  >
+                    Annuler la commande
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Annulation impossible : le paiement de cette commande est déjà encaissé ou remboursé.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -676,14 +750,15 @@ export default function OrderDetailPage() {
                   onChange={(e) => setNewStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  {ALL_STATUSES.map((s) => (
+                  <option value="" disabled>
+                    Choisir un statut
+                  </option>
+                  {/* Only targets the API can apply (no revival of a
+                      cancelled/returned order, no return of an undelivered
+                      one, no cancellation of a paid one). */}
+                  {forceTargets.map((s) => (
                     <option key={s} value={s}>
-                      {s === 'PENDING' ? 'En attente' :
-                        s === 'CONFIRMED' ? 'Confirmées' :
-                        s === 'PROCESSING' ? 'En préparation' :
-                        s === 'SHIPPED' ? 'Expédiées' :
-                        s === 'DELIVERED' ? 'Livrées' :
-                        s === 'CANCELLED' ? 'Annulées' : 'Retournées'}
+                      {FORCE_STATUS_LABELS[s] ?? s}
                     </option>
                   ))}
                 </select>

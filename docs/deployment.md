@@ -1,5 +1,31 @@
 # Teka RDC — Deployment Guide
 
+## Current synchronization proposal — 2026-10-22
+
+Accepted main `e73b0599435045f4e4fc34e93982872dedf493b9` includes the durable
+Hetzner integration, security patches, release hardening and PR #848 staging fix.
+All 15 post-merge main checks now succeed. This proposal merges it into a clean
+branch from develop `ebab9d671593f86782a231080223cc5659be1be7`, preserving
+both ancestries and all existing develop application features, tests and `test:pg`.
+It prepares one develop-targeted PR; no merge into develop/main or feature release.
+
+Current sync-PR CI/CodeQL acceptance is pending. Require fresh results on its final
+head/candidate and genuine app 57789 aggregate SUCCESS. The one-time PR #848 NEUTRAL
+exception remains historical and applies to no other PR; no security standard,
+required check or vulnerability acceptance changes here.
+
+Production still serves **6fb1ceb6**, with Hetzner the sole database authority.
+GitHub run 39749631613 remains FAILED attempt 1; the separately authorized host
+continuation 3684d63a-f8c6-4f07-aadf-e82efbf3e3a6 is PASS, and original immutable
+failure evidence is preserved below. No production contact, SQL, credentials,
+CA/runtime, images, backups/WAL or service change occurs in this synchronization.
+
+Deploy 265250843 stays disabled_manually. SQL/seed/backfill/mobile and normal
+deployment holds remain; #840 untouched, #841 Draft/unmerged/no-auto. No new SQL
+migration is introduced. Branch merge, feature release and normal workflow
+resumption require separate authorization. Earlier scope prompts, statuses and
+operating instructions below are historical where superseded by this handoff.
+
 ## Durable SCP staging permissions — review only (2026-10-22)
 
 **Current authority and release:** Hetzner `teka_prod` remains the sole Production
@@ -397,8 +423,10 @@ github-final-acceptance.json, db-postflight.json and final-acceptance.json).
 The owner-authorized continuation reused the adopted protected runtime/CA,
 promoted exactly five public files and recreated only the API once, using the
 existing immutable image. Ordinary deployments, SQL/seed/backfill workflows and
-PR #841 remain **held**. This isolated publication is authorized for review/CI
-only; main merge and workflow resumption require separate approval.
+PR #841 remain **held**. At that earlier develop publication, Git publication
+and resumption required separate approval; the isolated main publication was
+authorized for review/CI only, with main merge and workflow resumption requiring
+separate approval.
 This section supersedes legacy database/runtime/API rollback instructions below.
 Never reconnect to stale Alwaysdata or apply the P2 source rollback override.
 
@@ -432,9 +460,12 @@ execution timing, not a measured customer outage. Saved evidence confirms:
 Evidence directory: `/home/deploy/teka-durable-activation-20261020T213628Z`.
 `activation-complete-20261021.json` SHA256:
 `dee4d6c77e66718cfa9b8a2f15a4048f4aaef20d766593cd5310d1acf9672991`.
-Codex independently retrieved and reviewed the saved receipt. The [sanitized activation evidence on develop](https://github.com/ipanga/teka-rdc/blob/e58cc99895ba9ed30083ae2d54664393745564b1/docs/qa/order-integrity/native-followup/release-preflight-result.json)
-records it and the external public readiness result. Historical QA artifacts
-are deliberately not imported into this isolated main PR. `continuation-preflight-20261021.json`,
+Codex independently retrieved and reviewed the saved receipt. The existing
+`docs/qa/order-integrity/native-followup/release-preflight-result.json` records
+it and the external public readiness result; the [sanitized activation evidence
+on develop](https://github.com/ipanga/teka-rdc/blob/e58cc99895ba9ed30083ae2d54664393745564b1/docs/qa/order-integrity/native-followup/release-preflight-result.json) provides the published copy. Historical QA artifacts were
+retained on develop rather than imported into that isolated main PR.
+`continuation-preflight-20261021.json`,
 `promotion.json`, `continuation-validated-20261021.json` and the single recreation
 start receipt remain on the host. No SQL migrations, database changes,
 backup/restore/PITR repeats, new images or Git operations were performed.
@@ -749,6 +780,43 @@ Draft/unmerged/no-auto-merge. All deployment/SQL/seed/backfill holds remain.
 
 Main merge, deployment, SQL/seed/backfill resumption and PR #841 approval are
 not authorized by this preparation. No workflows were disabled or dispatched.
+
+### Earlier develop deployment preparation — historical, superseded
+
+The following records the earlier develop preparation. Current scope and
+operational holds at the top of this document take precedence.
+
+### Next step toward normal GitHub deployments
+
+**Durable PostgreSQL/TLS integration published for review — PR #842.**
+[PR #842](https://github.com/ipanga/teka-rdc/pull/842) targets `develop` from
+`codex/durable-postgres-tls`, based directly on
+`41f684d827b05f656b512d00b8c99186975ed94e`. It contains only the reviewed durable
+runtime/TLS, deployment/SQL guards, focused tests and scoped activation handoff.
+PR #840 remains a separate documentation PR; draft release PR #841 is untouched.
+The original checkout and unrelated local infrastructure/history remain preserved.
+
+Implementation commit `17f8b646c67beeb3f4bdf7cb3658910ec6b66973` passed all
+**15 GitHub checks, including all 13 required contexts**, Release Config and
+both CodeQL analyses. Codex inspected the actual Release Config regression and
+Dependency Audit steps. [CI run](https://github.com/ipanga/teka-rdc/actions/runs/39507233275),
+[CodeQL run](https://github.com/ipanga/teka-rdc/actions/runs/39507228913).
+The high-severity production audit gate passed; the informational full-tree
+report and six unresolved Sentry/OpenTelemetry moderate findings are not erased
+by a green gate. The accepted review deadline remains2026-11-17.
+The final documentation-only commit is subject to the same required checks;
+[latest publication-head results](https://github.com/ipanga/teka-rdc/pull/842/checks)
+are authoritative for that commit. No checks were weakened or manually bypassed.
+
+No merge, deployment or operational hold release is authorized. Normal deploy,
+SQL migration, seed/backfill and PR #841 holds remain. Next: obtain separate merge
+approval, promote the guarded integration through an approved release to `main`,
+then explicitly authorize resumption of the relevant workflows. This publication
+has not contacted production or changed runtime, database, backups or credentials.
+
+The first future API deployment must stamp its matching SENTRY_RELEASE; PostHog
+and review flags use the private host-managed procedure below. Keep the current
+Hetzner runtime/CA for image rollback; never use the stale Alwaysdata override.
 
 Manual SQL after activation uses `bash scripts/run-prod-sql.sh <reviewed.sql>`
 or `bash scripts/run-prod-sql.sh --migration <bundled-file.sql>`, only under its
@@ -1664,9 +1732,22 @@ run against production immediately after the deploy job finishes.
 - [ ] CodeQL — `Analyze (javascript-typescript)` and `Analyze (actions)`
 - [ ] PRs to `main` additionally run `pr-validation.yml` (`docker-build-check` ×4)
 
-> Branch protection is **not enforced** on this repository (private repo on the free plan;
-> `scripts/ruleset-main.json` is committed but unapplied), so these are verified by reading the PR's
-> checks, not by GitHub blocking the merge. The pre-push hook is the only automatic guard on `main`.
+> Read-only GitHub verification on **2026-10-18** reports active, effective repository rulesets
+> for both `main` and `develop`: PR required, merge commits only, no force push/deletion, and
+> required CI contexts with no bypass actors. The classic branch-protection endpoint returns
+> 404 because the protection is provided by rulesets; that does not establish an unprotected branch.
+> Re-check the live rules and PR results before every release. `CodeQL` is the separate aggregate
+> code-scanning PR result, alongside default-setup `Analyze (javascript-typescript)` and
+> `Analyze (actions)` jobs. Read-only verification on PR824 confirmed all three successful,
+> including [the aggregate](https://github.com/ipanga/teka-rdc/runs/108698421845).
+> A commit-only check listing can omit the PR aggregate; no check rename/bypass is needed.
+> Source: [Protect main](https://github.com/ipanga/teka-rdc/rules/15451167),
+> [Protect develop](https://github.com/ipanga/teka-rdc/rules/22732572).
+>
+> **A merge/push to `main` automatically triggers `deploy.yml`**, independently of the CI workflow;
+> there is no separate production-environment approval in that workflow. Obtain explicit production
+> deployment authorization before merging, after the reviewed PR head has passed all required checks.
+> Mobile release workflows remain separately dispatched and approval-gated.
 
 ### MANUAL — before and around the merge
 
@@ -1856,3 +1937,14 @@ selects `latest`. Export the receipt refs first. The receipt and rollback tags
 are never pruned automatically.
 
 Closure evidence is published separately in [PR #846](https://github.com/ipanga/teka-rdc/pull/846); merge that documentation first. This hardening changes future release code only; it has not been activated in Production.
+
+### Earlier main branch-protection statement — historical, superseded
+
+This retained statement describes the earlier documentation snapshot, not current
+GitHub enforcement. Read-only verification for this synchronization confirms both
+Protect main (15451167) and Protect develop (22732572) are active with no bypass
+actors. Current required checks and protection rules remain unchanged.
+
+> Branch protection is **not enforced** on this repository (private repo on the free plan;
+> `scripts/ruleset-main.json` is committed but unapplied), so these are verified by reading the PR's
+> checks, not by GitHub blocking the merge. The pre-push hook is the only automatic guard on `main`.

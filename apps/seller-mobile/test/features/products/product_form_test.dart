@@ -85,10 +85,16 @@ class _Repo extends ProductsRepository {
   @override
   Future<SellerProductModel> updateProduct(
       String id, Map<String, dynamic> data) async {
-    if (failSaveWith != null) throw failSaveWith!;
     updated.add(data);
+    if (failSaveWith != null) throw failSaveWith!;
     return _saved(id, data, ProductStatus.draft);
   }
+
+  /// What a re-read returns (after a stock conflict).
+  SellerProductModel? fresh;
+
+  @override
+  Future<SellerProductModel> getProduct(String id) async => fresh!;
 }
 
 SellerProductModel _saved(
@@ -107,7 +113,7 @@ SellerProductModel _saved(
       createdAt: DateTime(2026, 9, 8),
     );
 
-SellerProductModel _existing({String categoryId = 'chemises'}) =>
+SellerProductModel _existing({String categoryId = 'chemises', int quantity = 5}) =>
     SellerProductModel(
       id: 'p1',
       title: 'Chemise homme en lin',
@@ -116,7 +122,7 @@ SellerProductModel _existing({String categoryId = 'chemises'}) =>
       brandId: 'b2',
       priceCDF: '4500000',
       discountPriceCDF: '4050000',
-      quantity: 5,
+      quantity: quantity,
       condition: ProductCondition.newItem,
       status: ProductStatus.draft,
       specifications: const [
@@ -300,6 +306,8 @@ void main() {
     expect(data['discountPriceCDF'], '4050000');
     expect(data['brandId'], 'b2');
     expect(data['quantity'], 5);
+    // Untouched stock: snapshot == quantity → the API writes no stock.
+    expect(data['expectedQuantity'], 5);
     expect(data['condition'], 'NEW');
     expect(data['specifications'], [
       {'attributeId': 'taille', 'value': 'M'}
@@ -336,6 +344,67 @@ void main() {
         find.widgetWithText(TextFormField, 'Quantité disponible'), '0');
     await _save(tester, 'Enregistrer les modifications');
     expect(repo.updated.single['quantity'], 0);
+    expect(repo.updated.single['expectedQuantity'], 5,
+        reason: 'the stock the form was loaded with');
+  });
+
+  testWidgets('stock changed meanwhile (409): API reason shown, field and '
+      'snapshot refreshed, other fields kept', (tester) async {
+    final (repo, router) = await _pump(tester, product: _existing());
+    await _scrollTo(tester, find.text('Quantité disponible'));
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Quantité disponible'), '9');
+    repo.failSaveWith = DioException(
+      requestOptions: RequestOptions(path: '/x'),
+      response: Response(
+          requestOptions: RequestOptions(path: '/x'),
+          statusCode: 409,
+          data: {
+            'success': false,
+            'error': {
+              'status': 409,
+              'message':
+                  'Le stock de ce produit a changé pendant votre modification (7 disponible(s) maintenant), suite à une commande ou une annulation. Vérifiez la quantité puis enregistrez à nouveau.'
+            }
+          }),
+      type: DioExceptionType.badResponse,
+    );
+    repo.fresh = _existing(quantity: 7);
+    await _save(tester, 'Enregistrer les modifications');
+
+    expect(find.textContaining('Le stock de ce produit a changé'), findsOneWidget);
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/form');
+    await _scrollTo(tester, find.text('Quantité disponible'));
+    final qty = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Quantité disponible'));
+    expect(qty.controller!.text, '7', reason: 'shows the current stock');
+
+    // A deliberate re-save is now based on the fresh snapshot.
+    repo.failSaveWith = null;
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Quantité disponible'), '9');
+    await _save(tester, 'Enregistrer les modifications');
+    expect(repo.updated.last['quantity'], 9);
+    expect(repo.updated.last['expectedQuantity'], 7);
+    expect(repo.updated.last['title'], 'Chemise homme en lin');
+  });
+
+  testWidgets('create never sends a stock snapshot', (tester) async {
+    final (repo, _) = await _pump(tester);
+    await _pickCategory(tester, 'Pantalons');
+    await _scrollTo(tester, find.text('Titre'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Titre'), 'Pantalon');
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Description'), 'Coton léger.');
+    await _scrollTo(tester, find.text('Longueur'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Longueur'), '100');
+    await _scrollTo(tester, find.text('Prix FC'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Prix FC'), '45000');
+    await _scrollTo(tester, find.text('Quantité disponible'));
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Quantité disponible'), '4');
+    await _save(tester, 'Enregistrer et ajouter des photos');
+    expect(repo.created.single.containsKey('expectedQuantity'), isFalse);
   });
 
   testWidgets('create: busy guard, then the new product opens for photos',

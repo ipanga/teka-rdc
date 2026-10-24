@@ -106,4 +106,34 @@ void main() {
     expect(find.text('Statut inconnu'), findsOneWidget);
     expect(find.text('WHATEVER'), findsNothing);
   });
+
+  // I2 (2026-10): the detail offered « Annuler » for PENDING only, while the
+  // API accepts PENDING / CONFIRMED / PROCESSING while unpaid.
+  group('canBuyerCancelOrder (same rule as the API)', () {
+    test('offered before Teka custody while unpaid', () {
+      for (final s in ['PENDING', 'CONFIRMED', 'PROCESSING']) {
+        expect(canBuyerCancelOrder(s, 'PENDING'), isTrue, reason: s);
+      }
+    });
+
+    test('never from Teka custody onwards, or once final', () {
+      for (final s in [
+        'READY_FOR_TEKA_PICKUP',
+        'RECEIVED_AT_TEKA',
+        'SHIPPED',
+        'OUT_FOR_DELIVERY',
+        'DELIVERED',
+        'CANCELLED',
+        'RETURNED',
+      ]) {
+        expect(canBuyerCancelOrder(s, 'PENDING'), isFalse, reason: s);
+      }
+    });
+
+    test('never once the cash is collected or refunded', () {
+      expect(canBuyerCancelOrder('PENDING', 'COMPLETED'), isFalse);
+      expect(canBuyerCancelOrder('CONFIRMED', 'REFUNDED'), isFalse);
+      expect(canBuyerCancelOrder('PROCESSING', 'FAILED'), isTrue);
+    });
+  });
 }

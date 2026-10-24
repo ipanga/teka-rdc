@@ -8,6 +8,7 @@ import {
 } from '@/lib/static-pages';
 import { useCityStore, type City } from '@/lib/city-store';
 import { cityHref } from '@/lib/urls';
+import { AppPromoBanner } from './app-promo-banner';
 
 // Social profiles — same handle ("tekardc") across every network.
 const SOCIALS: Array<{ label: string; href: string; path: string }> = [
@@ -76,6 +77,10 @@ export function Footer({ initialCities }: FooterProps = {}) {
   const townLinks = source.filter((c) => c.isActive && c.slug);
 
   return (
+    <>
+    {/* Signed-in buyer phone app suggestion (M1): in-flow above the footer,
+        renders nothing for everyone else and on the server. */}
+    <AppPromoBanner />
     <footer className="bg-[#111827] text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {townLinks.length > 0 && (
@@ -156,5 +161,6 @@ export function Footer({ initialCities }: FooterProps = {}) {
         </div>
       </div>
     </footer>
+    </>
   );
 }

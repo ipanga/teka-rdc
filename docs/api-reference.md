@@ -470,7 +470,7 @@ All endpoints require `SELLER` role.
 | GET | `/v1/sellers/products` | Seller | List own products (paginated) |
 | POST | `/v1/sellers/products` | Seller | Create new product (DRAFT) |
 | GET | `/v1/sellers/products/:id` | Seller | Get own product detail |
-| PATCH | `/v1/sellers/products/:id` | Seller | Update product |
+| PATCH | `/v1/sellers/products/:id` | Seller | Update product. Optional `expectedQuantity` (int ≥ 0, the stock the form was loaded with) guards the absolute `quantity`: 409 if the stock changed meanwhile; equal to `quantity` = stock untouched. See `order-workflow.md` → Inventory hold |
 | DELETE | `/v1/sellers/products/:id` | Seller | Archive (soft-delete) product |
 | PATCH | `/v1/sellers/products/:id/submit` | Seller | Submit for admin review |
 | POST | `/v1/sellers/products/:id/images` | Seller | Upload product image (multipart) |
