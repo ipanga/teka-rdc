@@ -1,5 +1,105 @@
 # Teka RDC — Deployment Guide
 
+## Bounded Zod4 and request-parser security remediation (2026-10-24)
+
+This candidate is a security-only PR based on main
+`0dcf022182ff5099fcfa571896709112aa0b6cfc`, following the accepted code-only
+#841 merge. Its failed main audit40108930896 is preserved; CodeQL40108930919's
+three language analyses succeeded. No merge is reverted or repeated. Production
+remains accepted6f7d292e/run39861554373, Hetzner-only, with review loginfalse and
+protected runtime/TLS/CA/immutable compatible API/Web rollback preserved. The old
+6fb1ceb6/Draft#841/pending-sync headings below are historical, not current authority.
+
+### Dependency correction and compatibility
+
+| Advisory | Old resolution | Candidate resolution / smallest correction |
+| --- | --- | --- |
+| [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | zod3.25.76 | zod4.6.7; published fixed4.x, no vulnerable v3 imports |
+| [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828) | body-parser2.3.0 | existing2.x override updated to exact2.4.0 |
+| [GHSA-q7qp-rjg7-q26m](https://github.com/advisories/GHSA-q7qp-rjg7-q26m) | multer2.4.0 | existing override to exact2.5.0; API direct minimum^2.5.0 |
+
+Actual installed paths verify sharedZod4.6.7, direct/Nest multer2.5.0 and
+Express→body-parser2.4.0. Nestplatform11.1.14/Express5.2.1 stay unchanged; newer
+Nest11 does not itself solve the pinned multer issue. Only required body-parser
+children change (content-type2.1.0, iconv-lite0.7.3, qs6.16.1; raw-body's compatible
+iconv resolution follows). All other direct/framework/security pins are preserved.
+Two existing audit exceptions are unchanged; no ignore, suppression or bypass.
+
+The owner explicitly approved v4 internal issue-code/metadata differences and
+safe-integer behavior, while requiring external application contracts preserved:
+
+- All53 schema exports remain. Five enum error customizations retain exact French
+  text. Historical GUID-shaped identifiers use supported `z.guid`, not stricter
+  RFC-only UUID validation. Email uses the prior acceptance pattern and auth still
+  trims/lowercases as before.
+- Banner creation retains DRAFT/0 defaults; PATCH derives from non-defaulted fields
+  and `{}` stays `{}`. A private native-URL refinement validates like the prior
+  schema while returning the original string verbatim (v4 would otherwise trim).
+- Numeric `.int()` fields reject unsafe values; legitimate32-bit stock and safe
+  boundaries pass. Prices remain arbitrary-precision digit strings, not coerced
+  Numbers. API DTOs, database/BigInt/business rules and class-validator are untouched.
+- No API/Web caller of these exported Zod schemas was found. No external error
+  adapter was needed; the existing application HTTP filter/envelopes are unchanged.
+  This is not a general claim that every unbounded collection is resource-capped.
+
+### Focused validation and actual parser behavior
+
+Verified official Node20.20.2/checksum and pnpm9.15.9; private environment/Production
+credentials excluded, build API URL points only to a closed loopback port.
+Frozen installation, generated local Prisma types (no connection/SQL), shared/API
+and Buyer/Seller/Admin production-mode builds, and final workspace type checks PASS.
+The Node20 baseline uses actual committed shared source, not a mock schema:
+53 exports, French enums, empty PATCH, GUID acceptance, legitimate stock and monetary
+strings are preserved; unsafe integer acceptance changes true→false as authorized.
+
+Existing API unit regressions pass, followed by49 final shared-contract tests.
+The unchanged25 endpoint suites pass, followed by the final23-case multipart/parser
+spec, including auth, size/index/type protections, raw JSON/compression and an
+interrupted asynchronous multer filter on a disposable loopback fixture. Web
+Buyer278/Seller53/Admin105 tests pass; an initial local build-only base-path setting
+was removed for Admin's affected test file. No application fix was made for it.
+Fresh CI will independently run the complete final-head suites and non-publishing
+Docker validations. No previously accepted infrastructure qualification is repeated.
+
+Independent old body-parser2.3.0 vs patched2.4.0 probes with the same Nest/filter
+confirm identical external responses. Malformed JSON remains400; valid compressed
+JSON reaches the route; some raw overflow/decoder/unsupported-encoding failures
+already become generic French500 because the existing filter does not map those
+plain errors. New tests send literal bytes and pin exact legacy envelopes, with
+process survival and no leaked parser/stack details. All pre-existing multipart
+French400/413/auth assertions remain. The generic500 mapping is a separate existing
+remediation item, not a new dependency regression, fixed issue or new risk acceptance.
+
+Exact enforced `pnpm audit --prod --audit-level=high`: PASS,0 unignored critical/high.
+Remaining report:3 low,8 moderate,2 ignored highs. The two exceptions remain
+GHSA-38f7-945m-qr2g/GHSA-ggr8-5vv4-36mx. Six Sentry/OpenTelemetry findings retain
+2026-11-17 review; two fast-uri moderates and three low findings remain reported,
+not silently fixed, suppressed or accepted. Structured all-severity audit exits1
+for these residuals; it is distinct from the successful enforced high+ gate.
+Existing Buyer Web CodeQL source warning and Sentry PARTIAL/ATTENTION remain.
+
+### Publication and operational boundary
+
+Scope: three required manifests, lockfile, nine shared validator files, two focused
+regression files and these three continuity documents. No workflow, schema, SQL,
+production file, credential, environment or service change. Official Claude Code
+Opus5.5 Max supplied implementation; Codex independently reviewed and tested it.
+Fresh final-head CI/PR validation plus genuine CodeQL app57789 SUCCESS are required;
+read actual PR checks rather than inferring acceptance from local results.
+
+Keep the security PR unmerged/no auto-merge. Deploy265250843 stays disabled_manually;
+no workflow enable/dispatch, image publication, SQL/seed/backfill/mobile release,
+Production contact, branch synchronization or infrastructure retest. Historical
+run39749631613 remains FAILED; host continuation/immutable failure evidence stay
+preserved. No stale Alwaysdata rollback. After separate code-only merge approval,
+a later separate API-first/Web deployment still needs compatible cohort rollback,
+review flagfalse, immutable artifact checks and Nginx static-upstream/origin readiness.
+
+Local evidence: `/private/tmp/teka-zod4-remediation-20261024/` (baseline/after/final
+contracts, installed-resolutions, parser before/after, validation logs and audit
+JSON). Only selectively added current handoff sections supersede older headings;
+unique #840/history and unrelated dirty primary-checkout work are preserved.
+
 ## Current synchronization proposal — 2026-10-22
 
 Accepted main `e73b0599435045f4e4fc34e93982872dedf493b9` includes the durable

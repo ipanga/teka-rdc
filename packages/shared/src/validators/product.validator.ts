@@ -6,7 +6,7 @@ const translatableTextSchema = z.string().min(1, 'Le texte en français est requ
 export const createCategorySchema = z.object({
   name: translatableTextSchema,
   description: translatableTextSchema.optional(),
-  parentCategoryId: z.string().uuid().optional().nullable(),
+  parentCategoryId: z.guid().optional().nullable(),
   emoji: z.string().max(4).optional(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
@@ -17,14 +17,14 @@ export const updateCategorySchema = createCategorySchema.partial();
 export const createProductSchema = z.object({
   title: translatableTextSchema,
   description: translatableTextSchema,
-  categoryId: z.string().uuid('Catégorie invalide'),
-  cityId: z.string().uuid().optional().nullable(),
+  categoryId: z.guid('Catégorie invalide'),
+  cityId: z.guid().optional().nullable(),
   priceCDF: z.string().regex(/^\d+$/, 'Le prix CDF doit être un nombre entier positif'),
   priceUSD: z.string().regex(/^\d+$/).optional().nullable(),
   quantity: z.number().int().min(0, 'La quantité ne peut pas être négative'),
   condition: z.enum(['NEW', 'USED']),
   specifications: z.array(z.object({
-    attributeId: z.string().uuid(),
+    attributeId: z.guid(),
     value: z.string().min(1),
   })).optional(),
 });
@@ -32,14 +32,14 @@ export const createProductSchema = z.object({
 export const updateProductSchema = createProductSchema.partial();
 
 export const browseProductsSchema = z.object({
-  categoryId: z.string().uuid().optional(),
-  cityId: z.string().uuid().optional(),
+  categoryId: z.guid().optional(),
+  cityId: z.guid().optional(),
   minPrice: z.string().regex(/^\d+$/).optional(),
   maxPrice: z.string().regex(/^\d+$/).optional(),
   condition: z.enum(['NEW', 'USED']).optional(),
   search: z.string().max(200).optional(),
   sortBy: z.enum(['popularity', 'price_low', 'price_high', 'newest']).optional(),
-  cursor: z.string().uuid().optional(),
+  cursor: z.guid().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 

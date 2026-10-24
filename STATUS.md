@@ -1,4 +1,42 @@
-# Status — 2026-10-22
+# Status — 2026-10-24
+
+## Current security remediation — local validation PASS, PR review required (2026-10-24)
+
+Main is `0dcf022182ff5099fcfa571896709112aa0b6cfc`: #841 was merged code-only;
+its original main CI40108930896 remains failed at Dependency Audit, not relabelled.
+Production still serves accepted `6f7d292e6bce55d497b88a55a4aafabc84920b43`
+(run39861554373 SUCCESS). Review-login disablement and the separately authorized
+Nginx recovery are accepted; APP_REVIEW_LOGIN_ENABLED=false must be preserved.
+Infrastructure migration, backup/PITR and durable TLS acceptance stay CLOSED/PASS.
+All older Draft/Production6fb1ceb6/pending-sync instructions below are historical.
+
+Owner authorized the bounded Zod4 compatibility decisions and ONE security PR
+from main. Candidate `codex/zod4-parser-security` resolves Zod4.6.7,
+body-parser2.4.0 and multer2.5.0. Nest/Express/framework/security pins and two audit
+exceptions are unchanged. Preserve53 schema exports, French messages, GUID/email
+acceptance, empty PATCH/create defaults and original URL strings; numeric fields
+adopt safe integers, while monetary strings/BigInt/API DTOs are unchanged.
+
+Node20.20.2: frozen install, shared/API builds, all3 Web builds and workspace types
+PASS. API unit regressions pass; final49 shared-contract and23 multipart/parser
+cases pass. Web Buyer278/Seller53/Admin105 pass (Admin's affected file rechecked
+without an accidental build-only environment setting). Production audit PASS:
+0 unignored critical/high;3 low,8 moderate,2 existing ignored highs remain.
+Six Sentry/OpenTelemetry moderates retain review2026-11-17; fast-uri findings
+and inherited CodeQL source warning are not suppressed or newly accepted.
+
+Parser comparisons on old2.3.0/new2.4.0 confirm unchanged external envelopes.
+Some raw parser failures already become generic French500; that pre-existing
+error-mapping gap is recorded for separate remediation, not fixed or newly accepted.
+No application error-filter, auth, SQL, schema, workflow or runtime change.
+
+Fresh exact-head CI/PR validation and genuine app57789 CodeQL are mandatory before
+merge approval; see the candidate PR checks. No merge, deployment or operational
+hold release is authorized here. Deploy265250843 remains disabled_manually.
+Production was not contacted; TLS/CA/runtime/rollback/#840/unrelated work preserved.
+Future feature rollout remains API-first, with compatible API/Web rollback and
+Nginx static-upstream/origin readiness verification. No mobile distribution.
+[Changes, validation and residuals](docs/deployment.md#bounded-zod4-and-request-parser-security-remediation-2026-10-24).
 
 ## Current handoff — main → develop synchronization PR prepared (2026-10-22)
 

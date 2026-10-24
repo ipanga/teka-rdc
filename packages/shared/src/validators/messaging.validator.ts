@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const sendMessageSchema = z.object({
-  conversationId: z.string().uuid().optional(),
-  sellerId: z.string().uuid().optional(),
+  conversationId: z.guid().optional(),
+  sellerId: z.guid().optional(),
   content: z.string().min(1, { message: 'Le message ne peut pas être vide' }).max(2000, { message: 'Le message est trop long (max 2000 caractères)' }),
 }).refine(
   data => data.conversationId || data.sellerId,
@@ -15,6 +15,6 @@ export const conversationQuerySchema = z.object({
 });
 
 export const messagesQuerySchema = z.object({
-  before: z.string().uuid().optional(),
+  before: z.guid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
 });
