@@ -113,6 +113,31 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+
+            // Native debug symbols for Google Play.
+            //
+            // Pinned deliberately, and NOT as a fix for Play's "no debug
+            // symbols" warning — measured, that warning has a different cause
+            // (see docs/mobile-release.md § Native debug symbols).
+            //
+            // What this level actually produces, measured on a clean build:
+            //   SYMBOL_TABLE -> BUNDLE-METADATA/.../<lib>.so.sym, AAB ~66 MB
+            //   FULL         -> BUNDLE-METADATA/.../<lib>.so.dbg, AAB ~147 MB
+            // Both cover the SAME libraries. FULL adds DWARF line tables for a
+            // 2.2x upload and buys nothing we use, so SYMBOL_TABLE it is —
+            // function names are what turn a native frame into a readable one.
+            //
+            // SYMBOL_TABLE is already AGP 8.11's effective behaviour here, so
+            // setting it changes no artifact today. It is written down so a
+            // future AGP upgrade cannot silently drop symbols: the CI guard in
+            // release-mobile-aab.yml fails the release if they disappear.
+            //
+            // This is NOT the R8 `mapping.txt` the release workflow uploads.
+            // That de-obfuscates Java/Kotlin and says nothing about .so frames.
+            // Play needs both, and the pipeline ships both.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 }
