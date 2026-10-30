@@ -163,10 +163,12 @@ SHA-256 in `assetlinks.json`; iOS requires the Associated Domains capability on 
 
 `AppPromoBanner` (`apps/buyer-web/src/components/layout/app-promo-banner.tsx`, rules in `src/lib/app-promo.ts`)
 suggests the app to **signed-in BUYERs on phones only** (UA names an iPhone — not iPod — or an Android phone **and**
-the primary pointer is coarse **and** the screen's short side is < 600 px). Guests, sellers and admins never see it;
-iPad/iPadOS, Android tablets and desktops are excluded by that heuristic, which spoofed UAs, "desktop site" modes,
-foldables or unusual screens can still defeat (accepted limitation). It is in-flow just above the footer (mounted by
-`<Footer>`), renders nothing on the server, and
+the primary pointer is coarse **and** the short side is < 600 px, by `window.screen` or, because privacy browsers can
+misreport the screen, by the viewport when the UA names a phone). « Desktop site » mode (Mac/Linux UA + touch + phone
+screen) still resolves to the phone's store. Guests, sellers and admins never see it; iPad/iPadOS, Android tablets and
+desktops are excluded by that heuristic, which spoofed UAs, foldables or unusual screens can still defeat (accepted
+limitation). It is `fixed` to the viewport bottom (mounted in the root layout) and publishes `--app-promo-height`, which
+`body` and the product page's sticky bar use to make room. It renders nothing on the server and
 is suppressed on `/connexion`, `/reclamer-compte`, `/panier`, `/paiement` (incl. success / payment-pending).
 Close or store tap → hidden 30 days (`localStorage` `teka_app_promo_dismissed_at`; in-memory for the visit when
 storage is blocked). Links: the verified App Store / Google Play listings. No analytics.

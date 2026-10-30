@@ -3,7 +3,7 @@
  * hydration, the homepage fell into its error boundary — HomePage's mount
  * effect calls useCityStore.initFromStorage(), which read localStorage
  * unguarded. This renders the real HomePage client-side (effects run: header,
- * footer + app-promo banner included) with storage throwing on access.
+ * footer included) with storage throwing on access.
  */
 import { Component, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

@@ -18,6 +18,13 @@ const UA = {
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1',
   androidChrome:
     'Mozilla/5.0 (Linux; Android 14; SM-A146P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36',
+  // Brave ships Chrome's UA on Android and a Safari-shaped one on iOS.
+  iphoneBrave:
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Brave/1.70',
+  androidReducedChrome:
+    'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36',
+  androidDesktopSite:
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
   androidTablet:
     'Mozilla/5.0 (Linux; Android 13; SM-X200) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
   ipadLegacy:
@@ -39,7 +46,11 @@ describe('detectPromoPlatform', () => {
   it.each([
     ['iPhone Safari', UA.iphoneSafari, 'ios'],
     ['iPhone Chrome (CriOS) — still the App Store, not « desktop Safari »', UA.iphoneChrome, 'ios'],
+    ['iPhone Brave', UA.iphoneBrave, 'ios'],
     ['Android Chrome phone', UA.androidChrome, 'android'],
+    ['Android Chrome/Brave reduced UA (no device model)', UA.androidReducedChrome, 'android'],
+    ['iPhone in « desktop site » mode', UA.macSafari, 'ios'],
+    ['Android phone in « desktop site » mode', UA.androidDesktopSite, 'android'],
   ])('%s → %s', (_l, ua, expected) => {
     expect(detectPromoPlatform(phone(ua))).toBe(expected);
   });
@@ -47,6 +58,20 @@ describe('detectPromoPlatform', () => {
   it.each([320, 360, 390, 430, 599])('phones from 320 px up (short side %i)', (shortSide) => {
     expect(detectPromoPlatform(phone(UA.androidChrome, shortSide))).toBe('android');
     expect(detectPromoPlatform(phone(UA.iphoneSafari, shortSide))).toBe('ios');
+  });
+
+  it('a privacy browser reporting a desktop screen still counts when the UA names a phone', () => {
+    const farbled = { shortSide: 1050, viewportShortSide: 412 };
+    expect(detectPromoPlatform({ ...phone(UA.androidReducedChrome), ...farbled })).toBe('android');
+    expect(detectPromoPlatform({ ...phone(UA.iphoneBrave), ...farbled })).toBe('ios');
+    expect(detectPromoPlatform({ ...phone(UA.androidChrome), shortSide: 1050, viewportShortSide: 800 })).toBeNull();
+  });
+
+  it('a phone-narrow viewport alone never turns a tablet or desktop into a phone', () => {
+    const narrow = { shortSide: 820, viewportShortSide: 320 };
+    expect(detectPromoPlatform({ userAgent: UA.macSafari, maxTouchPoints: 5, coarsePointer: true, ...narrow })).toBeNull(); // iPad Slide Over
+    expect(detectPromoPlatform({ ...phone(UA.androidTablet), ...narrow })).toBeNull();
+    expect(detectPromoPlatform({ ...phone(UA.ipadLegacy), ...narrow })).toBeNull();
   });
 
   it('iPod touch is not a phone → no prompt, even with a phone-sized touch screen', () => {
@@ -70,6 +95,7 @@ describe('detectPromoPlatform', () => {
   it('desktops, touch laptops and fine pointers → no prompt', () => {
     expect(detectPromoPlatform({ userAgent: UA.macSafari, maxTouchPoints: 0, coarsePointer: false, shortSide: 900 })).toBeNull();
     expect(detectPromoPlatform({ userAgent: UA.windowsChrome, maxTouchPoints: 10, coarsePointer: true, shortSide: 1080 })).toBeNull();
+    expect(detectPromoPlatform({ userAgent: UA.androidDesktopSite, maxTouchPoints: 10, coarsePointer: true, shortSide: 768 })).toBeNull();
     // A phone UA alone (spoofed / devtools) is not enough without a coarse pointer.
     expect(detectPromoPlatform({ ...phone(UA.iphoneSafari), coarsePointer: false })).toBeNull();
     expect(detectPromoPlatform({ ...phone(UA.iphoneSafari), shortSide: 0 })).toBeNull();
