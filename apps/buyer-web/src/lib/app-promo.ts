@@ -8,9 +8,14 @@
  * Phone detection is a heuristic, so three signals must agree: the UA names
  * an iPhone or an Android phone, the primary pointer is coarse, and the
  * device's SHORT side is phone-sized (< 600 CSS px, landscape included —
- * common tablets are larger). It is NOT proof: spoofed UAs, "desktop site"
- * modes, foldables and unusual screens can still be misclassified; those are
- * accepted limitations, and the API never depends on it.
+ * common tablets are larger). `window.screen` alone is not trusted for that
+ * last one: Brave's fingerprinting protection was seen reporting 1680×1050 on
+ * a 412 px wide viewport, so when the UA already names a phone a phone-sized
+ * viewport counts too. « Desktop site » mode swaps the UA for a Mac or
+ * Linux one but keeps the touch and screen signals, so it still resolves to
+ * the phone's own store. It is NOT proof: spoofed UAs, foldables and unusual
+ * screens can still be misclassified; those are accepted limitations, and the
+ * API never depends on it.
  *
  * Why not Apple's Smart App Banner: adding the `apple-itunes-app` meta to the
  * existing root metadata would show it unconditionally — to guests, on iPad,
@@ -24,8 +29,8 @@
  * to open the app.
  */
 
-/** Store listings verified (HTTP 200, publisher TOOTIYE) on 2026-10-17. */
-export const APP_STORE_URL = 'https://apps.apple.com/sa/app/teka/id6787126945';
+/** Store listings verified (HTTP 200) on 2026-10-30. */
+export const APP_STORE_URL = 'https://apps.apple.com/us/app/teka/id6787126945';
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.tootiye.teka';
 
 export type PromoPlatform = 'ios' | 'android';
@@ -38,24 +43,31 @@ export interface DeviceEnv {
   coarsePointer: boolean;
   /** min(screen.width, screen.height) in CSS px. */
   shortSide: number;
+  /** min(innerWidth, innerHeight) in CSS px. */
+  viewportShortSide?: number;
 }
 
 const PHONE_MAX_SHORT_SIDE = 600;
+const isPhoneSized = (side: number) => side > 0 && side < PHONE_MAX_SHORT_SIDE;
 
 export function detectPromoPlatform(env: DeviceEnv): PromoPlatform | null {
   const ua = env.userAgent;
-  if (!env.coarsePointer || !(env.shortSide > 0 && env.shortSide < PHONE_MAX_SHORT_SIDE)) {
-    return null;
-  }
-  // iPad (old UA) and iPadOS 13+ (Mac UA + touch) are tablets → no prompt.
-  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && env.maxTouchPoints > 1)) return null;
+  if (!env.coarsePointer) return null;
+  const screenPhoneSized = isPhoneSized(env.shortSide);
+  const phoneSized = screenPhoneSized || isPhoneSized(env.viewportShortSide ?? 0);
+  // Old-UA iPads and iPod touch are not phones → no prompt.
+  if (/iPad|iPod/.test(ua)) return null;
   // Phones only: every iPhone browser (Safari, Chrome « CriOS », Firefox
-  // « FxiOS », Edge) installs from the same App Store. iPod touch is not a
-  // phone and is excluded.
-  if (/iPod/.test(ua)) return null;
-  if (/iPhone/.test(ua)) return 'ios';
+  // « FxiOS », Edge, Brave) installs from the same App Store.
+  if (/iPhone/.test(ua)) return phoneSized ? 'ios' : null;
   // Android phones carry « Mobile »; Android tablets do not.
-  if (/Android/.test(ua) && /Mobile/.test(ua)) return 'android';
+  if (/Android/.test(ua) && /Mobile/.test(ua)) return phoneSized ? 'android' : null;
+  // « Desktop site » mode: the UA names no phone, so only the screen decides.
+  // A viewport would not do: an iPad sends the same Mac UA and Slide Over is
+  // phone-narrow. Chrome and Brave on Android send X11/Linux.
+  if (!screenPhoneSized || env.maxTouchPoints <= 1) return null;
+  if (/Macintosh/.test(ua)) return 'ios';
+  if (/X11; Linux/.test(ua)) return 'android';
   return null;
 }
 
@@ -122,6 +134,12 @@ export function dismissPromo(now: number = Date.now(), store: StorageLike | null
   }
 }
 
+/**
+ * CSS variable holding the banner's rendered height while it shows (absent
+ * otherwise). `body` and the product page's sticky bar reserve that space.
+ */
+export const PROMO_HEIGHT_VAR = '--app-promo-height';
+
 /** Reads the live device signals; null outside a browser. */
 export function readDeviceEnv(): DeviceEnv | null {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return null;
@@ -138,5 +156,6 @@ export function readDeviceEnv(): DeviceEnv | null {
     maxTouchPoints: navigator.maxTouchPoints ?? 0,
     coarsePointer,
     shortSide: Math.min(w || 0, h || 0),
+    viewportShortSide: Math.min(window.innerWidth || 0, window.innerHeight || 0),
   };
 }

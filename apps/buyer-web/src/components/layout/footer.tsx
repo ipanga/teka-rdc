@@ -8,7 +8,7 @@ import {
 } from '@/lib/static-pages';
 import { useCityStore, type City } from '@/lib/city-store';
 import { cityHref } from '@/lib/urls';
-import { AppPromoBanner } from './app-promo-banner';
+import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/app-promo';
 
 // Social profiles — same handle ("tekardc") across every network.
 const SOCIALS: Array<{ label: string; href: string; path: string }> = [
@@ -36,6 +36,24 @@ const SOCIALS: Array<{ label: string; href: string; path: string }> = [
     label: 'YouTube',
     href: 'https://youtube.com/@tekardc',
     path: 'M23 12s0-3.2-.41-4.74a2.5 2.5 0 00-1.76-1.77C19.29 5.08 12 5.08 12 5.08s-7.29 0-8.83.41a2.5 2.5 0 00-1.76 1.77C1 8.8 1 12 1 12s0 3.2.41 4.74a2.5 2.5 0 001.76 1.77c1.54.41 8.83.41 8.83.41s7.29 0 8.83-.41a2.5 2.5 0 001.76-1.77C23 15.2 23 12 23 12zm-13.4 3.27V8.73L15.18 12 9.6 15.27z',
+  },
+];
+
+// Store badges, in display order. Same two listings as the phone app prompt.
+const STORE_BADGES: Array<{ name: string; href: string; caption: string; ariaLabel: string; path: string }> = [
+  {
+    name: 'App Store',
+    href: APP_STORE_URL,
+    caption: 'Télécharger dans',
+    ariaLabel: 'Télécharger Teka RDC dans l’App Store',
+    path: 'M17.05 12.54c-.03-2.6 2.13-3.86 2.22-3.92-1.21-1.77-3.1-2.01-3.77-2.04-1.6-.16-3.13.95-3.94.95-.82 0-2.07-.93-3.4-.9-1.75.03-3.36 1.02-4.26 2.58-1.82 3.15-.46 7.82 1.3 10.38.87 1.25 1.9 2.65 3.25 2.6 1.3-.05 1.8-.84 3.38-.84 1.57 0 2.02.84 3.4.81 1.41-.02 2.3-1.27 3.15-2.53 1-1.45 1.4-2.86 1.43-2.93-.03-.01-2.73-1.05-2.76-4.16zM14.47 4.9c.72-.87 1.2-2.08 1.07-3.29-1.03.04-2.29.69-3.03 1.56-.66.77-1.24 2-1.09 3.18 1.16.09 2.33-.59 3.05-1.45z',
+  },
+  {
+    name: 'Google Play',
+    href: PLAY_STORE_URL,
+    caption: 'Disponible sur',
+    ariaLabel: 'Télécharger Teka RDC sur Google Play',
+    path: 'M3.6 2.3a1 1 0 00-.6.92v17.56a1 1 0 00.6.92l9.4-9.7L3.6 2.3zm10.8 7.9l2.55-2.63-9.9-5.6 7.35 8.23zm0 3.6l-7.35 8.23 9.9-5.6-2.55-2.63zm1.4-1.45l2.94-3.03 2.26 1.28a1 1 0 010 1.74l-2.26 1.28-2.94-3.27z',
   },
 ];
 
@@ -77,10 +95,6 @@ export function Footer({ initialCities }: FooterProps = {}) {
   const townLinks = source.filter((c) => c.isActive && c.slug);
 
   return (
-    <>
-    {/* Signed-in buyer phone app suggestion (M1): in-flow above the footer,
-        renders nothing for everyone else and on the server. */}
-    <AppPromoBanner />
     <footer className="bg-[#111827] text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {townLinks.length > 0 && (
@@ -123,7 +137,7 @@ export function Footer({ initialCities }: FooterProps = {}) {
             ))}
           </nav>
         </div>
-        {/* Social profiles + Android app download */}
+        {/* Social profiles + app downloads */}
         <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {SOCIALS.map((s) => (
@@ -141,26 +155,31 @@ export function Footer({ initialCities }: FooterProps = {}) {
               </a>
             ))}
           </div>
-          <a
-            href="https://play.google.com/store/apps/details?id=com.tootiye.teka"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 rounded-lg border border-white/20 px-4 py-2 transition-colors hover:border-white/50 hover:bg-white/5"
-          >
-            <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M3.6 2.3a1 1 0 00-.6.92v17.56a1 1 0 00.6.92l9.4-9.7L3.6 2.3zm10.8 7.9l2.55-2.63-9.9-5.6 7.35 8.23zm0 3.6l-7.35 8.23 9.9-5.6-2.55-2.63zm1.4-1.45l2.94-3.03 2.26 1.28a1 1 0 010 1.74l-2.26 1.28-2.94-3.27z" />
-            </svg>
-            <span className="flex flex-col items-start leading-tight">
-              <span className="text-[10px] text-white/60">{"Disponible sur"}</span>
-              <span className="text-sm font-semibold text-white">{"Google Play"}</span>
-            </span>
-          </a>
+          <div className="flex flex-wrap justify-center gap-3">
+            {STORE_BADGES.map((badge) => (
+              <a
+                key={badge.name}
+                href={badge.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={badge.ariaLabel}
+                className="inline-flex items-center gap-2.5 rounded-lg border border-white/20 px-4 py-2 transition-colors hover:border-white/50 hover:bg-white/5"
+              >
+                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d={badge.path} />
+                </svg>
+                <span className="flex flex-col items-start leading-tight">
+                  <span className="text-[10px] text-white/60">{badge.caption}</span>
+                  <span className="text-sm font-semibold text-white">{badge.name}</span>
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
         <div className="mt-6 pt-4 border-t border-white/10 text-center text-sm text-white/50">
           {`© ${year} Teka RDC. Tous droits réservés.`}
         </div>
       </div>
     </footer>
-    </>
   );
 }

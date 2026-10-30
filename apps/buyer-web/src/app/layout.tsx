@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Suspense } from 'react';
 import { Clarity } from '@/components/analytics/clarity';
+import { AppPromoBanner } from '@/components/layout/app-promo-banner';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
@@ -95,6 +96,10 @@ export default async function RootLayout({
                 button opens it on EVERY page (not just the homepage). Renders
                 null until opened → no SSR/SEO footprint. */}
             <CitySelectorModal />
+            {/* Signed-in buyer phone app suggestion (M1): fixed to the viewport
+                bottom on every page. Renders nothing for everyone else and on
+                the server → no SSR/SEO footprint. */}
+            <AppPromoBanner />
             {/* Headless wishlist ↔ auth sync — keeps product-card heart state
                 working app-wide now that the header no longer renders the
                 wishlist badge. Renders null → no SSR/SEO footprint. */}

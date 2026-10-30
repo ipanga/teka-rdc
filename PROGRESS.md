@@ -1,5 +1,17 @@
 # Teka RDC — Development Progress
 
+## Buyer Web app prompt fixed; Buyer 1.0.1+12 and Seller 0.1.12+14 uploaded — 2026-10-30
+
+PR #855 (`fix/buyer-web-app-promo`, into `develop`, not merged, not deployed). The prompt was in-flow above the
+footer on every browser, so it now sits fixed to the viewport bottom, mounted in the root layout, and publishes
+`--app-promo-height` so `body` and the product sticky bar make room. Detection no longer trusts `window.screen`
+alone: Brave reported 1680×1050 on a 412 px viewport under emulation, so a phone-sized viewport counts when the UA
+names a phone. Footer has App Store and Google Play badges. Signed-in BUYER rule, excluded routes and 30-day
+dismissal unchanged. Buyer-web 290 tests; browser matrix 11/11; Safari on iOS Simulator and Chrome on Android
+emulator pass. No physical-device check yet. Buyer jumped from 0.1.8 to 1.0.1 because the public App Store listing
+is 1.0. TestFlight runs 41126369433 and Play internal 41126376745 both success; no App Review, no production
+rollout. PR Dependency Audit fails only because `develop` lacks the `main`-only #852/#853 patches.
+
 ## Main → develop synchronization prepared — 2026-10-22
 
 Verified baselines: main `e73b0599435045f4e4fc34e93982872dedf493b9`, develop

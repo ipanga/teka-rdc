@@ -559,8 +559,9 @@ export default function ProductDetailPage({
       {/* Mobile sticky CTA bar */}
       {!isOutOfStock && (
         <div
-          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-surface border-t border-border shadow-lg"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          className="md:hidden fixed inset-x-0 z-30 bg-surface border-t border-border shadow-lg"
+          // Stacks above the app banner when it shows; 0 otherwise.
+          style={{ bottom: 'var(--app-promo-height, 0px)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-center gap-3 p-3">
             <QuantityStepper

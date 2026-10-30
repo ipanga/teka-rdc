@@ -1,5 +1,13 @@
 # Status — 2026-10-22
 
+## Buyer Web app prompt — fix built, NOT deployed (2026-10-30)
+
+PR #855 is open into `develop`. Production still serves the old in-flow prompt until a separately authorized
+release; `deploy.yml` stays `disabled_manually` and it rolls all four services. Physical-device checks of the
+prompt need that deployment. #855's Dependency Audit needs `main`'s #852/#853 back-merged into `develop`.
+Mobile: Buyer 1.0.1+12 and Seller 0.1.12+14 are on TestFlight and Play internal; production promotion is manual.
+
+
 ## Current handoff — main → develop synchronization PR prepared (2026-10-22)
 
 **Synchronization proposal for review/CI only; no merge into develop or main.**

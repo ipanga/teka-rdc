@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { useAuthStore, type User } from '@/lib/auth-store';
-import { APP_STORE_URL, DISMISS_KEY, PLAY_STORE_URL, resetPromoMemory, type DeviceEnv } from '@/lib/app-promo';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { APP_STORE_URL, DISMISS_KEY, PLAY_STORE_URL, PROMO_HEIGHT_VAR, resetPromoMemory, type DeviceEnv } from '@/lib/app-promo';
 import { AppPromoBanner } from './app-promo-banner';
 
 let pathname = '/';
@@ -13,6 +15,10 @@ const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const IPHONE_CHROME =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1';
+const IPHONE_BRAVE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Brave/1.70';
+const ANDROID_BRAVE =
+  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36';
 const ANDROID_CHROME =
   'Mozilla/5.0 (Linux; Android 14; SM-A146P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36';
 const IPADOS =
@@ -51,9 +57,19 @@ describe('AppPromoBanner — who sees it', () => {
     expect(banner()).not.toHaveTextContent('Ouvrir dans l’application');
   });
 
-  it('iPhone Chrome also gets the App Store (same store for every iOS browser)', () => {
-    render(<AppPromoBanner deviceEnv={phone(IPHONE_CHROME)} />);
+  it.each([['Chrome', IPHONE_CHROME], ['Brave', IPHONE_BRAVE]])('iPhone %s also gets the App Store (same store for every iOS browser)', (_name, ua) => {
+    render(<AppPromoBanner deviceEnv={phone(ua)} />);
     expect(screen.getByRole('link')).toHaveAttribute('href', APP_STORE_URL);
+  });
+
+  it('Android Brave gets Google Play', () => {
+    render(<AppPromoBanner deviceEnv={phone(ANDROID_BRAVE)} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', PLAY_STORE_URL);
+  });
+
+  it('uses the exact owner-provided store listings', () => {
+    expect(APP_STORE_URL).toBe('https://apps.apple.com/us/app/teka/id6787126945');
+    expect(PLAY_STORE_URL).toBe('https://play.google.com/store/apps/details?id=com.tootiye.teka');
   });
 
   it.each([320, 430])('Android Chrome phone (%i px) gets Google Play', (side) => {
@@ -127,6 +143,28 @@ describe('AppPromoBanner — live signals and SSR', () => {
 });
 
 describe('AppPromoBanner — where', () => {
+  it('is pinned to the viewport and mounted in the root layout, not the page flow', () => {
+    render(<AppPromoBanner deviceEnv={phone(ANDROID_CHROME)} />);
+    expect(banner()).toHaveClass('fixed', 'bottom-0', 'inset-x-0');
+    const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8');
+    expect(layout).toContain('<AppPromoBanner />');
+    const footer = readFileSync(resolve(process.cwd(), 'src/components/layout/footer.tsx'), 'utf8');
+    expect(footer).not.toContain('AppPromoBanner');
+  });
+
+  it('reserves its height while visible and releases it on logout and on close', async () => {
+    const height = () => document.documentElement.style.getPropertyValue(PROMO_HEIGHT_VAR);
+    const u = userEvent.setup();
+    render(<AppPromoBanner deviceEnv={phone(ANDROID_CHROME)} />);
+    expect(height()).toMatch(/^[\d.]+px$/);
+    signIn(null);
+    expect(height()).toBe('');
+    signIn('BUYER');
+    expect(height()).toMatch(/^[\d.]+px$/);
+    await u.click(screen.getByRole('button', { name: /Masquer la suggestion/ }));
+    expect(height()).toBe('');
+  });
+
   it.each(['/connexion', '/reclamer-compte/confirmer', '/panier', '/paiement', '/paiement/success', '/paiement/payment-pending'])(
     'never on %s',
     (path) => {
